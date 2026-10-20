@@ -53,16 +53,16 @@ export function DateFilter({ onChange, showCustom = true, riderPeriods = false }
     ? ["today", "yesterday", "week", "prevweek", "month"]
     : ["today", "yesterday", "week", "month", "prevmonth"];
   return (
-    <div className="flex flex-col gap-2 w-full sm:w-auto" data-testid="date-filter">
-      <select data-testid="filter-preset-select" value={preset} onChange={(e) => setPreset(e.target.value)} className="field h-9 w-full sm:w-52 text-xs font-semibold">
+    <div className="flex flex-col gap-2 w-full sm:max-w-md" data-testid="date-filter">
+      <select data-testid="filter-preset-select" value={preset} onChange={(e) => setPreset(e.target.value)} className="field h-9 w-full text-xs font-semibold">
         {presets.filter((p) => p !== "custom").map((p) => <option key={p} value={p}>{t(p)}</option>)}
         <option value="custom">{t("custom")}</option>
       </select>
       {(showCustom || preset === "custom") && (
-        <div className="flex gap-1 items-center">
-          <input data-testid="filter-custom-start" type="date" className="field h-9 flex-1 text-xs px-2" value={custom.start} onChange={(e) => { setCustom({ ...custom, start: e.target.value }); setPreset("custom"); }} />
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-1 items-center w-full">
+          <input data-testid="filter-custom-start" type="date" className="field h-9 min-w-0 text-xs px-2" value={custom.start} onChange={(e) => { setCustom({ ...custom, start: e.target.value }); setPreset("custom"); }} />
           <span className="text-muted-foreground text-xs">→</span>
-          <input data-testid="filter-custom-end" type="date" className="field h-9 flex-1 text-xs px-2" value={custom.end} onChange={(e) => { setCustom({ ...custom, end: e.target.value }); setPreset("custom"); }} />
+          <input data-testid="filter-custom-end" type="date" className="field h-9 min-w-0 text-xs px-2" value={custom.end} onChange={(e) => { setCustom({ ...custom, end: e.target.value }); setPreset("custom"); }} />
         </div>
       )}
     </div>

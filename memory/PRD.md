@@ -130,4 +130,5 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Tombol Laporan Stok dan Pesan Barang pada halaman Inventaris kini berada dalam satu grup di sisi kiri, dengan urutan Laporan Stok lalu Pesan Barang.
 - Logo pada header mobile diperbesar sekitar 30%, dan tombol Pesan Barang di Inventaris kini memakai label PO.
 - Bar tab kategori tepat di bawah header telah diganti menjadi dropdown halaman agar daftar pilihan tetap ringkas di setiap ukuran layar.
+- Komponen filter periode global kini memakai lebar penuh yang sejajar dengan grid tanggal mulai dan tanggal akhir di bawahnya.
 - Remaining: Dashboard POS, tab Stock Awal/Sisa dengan filter penuh, Purchase Order + notifikasi, akun pembayaran Owner, serta perubahan keranjang POS sesuai referensi.
