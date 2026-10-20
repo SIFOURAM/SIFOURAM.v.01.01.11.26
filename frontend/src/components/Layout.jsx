@@ -61,15 +61,15 @@ const item = (to, key) => ({ to, key, icon: I[key] });
 
 export const NAV = {
   owner: {
-    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
+    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/pos", "pos"), item("/inventory", "inventory")],
     more: [item("/finance", "finance")],
   },
   admin: {
-    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
+    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/pos", "pos"), item("/inventory", "inventory")],
     more: [item("/settings", "settings")],
   },
   barteam: {
-    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
+    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/pos", "pos"), item("/inventory", "inventory")],
     more: [item("/settings", "settings")],
   },
   rider: {
@@ -206,7 +206,7 @@ export default function Layout() {
 
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="flex items-center justify-between px-4 lg:px-8 h-16 sticky top-0 bg-primary text-black z-40" data-testid="top-header">
-          <div className="flex items-center gap-2 lg:hidden"><img src="/assets/si-four-am-logo.png" alt="SI FOUR AM" className="w-10 h-10 object-contain" /><span className="font-heading font-bold">SI FOUR AM</span></div>
+          <div className="flex items-center gap-2 lg:hidden"><img src="/assets/si-four-am-logo.png" alt="SI FOUR AM" className="w-10 h-10 object-contain" /><div><span className="font-heading font-bold">SI FOUR AM</span><p data-testid="mobile-login-role" className="text-[0.6rem] font-semibold text-black/70 leading-none">{roleLabel}</p></div></div>
           <div className="hidden lg:block"><p className="eyebrow text-black/70">{roleLabel}</p></div>
           <div className="flex items-center gap-2">
             {user.role === "owner" && <NotifBell />}
