@@ -135,4 +135,5 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Dropdown jenis laporan dipisahkan ke baris paling atas; filter pembayaran, tipe order, periode, serta ekspor berada di baris bawahnya.
 - Urutan terbaru bottom navigation Owner, Admin, dan Bar Team menempatkan Inventory setelah Dashboard dan sebelum POS.
 - Bottom navigation kembali menampilkan label untuk seluruh kategori kecuali POS, yang dipertahankan sebagai tombol ikon orange tanpa teks.
+- Label Indonesia untuk Dasbor Utama diperbarui menjadi Dashboard pada navigasi bawah dan seluruh penggunaan terjemahan terkait.
 - Remaining: Dashboard POS, tab Stock Awal/Sisa dengan filter penuh, Purchase Order + notifikasi, akun pembayaran Owner, serta perubahan keranjang POS sesuai referensi.
