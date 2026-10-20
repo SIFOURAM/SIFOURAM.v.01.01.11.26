@@ -204,7 +204,9 @@ body.app-bold, body.app-bold p, body.app-bold span, body.app-bold a, body.app-bo
 }
 
 .category-dropdown-wrap {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
@@ -212,7 +214,8 @@ body.app-bold, body.app-bold p, body.app-bold span, body.app-bold a, body.app-bo
 }
 
 .category-dropdown {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: 2.25rem;
   border: 1px solid hsl(var(--border));
   border-radius: 0.5rem;
@@ -222,6 +225,13 @@ body.app-bold, body.app-bold p, body.app-bold span, body.app-bold a, body.app-bo
   font-size: 0.8125rem;
   font-weight: 700;
   outline: none;
+}
+
+.category-dropdown-label {
+  flex: 0 0 auto;
+  color: #FF6B00;
+  font-size: 0.75rem;
+  font-weight: 800;
 }
 
 .category-dropdown:focus {

@@ -116,8 +116,9 @@ function CategoryTabs({ category, t }) {
   return (
     <nav data-testid="category-tabs" className={`category-tab-bar ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
       <label className="category-dropdown-wrap">
-        <span className="sr-only">Pilih halaman {category.name}</span>
+        <span data-testid="category-current-label" className="category-dropdown-label">{category.name}</span>
         <select
+          key={category.name}
           data-testid="category-tabs-dropdown"
           value={currentPath}
           onChange={(event) => navigate(event.target.value)}

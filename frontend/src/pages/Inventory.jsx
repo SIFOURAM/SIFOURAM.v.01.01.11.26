@@ -17,6 +17,7 @@ export default function Inventory() {
   const [menus, setMenus] = useState([]);
   const [tx, setTx] = useState([]);
   const [tab, setTab] = useState("stock");
+  const [openRecipe, setOpenRecipe] = useState(null);
   const [form, setForm] = useState({ material_id: "", type: "in", qty: "", note: "", date: today(), item_name: "", supplier: "" });
   const [newMat, setNewMat] = useState(null);
   const [wf, setWf] = useState({ menu_id: "", qty: "", note: "", photo: "" });
@@ -107,10 +108,12 @@ export default function Inventory() {
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
           {menus.map((m) => (
             <Bento key={m.id} className="fade-up" testId={`recipe-card-${m.id}`}>
-              <div className="flex justify-between items-start mb-3"><div><p className="font-heading font-bold">{m.name}</p><p className="text-xs text-muted-foreground">Sell {fmtRp(m.price)}</p></div>
-                <div className="text-right"><p className="eyebrow">HPP</p><p className="num font-bold text-primary">{fmtRp(m.cost)}</p><p className="text-[10px] text-emerald-500 num">margin {fmtRp(m.margin)}</p></div></div>
-              <ul className="text-xs space-y-1">{m.recipe.map((r, i) => <li key={i} className="flex justify-between"><span>{r.name}</span><span className="num text-muted-foreground">{r.qty} {r.unit}</span></li>)}
-                <li className="flex justify-between text-muted-foreground pt-1 border-t border-border/50"><span>{m.recipe.length} {t("items")} incl. packaging</span></li></ul>
+              <button data-testid={`recipe-toggle-${m.id}`} onClick={() => setOpenRecipe(openRecipe === m.id ? null : m.id)} className="w-full text-left">
+                <div className="flex justify-between items-start"><div><p className="font-heading font-bold">{m.name}</p><p className="text-xs text-muted-foreground">Sell {fmtRp(m.price)}</p></div>
+                  <div className="text-right"><p className="eyebrow">HPP</p><p className="num font-bold text-primary">{fmtRp(m.cost)}</p><p className="text-[10px] text-emerald-500 num">margin {fmtRp(m.margin)}</p></div></div>
+              </button>
+              {openRecipe === m.id && <ul data-testid={`recipe-detail-${m.id}`} className="text-xs space-y-1 mt-3 pt-3 border-t border-border/50">{m.recipe.map((r, i) => <li key={i} className="flex justify-between"><span>{r.name}</span><span className="num text-muted-foreground">{r.qty} {r.unit}</span></li>)}
+                <li className="flex justify-between text-muted-foreground pt-1 border-t border-border/50"><span>{m.recipe.length} {t("items")} incl. packaging</span></li></ul>}
             </Bento>))}
         </div>
       )}
