@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 import { api, errMsg } from "../lib/api";
@@ -12,8 +12,12 @@ function RiderPickup({ user }) {
   const [stock, setStock] = useState(null);
   const [detail, setDetail] = useState(false);
   const [busy, setBusy] = useState(false);
-  const load = () => api.get("/rider-stock", { params: { rider_id: user.id, date: today() } }).then((r) => setStock(r.data)).catch(() => setStock(null));
-  useEffect(() => { load(); }, []);
+  const load = useCallback(() => {
+    return api.get("/rider-stock", { params: { rider_id: user.id, date: today() } })
+      .then((response) => setStock(response.data))
+      .catch(() => setStock(null));
+  }, [user.id]);
+  useEffect(() => { load(); }, [load]);
   const verify = async () => { setBusy(true); try { await api.post(`/rider-stock/${stock.id}/verify`); toast.success("Stock awal diverifikasi · POS siap digunakan"); setDetail(false); load(); } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); } };
   return <div data-testid="rider-pickup-page"><PageHeader eyebrow="Stock" title="Pengambilan" /><Bento gold><p className="eyebrow mb-2">Stock Awal Hari Ini</p>{stock ? <><p className="font-heading text-xl font-bold">Dari {stock.pic_name}</p><p className="text-sm text-muted-foreground">{fmtDate(stock.date)} · {stock.total} cup</p><button data-testid="pickup-detail-button" onClick={() => setDetail(true)} className="btn-primary mt-4">Lihat & Verifikasi</button></> : <Empty text="Belum ada stock awal untuk hari ini" />}</Bento>{detail && stock && <Dialog open onOpenChange={(open) => !open && setDetail(false)}><DialogContent data-testid="pickup-detail-dialog"><DialogHeader><DialogTitle>Verifikasi Stock Awal</DialogTitle></DialogHeader><p className="text-sm">Pemberi stock: <b>{stock.pic_name}</b></p><div className="space-y-2">{Object.entries(stock.items).map(([name, qty]) => <div key={name} className="flex justify-between text-sm"><span>{name}</span><b>{qty}</b></div>)}</div>{stock.photo && <img src={stock.photo} alt="Bukti stock awal" className="w-full rounded-lg max-h-52 object-cover" />}{stock.verified_at ? <p className="text-emerald-600 font-bold text-sm">✓ Sudah diverifikasi</p> : <button data-testid="pickup-verify-button" disabled={busy} onClick={verify} className="btn-primary w-full">Verifikasi & Isi Stock POS</button>}</DialogContent></Dialog>}</div>;
 }
@@ -41,7 +45,7 @@ export default function RiderStock() {
     if (!riderId) return;
     api.get("/rider-stock", { params: { rider_id: riderId, date } }).then((r) => { setItems(r.data?.items || {}); setPhoto(r.data?.photo || null); });
     api.get("/rider-stock/history", { params: { rider_id: riderId, start: "2000-01-01", end: "2100-01-01" } }).then((r) => setHistory(r.data));
-  }, [riderId, date]);
+  }, [riderId, date, user.role]);
 
   if (user.role === "rider") return <RiderPickup user={user} />;
 
