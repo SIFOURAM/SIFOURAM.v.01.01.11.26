@@ -179,7 +179,10 @@ function Distribution({ title, rows, testId }) {
 }
 
 function OperationsReport({ kind, setView }) {
-  const [range, setRange] = useState(null);
+  const [range, setRange] = useState(() => {
+    const date = new Date().toISOString().slice(0, 10);
+    return { start: date, end: date };
+  });
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const labels = {
@@ -241,7 +244,7 @@ function OperationsReport({ kind, setView }) {
             <button key={key} data-testid={`report-${key}-tab`} onClick={() => setView(key)} className={`report-switcher-tab ${key === kind ? "report-switcher-active" : ""}`}>{label}</button>
           ))}
         </div>
-        <DateFilter onChange={setRange} />
+        {kind !== "inventory" && <DateFilter onChange={setRange} />}
         {data && <div className="flex gap-1"><button data-testid="operations-excel" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button><button data-testid="operations-pdf" onClick={() => printPdf(true)} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button><button data-testid="operations-print" onClick={() => printPdf(false)} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button></div>}
       </PageHeader>
       {error && <p data-testid="operations-error" className="text-sm text-red-500 py-8">Gagal memuat laporan: {error}</p>}

@@ -63,9 +63,9 @@ export default function CoachChat() {
   return (
     <>
       <button data-testid="coach-open" onClick={() => setOpen(true)} aria-label="Tanya AI"
-        className="fixed right-4 bottom-24 lg:bottom-6 z-40 rounded-full p-[2px] bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#ffc53d)] shadow-xl hover:scale-105 active:scale-95 transition-transform">
+        className="fixed right-4 bottom-24 lg:bottom-6 z-40 rounded-full p-[2px] bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)] shadow-xl hover:scale-105 active:scale-95 transition-transform">
         <span className="flex items-center gap-2 rounded-full bg-background/95 backdrop-blur pl-1.5 pr-3 py-1.5">
-          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#ffc53d)]"><Sparkles className="w-4 h-4 text-white" /></span>
+          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)]"><Sparkles className="w-4 h-4 text-white" /></span>
           <span className="text-xs font-bold leading-tight text-left">Tanya AI<span className="block text-[9px] font-medium text-muted-foreground">Selalu siap membantu ✨</span></span>
         </span>
       </button>
@@ -75,7 +75,7 @@ export default function CoachChat() {
           <div onClick={(e) => e.stopPropagation()} data-testid="coach-panel"
             className="w-full sm:max-w-md h-[88vh] sm:h-[620px] flex flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl bg-card border border-border/60 shadow-2xl">
             <div className="flex items-center gap-3 p-4 border-b border-border/60 bg-gradient-to-r from-primary/10 to-transparent">
-              <div className="w-9 h-9 rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#ffc53d)] flex items-center justify-center shrink-0"><Sparkles className="w-4 h-4 text-white" /></div>
+              <div className="w-9 h-9 rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)] flex items-center justify-center shrink-0"><Sparkles className="w-4 h-4 text-white" /></div>
               <div className="flex-1 min-w-0"><p className="font-heading font-bold leading-tight">SI FOUR AM AI</p><p className="text-[11px] text-muted-foreground truncate">Tanya apa saja — dimaksimalkan untuk jualan ☕</p></div>
               <select data-testid="coach-provider" value={provider} onChange={(e) => setProv(e.target.value)} className="text-[11px] font-semibold rounded-full bg-muted px-2 py-1 border border-border shrink-0">
                 <option value="gpt">GPT</option><option value="claude">Claude</option><option value="gemini">Gemini</option>
@@ -95,13 +95,13 @@ export default function CoachChat() {
                 <div key={m.id || idx} ref={idx === msgs.length - 1 ? lastRef : null} className="space-y-2 chat-pop">
                   {m.message && <div data-testid="chat-user" className="ml-auto max-w-[82%] w-fit rounded-2xl rounded-br-sm bg-primary text-white px-3.5 py-2 shadow-sm whitespace-pre-wrap">{m.message}</div>}
                   <div className="flex items-end gap-2 max-w-[90%]">
-                    <div className="w-6 h-6 rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#ffc53d)] flex items-center justify-center shrink-0 mb-0.5"><Sparkles className="w-3 h-3 text-white" /></div>
+                    <div className="w-6 h-6 rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)] flex items-center justify-center shrink-0 mb-0.5"><Sparkles className="w-3 h-3 text-white" /></div>
                     <div data-testid="chat-ai" className="rounded-2xl rounded-bl-sm bg-card border border-border/60 px-3.5 py-2 whitespace-pre-wrap leading-relaxed shadow-sm">{m.reply}</div>
                   </div>
                 </div>))}
               {busy && (
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#ffc53d)] flex items-center justify-center"><Sparkles className="w-3 h-3 text-white" /></div>
+                  <div className="w-6 h-6 rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)] flex items-center justify-center"><Sparkles className="w-3 h-3 text-white" /></div>
                   <div className="rounded-2xl rounded-bl-sm bg-card border border-border/60 px-4 py-3 flex gap-1"><span className="chat-dot" /><span className="chat-dot" style={{ animationDelay: ".15s" }} /><span className="chat-dot" style={{ animationDelay: ".3s" }} /></div>
                 </div>)}
             </div>

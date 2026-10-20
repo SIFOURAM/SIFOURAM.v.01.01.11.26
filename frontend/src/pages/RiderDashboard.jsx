@@ -168,7 +168,7 @@ export default function RiderDashboard() {
       {sum && agg && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Bento gold className="col-span-2 lg:col-span-1 fade-up flex flex-col items-center text-center" testId="rider-profile-card">
-            <div className="w-20 h-20 rounded-full overflow-hidden bg-primary/15 text-black font-bold text-2xl flex items-center justify-center mb-3 gold">{rider?.photo ? <img src={rider.photo} alt="" className="w-full h-full object-cover" /> : rider ? initials(rider.name) : "ALL"}</div>
+            <div className="w-20 h-20 rounded-full border-2 border-black overflow-hidden bg-primary text-black font-bold text-2xl flex items-center justify-center mb-3">{rider?.photo ? <img src={rider.photo} alt="" className="w-full h-full object-cover" /> : rider ? initials(rider.name) : "ALL"}</div>
             <p className="font-heading font-bold text-lg">{rider?.name || t("allRiders")}</p>
             {rider && <><p className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><Calendar className="w-3 h-3" />{t("joined")} {rider.joined_at ? fmtDate(rider.joined_at) : "-"}</p>
               <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{rider.placement || "-"}</p></>}

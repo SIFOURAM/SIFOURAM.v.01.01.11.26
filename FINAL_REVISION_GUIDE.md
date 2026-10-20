@@ -33,6 +33,10 @@ dan PIN enam angka. Login aplikasi menggunakan identitas terdaftar lalu PIN, buk
 Rider dapat memilih motivasi umum atau Muslim di Pengaturan. Motivasi tampil saat status tugas
 aktif lalu paling cepat setiap tiga jam selama aplikasi terbuka.
 
+Dashboard Owner memiliki laporan Penjualan, Produk, Waste, Nilai Persediaan, Pembelian, dan Stok
+Opname. Semua ekspor Excel, PDF, dan cetak memakai data sesuai filter aktif; Nilai Persediaan adalah
+snapshot stok saat ini sehingga tidak menggunakan filter tanggal.
+
 ## Data yang direset
 
 Atas persetujuan Owner, percakapan AI, pengeluaran, handover, penarikan, transaksi stok,

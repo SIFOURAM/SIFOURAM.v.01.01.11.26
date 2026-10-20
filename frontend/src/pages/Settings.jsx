@@ -5,7 +5,7 @@ import { api } from "../lib/api";
 import { useT, LANGS } from "../lib/i18n";
 import { useAuth } from "../context/AuthContext";
 import { PageHeader, Bento } from "../components/common";
-import { NAV } from "../components/Layout";
+import { CATEGORIES } from "../components/Layout";
 import { FONTS, getAppearance, setAppearance } from "../lib/appearance";
 
 const Row = ({ icon: Icon, title, sub, children }) => (
@@ -25,7 +25,7 @@ export default function Settings() {
   useEffect(() => { if (user.role !== "rider") api.get("/config").then((r) => setGsUrl(r.data.apps_script_url || "")).catch(() => {}); }, [user.role]);
   const save = async (patch) => { const { data } = await api.put("/settings", patch); setUser({ ...user, settings: data }); toast.success("Settings saved"); };
   const upd = (patch) => { const n = { ...ap, ...patch }; setAp(n); setAppearance(n); };
-  const perms = [...NAV[user.role].main, ...NAV[user.role].more].map((i) => t(i.key));
+  const perms = (CATEGORIES[user.role] || []).flatMap((category) => category.tabs).map((item) => t(item.key));
 
   return (
     <div data-testid="settings-page">

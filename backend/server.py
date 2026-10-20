@@ -231,6 +231,7 @@ class UserCreateIn(BaseModel):
     password: Optional[str] = None
     active: bool = True
     photo: Optional[str] = None
+    banks: Optional[list] = None
 
 
 class ProfileIn(BaseModel):
@@ -670,6 +671,10 @@ async def create_user(body: UserCreateIn, u=Depends(SUPER)):
         raise HTTPException(400, "Role tidak valid")
     if len(body.pin) != 6 or not body.pin.isdigit():
         raise HTTPException(400, "PIN harus berisi 6 angka")
+    if body.photo and (not body.photo.startswith("data:image/") or len(body.photo) > 3_000_000):
+        raise HTTPException(400, "Foto harus berupa gambar inline maksimal 2 MB")
+    if body.banks and len(body.banks) > 3:
+        raise HTTPException(400, "Maksimal tiga rekening bank")
     if await db.users.find_one({"username": username}):
         raise HTTPException(409, "Username sudah digunakan")
     doc = {
@@ -683,7 +688,7 @@ async def create_user(body: UserCreateIn, u=Depends(SUPER)):
         "password_hash": hash_pw(body.password or uid()),
         "pin_hash": hash_pw(body.pin),
         "photo": body.photo,
-        "banks": [],
+        "banks": body.banks or [],
         "settings": {"theme": "dark", "language": "id", "notifications": True},
         "created_at": now_iso(),
     }
@@ -1354,9 +1359,13 @@ async def admin_update_user(uid: str, body: UserUpdateIn, u=Depends(SUPER)):
     if uid == u["id"] and (body.active is False or (body.role and body.role != "owner")):
         raise HTTPException(400, "Owner tidak dapat menonaktifkan atau menurunkan role akunnya sendiri")
     upd = {}
+    if body.photo and (not body.photo.startswith("data:image/") or len(body.photo) > 3_000_000):
+        raise HTTPException(400, "Foto harus berupa gambar inline maksimal 2 MB")
+    if body.banks and len(body.banks) > 3:
+        raise HTTPException(400, "Maksimal tiga rekening bank")
     for k in ("name", "username", "email", "whatsapp", "banks", "role", "active", "photo"):
         v = getattr(body, k)
-        if v is not None:
+        if v is not None or (k == "photo" and k in body.model_fields_set):
             if k == "role" and v not in VALID_ROLES:
                 raise HTTPException(400, "Role tidak valid")
             if k == "username":
@@ -1700,7 +1709,7 @@ async def operations_report(kind: str, start: str, end: str, u=Depends(SUPER)):
                 "count": len(output),
                 "positive_value": positive,
                 "negative_value": negative,
-                "accuracy": round(100 - (sum(abs(row["difference"]) for row in output) / sum(max(row.get("before", 0), 1) for row in output) * 100), 1) if output else None,
+                "accuracy": max(0, round(100 - (sum(abs(row["difference"]) for row in output) / sum(max(row.get("before", 0), 1) for row in output) * 100), 1)) if output else None,
             },
         }
     if kind == "inventory":

@@ -79,7 +79,7 @@ export const NAV = {
 };
 export const HOME = { owner: "/", admin: "/", barteam: "/", rider: "/pos" };
 
-const CATEGORIES = {
+export const CATEGORIES = {
   owner: [
     { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/reports", "reports"), item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
     { name: "Stock", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
@@ -172,7 +172,7 @@ export default function Layout() {
   const linkCls = (isActive) => `flex items-center gap-3 px-4 h-11 rounded-xl text-sm font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`;
 
   const Avatar = ({ size = "w-9 h-9" }) => (
-    <button data-testid="nav-profile-button" onClick={() => nav("/profile")} className={`${size} rounded-full border-2 border-black overflow-hidden bg-primary/15 text-black font-bold text-sm flex items-center justify-center accent-border shrink-0`}>
+    <button data-testid="nav-profile-button" onClick={() => nav("/profile")} className={`${size} rounded-full border-2 border-black overflow-hidden bg-primary text-black font-bold text-sm flex items-center justify-center shrink-0`}>
       {user.photo ? <img src={user.photo} alt="" className="w-full h-full object-cover" /> : initials(user.name)}
     </button>
   );
@@ -209,7 +209,7 @@ export default function Layout() {
           <div className="flex items-center gap-2">
             {user.role === "owner" && <NotifBell />}
             <ThemeBtn id="theme-toggle-button" />
-            <div className="text-right hidden sm:block"><p className="text-sm font-semibold leading-tight">{user.name}</p><p className="text-[0.7rem] text-muted-foreground">@{user.username}</p></div>
+            <div className="text-right hidden sm:block"><p className="text-sm font-semibold leading-tight">{user.name}</p><p className="text-[0.7rem] text-black/70">@{user.username}</p></div>
             <Avatar />
           </div>
         </header>

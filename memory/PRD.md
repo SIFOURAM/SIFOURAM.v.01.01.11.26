@@ -97,6 +97,14 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Rider menerima notifikasi motivasi setelah status tugas aktif dan setiap tiga jam saat aplikasi terbuka.
   Preferensi Umum/Muslim tersedia di Pengaturan; kutipan Muslim menggunakan referensi Al-Qur'an,
   sedangkan kutipan umum memakai sumber pidato Steve Jobs yang dapat ditelusuri.
+- Revisi navigasi terbaru: logo crest orange, seluruh aksen gold diganti orange, border avatar dan
+  inisial hitam, serta pilihan mode Web/Tablet/Mobile dihapus. Tab kategori sticky berada tepat di
+  bawah header, dapat digeser horizontal, dan memprioritaskan tiga tab awal pada mobile.
+- Laporan Owner diperluas dengan tab Waste, Nilai Persediaan, Pembelian, dan Stok Opname berbasis
+  koleksi transaksi sebenarnya, termasuk Excel/PDF/cetak dan empty state. Inventory tetap berupa
+  snapshot saat ini, sehingga filter tanggal sengaja tidak ditampilkan pada tab tersebut.
+- Info Pengguna kini mendukung foto akun inline dari galeri, maksimal 2 MB; foto dapat dihapus.
+  Pembuatan akun juga menyimpan maksimal tiga rekening bank.
 - Halaman Laporan Owner baru (`/reports`) memakai transaksi aktual untuk kartu ringkasan, grafik,
   tabel produk, filter pembayaran/tipe order, Excel, PDF A4, dan cetak PDF.
 - Supabase: `supabase/001_initial_schema.sql`, `.env.example`, dan `SUPABASE_SETUP.md` telah dibuat.
@@ -106,3 +114,5 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Iteration 9: 20/20 backend checks pass, browser login and reports passed, desktop/mobile overflow
   checks passed. Follow-up fixes applied for permission scope, CORS, print flow, mobile PIN sizing,
   reports loading/error state, and orphan GPS/attendance cleanup.
+- Iteration 11: 13/13 backend checks pass; kategori Desktop/Mobile, enam tab laporan, foto inline,
+  dan route hak akses Owner lulus. Semua temuan minor diperbaiki dan diverifikasi dengan build/API.

@@ -69,12 +69,12 @@ export function DateFilter({ onChange, showCustom = true, riderPeriods = false }
   );
 }
 
-export function PhotoCapture({ value, onChange, label, testId }) {
+export function PhotoCapture({ value, onChange, label, testId, capture = true }) {
   const ref = useRef();
   const { t } = useT();
   return (
     <div>
-      <input ref={ref} type="file" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) onChange(await compressImage(f)); }} />
+      <input ref={ref} type="file" accept="image/*" capture={capture ? "environment" : undefined} className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) onChange(await compressImage(f)); }} />
       <button type="button" data-testid={testId} onClick={() => ref.current.click()}
         className="w-full aspect-video rounded-2xl border-2 border-dashed border-border hover:border-primary/60 transition-colors flex items-center justify-center overflow-hidden bg-muted/40">
         {value ? <img src={value} alt="captured" className="w-full h-full object-cover" /> : <span className="flex items-center gap-2 text-sm text-muted-foreground"><Camera className="w-5 h-5" />{label || t("takePhoto")}</span>}
