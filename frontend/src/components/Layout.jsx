@@ -170,6 +170,7 @@ export default function Layout() {
   const { t } = useT();
   const nav = useNavigate();
   const loc = useLocation();
+  const [moreOpen, setMoreOpen] = useState(false);
   useRiderGps(user);
   const { main, more } = NAV[user.role] || { main: [], more: [] };
   const roleLabel = { owner: "Owner", admin: "Admin", barteam: "Bar Team", rider: "Rider" }[user.role];
@@ -179,6 +180,7 @@ export default function Layout() {
       ? category.match(loc)
       : category.tabs.some((tab) => tab.to === `${loc.pathname}${loc.search}`)
   )) || categories[0];
+  useEffect(() => setMoreOpen(false), [loc.pathname, loc.search]);
   const linkCls = (isActive) => `flex items-center gap-3 px-4 h-11 rounded-xl text-sm font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`;
 
   const Avatar = ({ size = "w-9 h-9" }) => (
@@ -234,12 +236,9 @@ export default function Layout() {
                 className={({ isActive }) => `flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${isActive ? "text-primary" : "text-muted-foreground"}`}>
                 <i.icon className={`w-[0.95rem] h-[0.95rem] ${i.key === "pos" ? "text-primary scale-125" : ""}`} />
               </NavLink>))}
-            {more.map((i) => (
-              <NavLink key={i.to} to={i.to} data-testid="bottomnav-more" className={() => `flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${activeCategory?.name === "Lainnya" ? "text-primary" : "text-muted-foreground"}`}>
-                <MoreHorizontal className="w-[0.95rem] h-[0.95rem]" />
-              </NavLink>
-            ))}
+            {more.length > 0 && <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${activeCategory?.name === "Lainnya" || moreOpen ? "text-primary" : "text-muted-foreground"}`}><MoreHorizontal className="w-[0.95rem] h-[0.95rem]" /></button>}
           </div>
+          {moreOpen && <div data-testid="more-menu" className="absolute bottom-full inset-x-2 mb-2 grid grid-cols-2 gap-1 p-2 rounded-xl border border-border bg-card shadow-2xl">{CATEGORIES[user.role].find((category) => category.name === "Lainnya")?.tabs.map((tab) => <NavLink key={tab.to} to={tab.to} data-testid={`more-${tab.key}`} className="flex items-center gap-2 h-10 px-3 rounded-lg text-sm font-semibold hover:bg-muted"><tab.icon className="w-4 h-4" />{t(tab.key)}</NavLink>)}</div>}
         </nav>
       </div>
     </div>

@@ -882,11 +882,15 @@ async def checkout(body: AttendanceIn, u=Depends(ANY)):
 # ---------- Rider stock ----------
 @api.get("/rider-stock")
 async def get_rider_stock(rider_id: str, date: str, u=Depends(ANY)):
+    if u["role"] == "rider" and rider_id != u["id"]:
+        raise HTTPException(403, "Rider hanya dapat melihat stock miliknya")
     return await db.rider_stock.find_one({"rider_id": rider_id, "date": date}, NOID)
 
 
 @api.get("/rider-stock/history")
 async def rider_stock_history(start: str, end: str, rider_id: Optional[str] = None, u=Depends(ANY)):
+    if u["role"] == "rider":
+        rider_id = u["id"]
     q = {"date": {"$gte": start, "$lte": end}}
     if rider_id:
         q["rider_id"] = rider_id
@@ -913,15 +917,30 @@ async def save_rider_stock(body: RiderStockIn, u=Depends(STAFF)):
     doc = {"id": prev["id"] if prev else uid(), "rider_id": rider["id"], "rider_name": rider["name"], "pic_id": u["id"], "pic_name": u["name"], "date": body.date,
            "time": now_wib(), "items": body.items, "detail": {menus[k]["name"]: v for k, v in body.items.items() if k in menus}, "total": total, "photo": photo,
            "motivation": "🔥 Keep up the sales! 🚀☕", "created_by": u["name"], "updated_at": now_iso()}
+    if not prev:
+        doc["verified_at"] = None
+        doc["verified_by"] = None
     await db.rider_stock.update_one({"rider_id": body.rider_id, "date": body.date}, {"$set": doc}, upsert=True)
     await gs_sync("rider_stock", doc, body.photo, f"stock_{rider['name']}_{body.date}.jpg")
     return doc
 
 
+@api.post("/rider-stock/{stock_id}/verify")
+async def verify_rider_stock(stock_id: str, u=Depends(ANY)):
+    if u["role"] != "rider":
+        raise HTTPException(403, "Pengambilan hanya dapat diverifikasi Rider")
+    stock = await db.rider_stock.find_one({"id": stock_id}, NOID)
+    if not stock or stock["rider_id"] != u["id"]:
+        raise HTTPException(404, "Stock awal tidak ditemukan")
+    if not stock.get("verified_at"):
+        await db.rider_stock.update_one({"id": stock_id}, {"$set": {"verified_at": now_iso(), "verified_by": u["id"]}})
+    return await db.rider_stock.find_one({"id": stock_id}, NOID)
+
+
 # ---------- POS / Sales ----------
 async def pos_stock(rider_id: str, date: str):
     rs = await db.rider_stock.find_one({"rider_id": rider_id, "date": date}, NOID)
-    initial = rs["items"] if rs else {}
+    initial = rs["items"] if rs and rs.get("verified_at") else {}
     sold: Dict[str, int] = {}
     async for s in db.sales.find({"rider_id": rider_id, "date": date}, NOID):
         for it in s["items"]:
@@ -934,7 +953,7 @@ async def pos_stock(rider_id: str, date: str):
                     "initial": initial.get(m["id"], 0), "sold": sold.get(m["id"], 0), "remaining": initial.get(m["id"], 0) - sold.get(m["id"], 0)})
     closed = await db.eod.find_one({"rider_id": rider_id, "date": date}, NOID)
     deposited = await db.deposits.find_one({"rider_id": rider_id, "date": date}, {"_id": 0, "id": 1})
-    return {"has_stock": rs is not None, "closed": bool(closed), "deposited": bool(deposited), "items": out, "bundles": BUNDLES}
+    return {"has_stock": bool(rs and rs.get("verified_at")), "pending_stock": bool(rs and not rs.get("verified_at")), "closed": bool(closed), "deposited": bool(deposited), "items": out, "bundles": BUNDLES}
 
 
 @api.get("/pos/stock")
@@ -1530,7 +1549,13 @@ def tier_for(gross: float, days: int):
     return "None", 0.0
 
 
-TIERS = [("Bronze", 1000000, 0.05, 0), ("Silver", 5000000, 0.10, 25), ("Gold", 10000000, 0.15, 25), ("Platinum", 20000000, 0.20, 25)]
+TIERS = [
+    ("Herald", 1750000, 0.00, 0),
+    ("Warriors", 2520000, 0.05, 0),
+    ("Masters", 3220000, 0.07, 0),
+    ("Divine", 4000000, 0.10, 0),
+    ("Immortal", float("inf"), 0.15, 0),
+]
 RIDER_RANKS = [
     ("Herald", 0, 1750000, 20000, 0.00),
     ("Warriors", 1750000, 2520000, 30000, 0.05),

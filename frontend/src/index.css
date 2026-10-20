@@ -170,6 +170,8 @@ body.app-bold, body.app-bold p, body.app-bold span, body.app-bold a, body.app-bo
 }
 
 .auth-gold-button:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+.si4am-loader { animation: si4am-loader 1.25s ease-in-out infinite; }
+@keyframes si4am-loader { 0%, 100% { opacity: .48; transform: scale(.92) rotate(-3deg); } 50% { opacity: 1; transform: scale(1.08) rotate(3deg); } }
 .auth-gold-button:active:not(:disabled) { transform: translateY(0); }
 .auth-gold-button:disabled { cursor: not-allowed; opacity: 0.42; }
 

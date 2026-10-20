@@ -117,3 +117,10 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   reports loading/error state, and orphan GPS/attendance cleanup.
 - Iteration 11: 13/13 backend checks pass; kategori Desktop/Mobile, enam tab laporan, foto inline,
   dan route hak akses Owner lulus. Semua temuan minor diperbaiki dan diverifikasi dengan build/API.
+
+## Operational Navigation Batch (2026-10) — In Progress
+- Bottom navigation Lainnya kembali membuka panel ke atas berisi seluruh tab Lainnya.
+- Target Bronze/Silver/Gold/Platinum telah diganti di backend menjadi Herald/Warriors/Masters/Divine/Immortal.
+- POS sekarang dibatasi untuk Owner dan Rider; loading menggunakan logo SI FOUR AM beranimasi.
+- Stock awal Rider sekarang memerlukan verifikasi Rider sebelum stock dapat dipakai POS. Tampilan Pengambilan Rider dan endpoint verifikasi sudah dibuat.
+- Remaining: Dashboard POS, tab Stock Awal/Sisa dengan filter penuh, Purchase Order + notifikasi, akun pembayaran Owner, serta perubahan keranjang POS sesuai referensi.

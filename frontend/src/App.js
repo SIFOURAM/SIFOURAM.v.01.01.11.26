@@ -28,6 +28,7 @@ import Reports from "./pages/Reports";
 const S = ["owner"];
 const SB = ["owner", "admin", "barteam"];
 const ALL = ["owner", "admin", "barteam", "rider"];
+const POS_ACCESS = ["owner", "rider"];
 
 function Guard({ allow, children }) {
   const { user } = useAuth();
@@ -43,7 +44,7 @@ function Home() {
 
 function Shell() {
   const { user } = useAuth();
-  if (user === null) return <div className="min-h-screen flex items-center justify-center"><div className="w-10 h-10 rounded-2xl bg-primary animate-pulse" /></div>;
+  if (user === null) return <div className="min-h-screen flex items-center justify-center"><img src="/assets/si-four-am-logo.png" alt="Memuat SI FOUR AM" className="w-24 h-24 object-contain si4am-loader" /></div>;
   if (!user) return <Routes><Route path="*" element={<Login />} /></Routes>;
   return (
     <Routes>
@@ -51,8 +52,8 @@ function Shell() {
         <Route path="/" element={<Home />} />
         <Route path="/inventory" element={<Guard allow={SB}><Inventory /></Guard>} />
         <Route path="/menu-stock" element={<Guard allow={SB}><MenuStock /></Guard>} />
-        <Route path="/pos" element={<Guard allow={ALL}><POS /></Guard>} />
-        <Route path="/rider-stock" element={<Guard allow={SB}><RiderStock /></Guard>} />
+        <Route path="/pos" element={<Guard allow={POS_ACCESS}><POS /></Guard>} />
+        <Route path="/rider-stock" element={<Guard allow={ALL}><RiderStock /></Guard>} />
         <Route path="/deposit" element={<Guard allow={SB}><Deposit /></Guard>} />
         <Route path="/invoice" element={<Guard allow={S}><Invoice /></Guard>} />
         <Route path="/rider-dashboard" element={<Guard allow={ALL}><RiderDashboard /></Guard>} />
