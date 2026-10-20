@@ -6,7 +6,7 @@ import { Trophy, Calendar, MapPin, Wallet, FileDown, Printer } from "lucide-reac
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { api, errMsg } from "../lib/api";
-import { fmtRp, fmtDate, initials, today } from "../lib/helpers";
+import { fmtRp, fmtDate, initials, rangeFor, today } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { useAuth } from "../context/AuthContext";
 import { PageHeader, Bento, Stat, DateFilter, Select, Empty, Field, ReceiptModal, RLine } from "../components/common";
@@ -28,7 +28,7 @@ function RankCard({ data, onOpen }) {
     <button data-testid="rider-rank-card" onClick={onOpen} className="col-span-2 lg:col-span-1 text-left">
       <Bento gold className="fade-up h-full overflow-hidden">
         <img src={RANK_ASSETS[rank.name]} alt={`Rank ${rank.name}`} className="w-full aspect-[16/7] object-cover rounded-lg" />
-        <div className="mt-3 flex justify-between gap-3"><div><p className="eyebrow">Rank Mingguan</p><p className="font-heading font-bold text-xl">{rank.name}</p></div><div className="text-right"><p className="eyebrow">Komisi Estimasi</p><p className="num font-bold text-primary">{fmtRp(data.main_estimated_commission)}</p></div></div>
+        <div className="mt-3 flex justify-between gap-3"><div><p className="eyebrow">Rank Mingguan</p><p className="font-heading font-bold text-xl">{rank.name}</p></div><div className="text-right"><p className="eyebrow">Estimasi Komisi Utama Anda</p><p className="num font-bold text-primary">{fmtRp(data.main_estimated_commission)}</p></div></div>
         <div className="mt-3 h-2 bg-muted overflow-hidden rounded-full"><div className="h-full bg-primary rounded-full" style={{ width: `${data.progress}%` }} /></div>
         <p className="text-xs text-muted-foreground mt-2">{rank.next ? `${fmtRp(data.remaining)} menuju ${rank.next.name}` : "Rank tertinggi tercapai"}</p>
       </Bento>
@@ -120,7 +120,7 @@ export default function RiderDashboard() {
   const isRider = user.role === "rider";
   const [riders, setRiders] = useState([]);
   const [riderId, setRiderId] = useState(isRider ? user.id : sp.get("rider") || "all");
-  const [range, setRange] = useState(null);
+  const [range, setRange] = useState(() => rangeFor("today"));
   const [sum, setSum] = useState(null);
   const [sal, setSal] = useState(null);
   const [stockHist, setStockHist] = useState([]);
@@ -164,17 +164,17 @@ export default function RiderDashboard() {
     <div data-testid="rider-dashboard">
       <PageHeader eyebrow={isRider ? (lang === "id" ? "Performa saya" : "My performance") : "Riders"} title={t("riderDash")}>
         {!isRider && <Select testId="rider-dash-select" value={riderId} onChange={setRiderId} className="w-44" options={[{ value: "all", label: t("allRiders") }, ...riders.map((r) => ({ value: r.id, label: r.name }))]} />}
-        <DateFilter onChange={setRange} riderPeriods={isRider} />
       </PageHeader>
       {sum && agg && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Bento gold className="col-span-2 lg:col-span-1 fade-up flex flex-col items-center text-center" testId="rider-profile-card">
-            <div className="w-20 h-20 rounded-full overflow-hidden bg-primary/15 text-primary font-bold text-2xl flex items-center justify-center mb-3 gold">{rider?.photo ? <img src={rider.photo} alt="" className="w-full h-full object-cover" /> : rider ? initials(rider.name) : "ALL"}</div>
+            <div className="w-20 h-20 rounded-full overflow-hidden bg-primary/15 text-black font-bold text-2xl flex items-center justify-center mb-3 gold">{rider?.photo ? <img src={rider.photo} alt="" className="w-full h-full object-cover" /> : rider ? initials(rider.name) : "ALL"}</div>
             <p className="font-heading font-bold text-lg">{rider?.name || t("allRiders")}</p>
             {rider && <><p className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><Calendar className="w-3 h-3" />{t("joined")} {rider.joined_at ? fmtDate(rider.joined_at) : "-"}</p>
               <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{rider.placement || "-"}</p></>}
             <div className="mt-4 w-full rounded-xl bg-muted p-3"><p className="eyebrow">{t("totalIncome")}</p><p data-testid="rider-total-income" className="num font-bold text-primary">{fmtRp(agg.total_income)}</p></div>
           </Bento>
+          <Bento className="col-span-2 lg:col-span-3 fade-up" testId="rider-period-filter"><p className="eyebrow mb-3">Filter periode</p><DateFilter onChange={setRange} riderPeriods={isRider} /></Bento>
           <Bento className="fade-up" testId="rider-stat-allowance"><div className="flex justify-between items-start"><p className="eyebrow">{t("dailyAllowance")}</p><Wallet className="w-4 h-4 text-primary" /></div>
             <p className="mt-3 text-2xl font-bold num font-heading">{fmtRp(agg.allowance)}</p><p className="text-xs text-muted-foreground">{t("available")}: <b className="num">{fmtRp(agg.allowance_available)}</b></p>
             {single && <button data-testid="withdraw-allowance-button" onClick={() => setWd("allowance")} className="btn-primary h-9 mt-3 w-full text-xs">{t("withdraw")}</button>}</Bento>

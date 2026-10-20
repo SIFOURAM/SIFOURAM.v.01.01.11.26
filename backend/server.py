@@ -230,6 +230,7 @@ class UserCreateIn(BaseModel):
     whatsapp: Optional[str] = None
     password: Optional[str] = None
     active: bool = True
+    photo: Optional[str] = None
 
 
 class ProfileIn(BaseModel):
@@ -681,7 +682,7 @@ async def create_user(body: UserCreateIn, u=Depends(SUPER)):
         "active": body.active,
         "password_hash": hash_pw(body.password or uid()),
         "pin_hash": hash_pw(body.pin),
-        "photo": None,
+        "photo": body.photo,
         "banks": [],
         "settings": {"theme": "dark", "language": "id", "notifications": True},
         "created_at": now_iso(),
@@ -1345,6 +1346,7 @@ class UserUpdateIn(BaseModel):
     pin: Optional[str] = None
     role: Optional[str] = None
     active: Optional[bool] = None
+    photo: Optional[str] = None
 
 
 @api.put("/users/{uid}")
@@ -1352,7 +1354,7 @@ async def admin_update_user(uid: str, body: UserUpdateIn, u=Depends(SUPER)):
     if uid == u["id"] and (body.active is False or (body.role and body.role != "owner")):
         raise HTTPException(400, "Owner tidak dapat menonaktifkan atau menurunkan role akunnya sendiri")
     upd = {}
-    for k in ("name", "username", "email", "whatsapp", "banks", "role", "active"):
+    for k in ("name", "username", "email", "whatsapp", "banks", "role", "active", "photo"):
         v = getattr(body, k)
         if v is not None:
             if k == "role" and v not in VALID_ROLES:
@@ -1639,6 +1641,101 @@ async def sales_report(
         "hourly": [by_hour[key] for key in sorted(by_hour)],
         "products": product_rows,
     }
+
+
+@api.get("/reports/operations")
+async def operations_report(kind: str, start: str, end: str, u=Depends(SUPER)):
+    date_query = {"date": {"$gte": start, "$lte": end}}
+    if kind == "wastage":
+        rows = await db.menu_stock_tx.find({**date_query, "type": "wastage"}, NOID).to_list(2000)
+        menus = {menu["id"]: menu for menu in await db.menus.find({}, NOID).to_list(500)}
+        output = []
+        reasons: Dict[str, float] = {}
+        for row in rows:
+            menu = menus.get(row.get("menu_id"), {})
+            value = round(row.get("qty", 0) * menu.get("cost", menu.get("price", 0)))
+            reason = row.get("note") or "Tanpa alasan"
+            reasons[reason] = reasons.get(reason, 0) + value
+            output.append({**row, "value": value, "reason": reason})
+        output.sort(key=lambda row: -row["value"])
+        largest_reason = max(reasons, key=reasons.get) if reasons else "—"
+        return {
+            "kind": kind,
+            "rows": output,
+            "summary": {
+                "total_value": sum(row["value"] for row in output),
+                "count": len(output),
+                "largest_reason": largest_reason,
+                "largest_reason_value": reasons.get(largest_reason, 0),
+            },
+        }
+    if kind == "purchases":
+        rows = await db.inventory_tx.find({**date_query, "type": "in"}, NOID).to_list(2000)
+        rows.sort(key=lambda row: (row.get("date", ""), row.get("time", "")), reverse=True)
+        suppliers = {row.get("supplier") or "Tanpa supplier" for row in rows}
+        return {
+            "kind": kind,
+            "rows": rows,
+            "summary": {
+                "total_cost": sum(row.get("cost", 0) for row in rows),
+                "count": len(rows),
+                "supplier_count": len(suppliers) if rows else 0,
+            },
+        }
+    if kind == "opname":
+        rows = await db.inventory_tx.find({**date_query, "type": "opname"}, NOID).to_list(2000)
+        materials = {item["id"]: item for item in await db.materials.find({}, NOID).to_list(500)}
+        output = []
+        for row in rows:
+            material = materials.get(row["material_id"], {})
+            unit_cost = material.get("pack_price", 0) / material.get("pack_qty", 1)
+            difference = row.get("after", 0) - row.get("before", 0)
+            output.append({**row, "difference": difference, "difference_value": round(difference * unit_cost)})
+        positive = sum(row["difference_value"] for row in output if row["difference_value"] > 0)
+        negative = abs(sum(row["difference_value"] for row in output if row["difference_value"] < 0))
+        return {
+            "kind": kind,
+            "rows": output,
+            "summary": {
+                "count": len(output),
+                "positive_value": positive,
+                "negative_value": negative,
+                "accuracy": round(100 - (sum(abs(row["difference"]) for row in output) / sum(max(row.get("before", 0), 1) for row in output) * 100), 1) if output else None,
+            },
+        }
+    if kind == "inventory":
+        materials = await db.materials.find({}, NOID).to_list(500)
+        menus = await menus_full()
+        material_rows = [{
+            "name": material["name"],
+            "category": material.get("category", "raw"),
+            "type": "Bahan baku",
+            "qty": material.get("stock", 0),
+            "unit": material.get("unit", ""),
+            "unit_cost": round(material.get("pack_price", 0) / material.get("pack_qty", 1)),
+            "value": round(material.get("stock", 0) / material.get("pack_qty", 1) * material.get("pack_price", 0)),
+        } for material in materials]
+        menu_rows = [{
+            "name": menu["name"],
+            "category": "Produk",
+            "type": "Produk",
+            "qty": menu.get("stock", 0),
+            "unit": "cup",
+            "unit_cost": menu.get("cost", 0),
+            "value": round(menu.get("stock", 0) * menu.get("cost", 0)),
+        } for menu in menus]
+        rows = sorted(material_rows + menu_rows, key=lambda row: -row["value"])
+        return {
+            "kind": kind,
+            "rows": rows,
+            "summary": {
+                "total_value": sum(row["value"] for row in rows),
+                "product_value": sum(row["value"] for row in menu_rows),
+                "material_value": sum(row["value"] for row in material_rows),
+                "item_count": len(rows),
+            },
+        }
+    raise HTTPException(400, "Jenis laporan tidak valid")
 
 
 @api.get("/dashboard/summary")

@@ -10,6 +10,14 @@ import { Bento, DateFilter, Empty, PageHeader, Select, Stat } from "../component
 
 const COLORS = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74"];
 const tooltip = { contentStyle: { borderRadius: 8, border: "1px solid #444", fontSize: 12 } };
+const REPORT_TABS = [
+  ["sales", "Penjualan"],
+  ["products", "Produk"],
+  ["wastage", "Waste"],
+  ["inventory", "Persediaan"],
+  ["purchases", "Pembelian"],
+  ["opname", "Opname"],
+];
 
 export default function Reports() {
   const [range, setRange] = useState(null);
@@ -21,7 +29,7 @@ export default function Reports() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!range) return;
+    if (!range || !["sales", "products"].includes(view)) return;
     setLoading(true);
     setError("");
     api.get("/reports/sales", { params: { ...range, payment_method: method, order_type: orderType } })
@@ -31,10 +39,13 @@ export default function Reports() {
         setError(errMsg(requestError));
       })
       .finally(() => setLoading(false));
-  }, [range, method, orderType]);
+  }, [range, method, orderType, view]);
 
   const title = view === "sales" ? "Laporan Penjualan" : "Performa Produk";
   const productRows = useMemo(() => report?.products || [], [report]);
+  if (!["sales", "products"].includes(view)) {
+    return <OperationsReport kind={view} setView={setView} />;
+  }
   const exportExcel = () => {
     if (!report) return;
     const workbook = XLSX.utils.book_new();
@@ -88,7 +99,7 @@ export default function Reports() {
       head: [["Rank", "Produk", "Kuantitas", "Revenue"]],
       body: productRows.map((row) => [row.rank, row.name, row.qty, fmtRp(row.revenue)]),
       styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [255, 215, 0], textColor: [0, 0, 0] },
+      headStyles: { fillColor: [255, 107, 0], textColor: [255, 255, 255] },
       theme: "grid",
     });
     return doc;
@@ -106,9 +117,17 @@ export default function Reports() {
     <div data-testid="reports-page">
       <h1 data-testid="reports-title" className="font-heading text-2xl font-bold mb-4">{title}</h1>
       <PageHeader>
-        <div className="flex gap-1 border border-border p-1 rounded-lg">
-          <button data-testid="report-sales-tab" onClick={() => setView("sales")} className={`h-8 px-3 text-xs font-bold rounded ${view === "sales" ? "bg-primary text-white" : ""}`}>Penjualan</button>
-          <button data-testid="report-products-tab" onClick={() => setView("products")} className={`h-8 px-3 text-xs font-bold rounded ${view === "products" ? "bg-primary text-white" : ""}`}>Produk</button>
+        <div className="report-switcher">
+          {REPORT_TABS.map(([key, label]) => (
+            <button
+              key={key}
+              data-testid={`report-${key}-tab`}
+              onClick={() => setView(key)}
+              className={`report-switcher-tab ${view === key ? "report-switcher-active" : ""}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <Select testId="report-payment-filter" className="w-32 h-9 text-xs" value={method} onChange={setMethod} options={[{ value: "all", label: "Semua bayar" }, { value: "cash", label: "Cash" }, { value: "qris", label: "QRIS" }]} />
         <Select testId="report-type-filter" className="w-32 h-9 text-xs" value={orderType} onChange={setOrderType} options={[{ value: "all", label: "Semua order" }, { value: "regular", label: "Reguler" }, { value: "bundling", label: "Bundling" }]} />
@@ -157,4 +176,94 @@ function Distribution({ title, rows, testId }) {
       {rows.length ? <ResponsiveContainer width="100%" height={180}><PieChart><Pie data={rows} dataKey="value" nameKey="name" innerRadius={40} outerRadius={70}>{rows.map((row, index) => <Cell key={row.name} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip {...tooltip} formatter={(value) => fmtRp(value)} /></PieChart></ResponsiveContainer> : <Empty text="Tidak ada data" />}
     </Bento>
   );
+}
+
+function OperationsReport({ kind, setView }) {
+  const [range, setRange] = useState(null);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const labels = {
+    wastage: "Laporan Waste",
+    inventory: "Nilai Persediaan",
+    purchases: "Laporan Pembelian",
+    opname: "Laporan Stok Opname",
+  };
+  useEffect(() => {
+    if (!range) return;
+    setError("");
+    api.get("/reports/operations", { params: { kind, ...range } })
+      .then((response) => setData(response.data))
+      .catch((requestError) => {
+        setData(null);
+        setError(errMsg(requestError));
+      });
+  }, [kind, range]);
+
+  const rows = data?.rows || [];
+  const summary = data?.summary || {};
+  const columns = operationColumns(kind);
+  const exportExcel = () => {
+    if (!data) return;
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(rows.map((row) => operationRow(kind, row))),
+      labels[kind],
+    );
+    XLSX.writeFile(workbook, `SIFOURAM_${kind}_${range.start}_${range.end}.xlsx`);
+  };
+  const printPdf = (save = false) => {
+    if (!data) return;
+    const doc = new jsPDF({ orientation: "landscape", format: "a4" });
+    doc.setFontSize(15);
+    doc.text(`SI FOUR AM — ${labels[kind]}`, 14, 15);
+    doc.setFontSize(9);
+    doc.text(`${range.start} s/d ${range.end}`, 14, 21);
+    autoTable(doc, {
+      startY: 27,
+      head: [columns.map((column) => column.label)],
+      body: rows.map((row) => columns.map((column) => column.format(row))),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [255, 107, 0] },
+      theme: "grid",
+    });
+    if (save) doc.save(`SIFOURAM_${kind}_${range.start}_${range.end}.pdf`);
+    else window.open(doc.output("bloburl"), "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <div data-testid={`operations-report-${kind}`}>
+      <h1 className="font-heading text-2xl font-bold mb-1">{labels[kind]}</h1>
+      <p className="text-sm text-muted-foreground mb-4">Data operasional aktual sesuai periode yang dipilih.</p>
+      <PageHeader>
+        <div className="report-switcher">
+          {REPORT_TABS.map(([key, label]) => (
+            <button key={key} data-testid={`report-${key}-tab`} onClick={() => setView(key)} className={`report-switcher-tab ${key === kind ? "report-switcher-active" : ""}`}>{label}</button>
+          ))}
+        </div>
+        <DateFilter onChange={setRange} />
+        {data && <div className="flex gap-1"><button data-testid="operations-excel" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button><button data-testid="operations-pdf" onClick={() => printPdf(true)} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button><button data-testid="operations-print" onClick={() => printPdf(false)} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button></div>}
+      </PageHeader>
+      {error && <p data-testid="operations-error" className="text-sm text-red-500 py-8">Gagal memuat laporan: {error}</p>}
+      {data && <><div className="grid grid-cols-2 lg:grid-cols-4 gap-4"><OperationsSummary kind={kind} summary={summary} /></div><Bento testId="operations-table" className="mt-4 overflow-x-auto"><table className="table-x min-w-[42rem]"><thead><tr>{columns.map((column) => <th key={column.key} className={column.right ? "text-right" : ""}>{column.label}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.id || row.name}>{columns.map((column) => <td key={column.key} className={column.right ? "text-right num" : ""}>{column.format(row)}</td>)}</tr>)}</tbody></table>{!rows.length && <Empty text="Belum ada data pada periode ini" />}</Bento></>}
+    </div>
+  );
+}
+
+function OperationsSummary({ kind, summary }) {
+  if (kind === "wastage") return <><Stat testId="waste-value" gold label="Nilai terbuang" value={fmtRp(summary.total_value)} /><Stat testId="waste-count" label="Jumlah catatan" value={summary.count || 0} /><Stat testId="waste-reason" label="Alasan terbesar" value={summary.largest_reason || "—"} /><Stat testId="waste-reason-value" label="Nilai alasan terbesar" value={fmtRp(summary.largest_reason_value)} /></>;
+  if (kind === "inventory") return <><Stat testId="inventory-total-value" gold label="Total nilai persediaan" value={fmtRp(summary.total_value)} /><Stat testId="inventory-product-value" label="Produk" value={fmtRp(summary.product_value)} /><Stat testId="inventory-material-value" label="Bahan baku" value={fmtRp(summary.material_value)} /><Stat testId="inventory-items" label="Jumlah barang" value={summary.item_count || 0} /></>;
+  if (kind === "purchases") return <><Stat testId="purchase-total" gold label="Total pembelian" value={fmtRp(summary.total_cost)} /><Stat testId="purchase-count" label="Jumlah penerimaan" value={summary.count || 0} /><Stat testId="purchase-suppliers" label="Supplier" value={summary.supplier_count || 0} /></>;
+  return <><Stat testId="opname-count" gold label="Opname" value={summary.count || 0} /><Stat testId="opname-accuracy" label="Akurasi stok" value={summary.accuracy === null ? "—" : `${summary.accuracy}%`} /><Stat testId="opname-positive" label="Selisih lebih" value={fmtRp(summary.positive_value)} /><Stat testId="opname-negative" label="Selisih kurang" value={fmtRp(summary.negative_value)} /></>;
+}
+
+function operationColumns(kind) {
+  if (kind === "wastage") return [{ key: "date", label: "Tanggal", format: (row) => row.date }, { key: "menu", label: "Produk", format: (row) => row.menu_name }, { key: "qty", label: "Qty", right: true, format: (row) => row.qty }, { key: "reason", label: "Alasan", format: (row) => row.reason }, { key: "value", label: "Nilai", right: true, format: (row) => fmtRp(row.value) }];
+  if (kind === "inventory") return [{ key: "name", label: "Barang", format: (row) => row.name }, { key: "category", label: "Kategori", format: (row) => row.category }, { key: "type", label: "Jenis", format: (row) => row.type }, { key: "qty", label: "Qty", right: true, format: (row) => `${row.qty} ${row.unit}` }, { key: "cost", label: "HPP", right: true, format: (row) => fmtRp(row.unit_cost) }, { key: "value", label: "Nilai", right: true, format: (row) => fmtRp(row.value) }];
+  if (kind === "purchases") return [{ key: "date", label: "Tanggal", format: (row) => row.date }, { key: "material", label: "Bahan", format: (row) => row.material_name }, { key: "item", label: "Item", format: (row) => row.item_name || "—" }, { key: "supplier", label: "Supplier", format: (row) => row.supplier || "—" }, { key: "qty", label: "Qty", right: true, format: (row) => `${row.qty} ${row.unit}` }, { key: "cost", label: "Nilai", right: true, format: (row) => fmtRp(row.cost) }];
+  return [{ key: "date", label: "Tanggal", format: (row) => row.date }, { key: "material", label: "Bahan", format: (row) => row.material_name }, { key: "before", label: "Sistem", right: true, format: (row) => row.before }, { key: "after", label: "Fisik", right: true, format: (row) => row.after }, { key: "difference", label: "Selisih", right: true, format: (row) => row.difference }, { key: "value", label: "Nilai selisih", right: true, format: (row) => fmtRp(row.difference_value) }];
+}
+
+function operationRow(kind, row) {
+  return Object.fromEntries(operationColumns(kind).map((column) => [column.label, column.format(row)]));
 }

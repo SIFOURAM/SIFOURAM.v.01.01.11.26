@@ -28,7 +28,7 @@ export default function Profile() {
       <div className="grid lg:grid-cols-3 gap-6">
         <Bento gold className="fade-up text-center" testId="profile-card">
           <label className="relative inline-block cursor-pointer">
-            <div className="w-28 h-28 rounded-full overflow-hidden bg-primary/15 text-primary text-3xl font-bold flex items-center justify-center mx-auto">{user.photo ? <img src={user.photo} alt="" className="w-full h-full object-cover" /> : initials(user.name)}</div>
+            <div className="w-28 h-28 rounded-full overflow-hidden bg-primary/15 text-black text-3xl font-bold flex items-center justify-center mx-auto">{user.photo ? <img src={user.photo} alt="" className="w-full h-full object-cover" /> : initials(user.name)}</div>
             <input data-testid="profile-photo-input" type="file" accept="image/*" className="hidden" disabled={!canEdit} onChange={photo} />
             <span className="absolute bottom-0 right-0 text-[10px] bg-primary text-white rounded-full px-2 py-0.5">edit</span>
           </label>

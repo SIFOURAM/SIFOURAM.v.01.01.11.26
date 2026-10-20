@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { api, errMsg } from "../lib/api";
 import { initials, roleLabel } from "../lib/helpers";
 import { useT } from "../lib/i18n";
-import { PageHeader, Bento, Field, Empty } from "../components/common";
+import { PageHeader, Bento, Field, Empty, PhotoCapture } from "../components/common";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
 const BANKS = ["Bank BCA", "Bank Mandiri (Livin')", "Bank BRI (BRImo)", "Bank BNI (wondr)", "CIMB Niaga (OCTO Mobile)", "Bank Jago", "SeaBank", "blu by BCA Digital", "Jenius", "Superbank"];
@@ -28,6 +28,7 @@ export default function UserInfo() {
       whatsapp: "",
       role: "rider",
       active: true,
+      photo: "",
       banks: [],
       password: "",
       pin: "",
@@ -44,6 +45,7 @@ export default function UserInfo() {
         banks: edit.banks,
         role: edit.role,
         active: edit.active,
+        photo: edit.photo || null,
       };
       if (edit.password) payload.password = edit.password;
       if (edit.pin) payload.pin = edit.pin;
@@ -71,7 +73,7 @@ export default function UserInfo() {
         <div className="grid md:grid-cols-2 gap-3">
           {users.map((u) => (
             <button key={u.id} data-testid={`user-row-${u.id}`} onClick={() => open(u)} className="flex items-center gap-3 p-3 rounded-xl border border-border/60 hover:bg-muted text-left transition-colors">
-              <div className="w-10 h-10 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center overflow-hidden shrink-0">{u.photo ? <img src={u.photo} alt="" className="w-full h-full object-cover" /> : initials(u.name)}</div>
+              <div className="w-10 h-10 rounded-full bg-primary/15 text-black font-bold flex items-center justify-center overflow-hidden shrink-0">{u.photo ? <img src={u.photo} alt="" className="w-full h-full object-cover" /> : initials(u.name)}</div>
               <div className="flex-1 min-w-0"><p className="font-semibold truncate">{u.name}</p><p className="text-xs text-muted-foreground truncate">@{u.username} · {roleLabel(u.role)} · {u.active === false ? "Nonaktif" : "Aktif"}</p></div>
             </button>))}
         </div>
@@ -86,6 +88,7 @@ export default function UserInfo() {
             <Field label="Username"><input data-testid="ui-username" className="field" value={edit.username || ""} onChange={(e) => setEdit({ ...edit, username: e.target.value })} /></Field>
             <Field label="Email"><input data-testid="ui-email" className="field" value={edit.email || ""} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Field>
             <Field label="WhatsApp"><input data-testid="ui-wa" className="field" value={edit.whatsapp || ""} onChange={(e) => setEdit({ ...edit, whatsapp: e.target.value })} /></Field>
+            <div><p className="eyebrow mb-2">Foto akun</p><PhotoCapture testId="ui-photo-upload" value={edit.photo || ""} onChange={(photo) => setEdit({ ...edit, photo })} label="Unggah foto profil" /></div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Role">
                 <select data-testid="ui-role" className="field" value={edit.role || "rider"} onChange={(e) => setEdit({ ...edit, role: e.target.value })}>
