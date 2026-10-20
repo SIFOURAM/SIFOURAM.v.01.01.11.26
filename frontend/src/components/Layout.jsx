@@ -56,7 +56,7 @@ function NotifBell() {
   );
 }
 
-const I = { dashboard: LayoutDashboard, inventory: Boxes, menuStock: Layers, pos: ShoppingCart, riderStock: Bike, deposit: Wallet, invoice: FileText, riderDash: Gauge, handover: HandCoins, finance: LineChart, salary: BadgeDollarSign, settings: Cog, customers: Users, userInfo: UserCog, reports: ChartNoAxesCombined };
+const I = { dashboard: LayoutDashboard, inventory: Boxes, menuStock: Layers, pos: ShoppingCart, riderStock: Bike, stockRider: Bike, stockPickup: HandCoins, stockRemaining: Gauge, deposit: Wallet, invoice: FileText, riderDash: Gauge, handover: HandCoins, finance: LineChart, salary: BadgeDollarSign, settings: Cog, customers: Users, userInfo: UserCog, reports: ChartNoAxesCombined };
 const item = (to, key) => ({ to, key, icon: I[key] });
 
 export const NAV = {
@@ -82,27 +82,28 @@ export const HOME = { owner: "/", admin: "/", barteam: "/", rider: "/pos" };
 export const CATEGORIES = {
   owner: [
     { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/reports", "reports"), item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
-    { name: "Inventory", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
+    { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit"), item("/invoice", "invoice"), item("/customers", "customers"), item("/handover", "handover")] },
     { name: "Production", icon: Layers, to: "/menu-stock?mode=production", match: (location) => location.pathname === "/menu-stock" && location.search.includes("mode=production"), tabs: [item("/menu-stock?mode=production", "menuStock")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/finance", tabs: [item("/finance", "finance"), item("/user-info", "userInfo"), item("/settings", "settings")] },
   ],
   admin: [
     { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/rider-dashboard", "riderDash")] },
-    { name: "Inventory", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
+    { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit")] },
     { name: "Production", icon: Layers, to: "/menu-stock?mode=production", match: (location) => location.pathname === "/menu-stock" && location.search.includes("mode=production"), tabs: [item("/menu-stock?mode=production", "menuStock")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
   barteam: [
     { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/rider-dashboard", "riderDash")] },
-    { name: "Inventory", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
+    { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit")] },
     { name: "Production", icon: Layers, to: "/menu-stock?mode=production", match: (location) => location.pathname === "/menu-stock" && location.search.includes("mode=production"), tabs: [item("/menu-stock?mode=production", "menuStock")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
   rider: [
     { name: "Dashboard", icon: Gauge, to: "/rider-dashboard", tabs: [item("/rider-dashboard", "riderDash")] },
+    { name: "Stock", icon: Boxes, to: "/rider-stock?view=pickup", tabs: [item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining")] },
     { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
