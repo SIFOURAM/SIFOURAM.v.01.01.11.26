@@ -227,8 +227,9 @@ export default function Layout() {
                 <span className={i.key === "pos" ? "flex w-10 h-10 -mt-3 items-center justify-center rounded-full bg-primary shadow-md" : "flex items-center justify-center"}>
                   <i.icon className={i.key === "pos" ? "w-5 h-5" : "w-[0.95rem] h-[0.95rem]"} />
                 </span>
+                {i.key !== "pos" && <span className="truncate max-w-full">{t(i.key)}</span>}
               </NavLink>))}
-            {more.length > 0 && <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${activeCategory?.name === "Lainnya" || moreOpen ? "text-primary" : "text-muted-foreground"}`}><MoreHorizontal className="w-[0.95rem] h-[0.95rem]" /></button>}
+            {more.length > 0 && <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${activeCategory?.name === "Lainnya" || moreOpen ? "text-primary" : "text-muted-foreground"}`}><MoreHorizontal className="w-[0.95rem] h-[0.95rem]" /><span>{t("more")}</span></button>}
           </div>
           {moreOpen && <div data-testid="more-menu" className="absolute bottom-full inset-x-2 mb-2 grid grid-cols-2 gap-1 p-2 rounded-xl border border-border bg-card shadow-2xl">{CATEGORIES[user.role].find((category) => category.name === "Lainnya")?.tabs.map((tab) => <NavLink key={tab.to} to={tab.to} data-testid={`more-${tab.key}`} className="flex items-center gap-2 h-10 px-3 rounded-lg text-sm font-semibold hover:bg-muted"><tab.icon className="w-4 h-4" />{t(tab.key)}</NavLink>)}</div>}
         </nav>
