@@ -7,7 +7,6 @@ import { api } from "../lib/api";
 import { initials } from "../lib/helpers";
 import GpsGate from "./GpsGate";
 import RiderMotivation from "./RiderMotivation";
-import { getAppearance } from "../lib/appearance";
 
 function playTriTone() {
   try {
@@ -60,17 +59,75 @@ function NotifBell() {
 const I = { dashboard: LayoutDashboard, inventory: Boxes, menuStock: Layers, pos: ShoppingCart, riderStock: Bike, deposit: Wallet, invoice: FileText, riderDash: Gauge, handover: HandCoins, finance: LineChart, salary: BadgeDollarSign, settings: Cog, customers: Users, userInfo: UserCog, reports: ChartNoAxesCombined };
 const item = (to, key) => ({ to, key, icon: I[key] });
 
-// Bottom nav (mobile) + "More" sub-tabs. Desktop sidebar shows main + more flat.
 export const NAV = {
-  owner: { main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock", "menuStock")],
-    more: [item("/rider-stock", "riderStock"), item("/deposit", "deposit"), item("/handover", "handover"), item("/invoice", "invoice"), item("/rider-dashboard", "riderDash"), item("/reports", "reports"), item("/finance", "finance"), item("/salary", "salary"), item("/customers", "customers"), item("/user-info", "userInfo"), item("/settings", "settings")] },
-  admin: { main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock", "menuStock")],
-    more: [item("/rider-stock", "riderStock"), item("/deposit", "deposit"), item("/rider-dashboard", "riderDash"), item("/settings", "settings")] },
-  barteam: { main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock", "menuStock")],
-    more: [item("/rider-stock", "riderStock"), item("/deposit", "deposit"), item("/rider-dashboard", "riderDash"), item("/settings", "settings")] },
-  rider: { main: [item("/pos", "pos"), item("/rider-dashboard", "riderDash"), item("/settings", "settings")], more: [] },
+  owner: {
+    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
+    more: [item("/finance", "finance")],
+  },
+  admin: {
+    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
+    more: [item("/settings", "settings")],
+  },
+  barteam: {
+    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
+    more: [item("/settings", "settings")],
+  },
+  rider: {
+    main: [item("/pos", "pos"), item("/rider-dashboard", "riderDash")],
+    more: [item("/settings", "settings")],
+  },
 };
 export const HOME = { owner: "/", admin: "/", barteam: "/", rider: "/pos" };
+
+const CATEGORIES = {
+  owner: [
+    { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/reports", "reports"), item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
+    { name: "Stock", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
+    { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit"), item("/invoice", "invoice"), item("/customers", "customers"), item("/handover", "handover")] },
+    { name: "Production", icon: Layers, to: "/menu-stock?mode=production", match: (location) => location.pathname === "/menu-stock" && location.search.includes("mode=production"), tabs: [item("/menu-stock?mode=production", "menuStock")] },
+    { name: "Lainnya", icon: MoreHorizontal, to: "/finance", tabs: [item("/finance", "finance"), item("/user-info", "userInfo"), item("/settings", "settings")] },
+  ],
+  admin: [
+    { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/rider-dashboard", "riderDash")] },
+    { name: "Stock", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
+    { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit")] },
+    { name: "Production", icon: Layers, to: "/menu-stock?mode=production", match: (location) => location.pathname === "/menu-stock" && location.search.includes("mode=production"), tabs: [item("/menu-stock?mode=production", "menuStock")] },
+    { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
+  ],
+  barteam: [
+    { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/rider-dashboard", "riderDash")] },
+    { name: "Stock", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
+    { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit")] },
+    { name: "Production", icon: Layers, to: "/menu-stock?mode=production", match: (location) => location.pathname === "/menu-stock" && location.search.includes("mode=production"), tabs: [item("/menu-stock?mode=production", "menuStock")] },
+    { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
+  ],
+  rider: [
+    { name: "Dashboard", icon: Gauge, to: "/rider-dashboard", tabs: [item("/rider-dashboard", "riderDash")] },
+    { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos")] },
+    { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
+  ],
+};
+
+function CategoryTabs({ category, t }) {
+  return (
+    <nav data-testid="category-tabs" className="category-tab-bar" aria-label={`Tab ${category.name}`}>
+      <div role="tablist" aria-orientation="horizontal" className="category-tab-list">
+        {category.tabs.map((tab) => (
+          <NavLink
+            key={tab.to}
+            to={tab.to}
+            end={tab.to === "/"}
+            role="tab"
+            data-testid={`category-tab-${tab.key}`}
+            className={({ isActive }) => `category-tab ${isActive ? "category-tab-active" : ""}`}
+          >
+            {t(tab.key)}
+          </NavLink>
+        ))}
+      </div>
+    </nav>
+  );
+}
 
 function useRiderGps(user) {
   const last = useRef(0);
@@ -103,19 +160,19 @@ export default function Layout() {
   const { t } = useT();
   const nav = useNavigate();
   const loc = useLocation();
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [vm, setVm] = useState(getAppearance().view || "web");
-  useEffect(() => { const h = () => setVm(getAppearance().view || "web"); window.addEventListener("appearancechange", h); return () => window.removeEventListener("appearancechange", h); }, []);
-  const forceMobile = vm !== "web";
   useRiderGps(user);
-  useEffect(() => setMoreOpen(false), [loc.pathname]);
   const { main, more } = NAV[user.role] || { main: [], more: [] };
   const roleLabel = { owner: "Owner", admin: "Admin", barteam: "Bar Team", rider: "Rider" }[user.role];
-  const moreActive = more.some((m) => m.to === loc.pathname);
+  const categories = CATEGORIES[user.role] || [];
+  const activeCategory = categories.find((category) => (
+    category.match
+      ? category.match(loc)
+      : category.tabs.some((tab) => tab.to === `${loc.pathname}${loc.search}`)
+  )) || categories[0];
   const linkCls = (isActive) => `flex items-center gap-3 px-4 h-11 rounded-xl text-sm font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`;
 
   const Avatar = ({ size = "w-9 h-9" }) => (
-    <button data-testid="nav-profile-button" onClick={() => nav("/profile")} className={`${size} rounded-full overflow-hidden bg-primary/15 text-primary font-bold text-sm flex items-center justify-center gold shrink-0`}>
+    <button data-testid="nav-profile-button" onClick={() => nav("/profile")} className={`${size} rounded-full border-2 border-black overflow-hidden bg-primary/15 text-primary font-bold text-sm flex items-center justify-center accent-border shrink-0`}>
       {user.photo ? <img src={user.photo} alt="" className="w-full h-full object-cover" /> : initials(user.name)}
     </button>
   );
@@ -124,14 +181,23 @@ export default function Layout() {
   return (
     <GpsGate role={user.role}>
     <div className="min-h-screen flex">
-      <aside className={`${forceMobile ? "hidden" : "hidden lg:flex"} flex-col w-64 xl:w-72 border-r border-border/70 p-6 sticky top-0 h-screen overflow-y-auto`} data-testid="sidebar">
+      <aside className="hidden lg:flex flex-col w-64 xl:w-72 border-r border-border/70 p-6 sticky top-0 h-screen overflow-y-auto" data-testid="sidebar">
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-2xl overflow-hidden bg-primary/10 flex items-center justify-center"><img src="/logo.png" alt="SI FOUR AM" className="w-full h-full object-contain" /></div>
           <div><p className="font-heading font-bold leading-tight">SI FOUR AM</p><p className="eyebrow">{roleLabel}</p></div>
         </div>
         <nav className="flex flex-col gap-1 flex-1">
-          {[...main, ...more].map((i) => (
-            <NavLink key={i.to} to={i.to} end={i.to === "/"} data-testid={`nav-${i.key}`} className={({ isActive }) => linkCls(isActive)}><i.icon className="w-4 h-4" />{t(i.key)}</NavLink>
+          {categories.map((category) => {
+            const CategoryIcon = category.icon;
+            const selected = category.match
+              ? category.match(loc)
+              : category.tabs.some((tab) => tab.to === `${loc.pathname}${loc.search}`);
+            return (
+              <NavLink key={category.name} to={category.to} data-testid={`nav-category-${category.name.toLowerCase()}`} className={() => linkCls(selected)}>
+                <CategoryIcon className="w-4 h-4" />{category.name}
+              </NavLink>
+            );
+          })}
           ))}
         </nav>
         <button data-testid="logout-button" onClick={logout} className="flex items-center gap-3 px-4 h-11 rounded-xl text-sm text-muted-foreground hover:bg-muted mt-4"><LogOut className="w-4 h-4" />{t("logout")}</button>
@@ -139,8 +205,8 @@ export default function Layout() {
 
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="flex items-center justify-between px-4 lg:px-8 h-16 sticky top-0 bg-primary text-black z-40" data-testid="top-header">
-          <div className={`items-center gap-2 ${forceMobile ? "flex" : "flex lg:hidden"}`}><img src="/logo.png" alt="SI FOUR AM" className="w-8 h-8 rounded-xl object-contain" /><span className="font-heading font-bold">SI FOUR AM</span></div>
-          <div className={forceMobile ? "hidden" : "hidden lg:block"}><p className="eyebrow">{roleLabel}</p></div>
+          <div className="flex items-center gap-2 lg:hidden"><img src="/assets/si-four-am-logo.png" alt="SI FOUR AM" className="w-8 h-8 object-contain" /><span className="font-heading font-bold">SI FOUR AM</span></div>
+          <div className="hidden lg:block"><p className="eyebrow text-black/70">{roleLabel}</p></div>
           <div className="flex items-center gap-2">
             {user.role === "owner" && <NotifBell />}
             <ThemeBtn id="theme-toggle-button" />
@@ -148,24 +214,22 @@ export default function Layout() {
             <Avatar />
           </div>
         </header>
-        <main className={`flex-1 max-w-[1400px] w-full mx-auto min-w-0 ${forceMobile ? "p-4 pb-28" : "p-4 pb-28 lg:p-8 lg:pb-8"}`}><Outlet /></main>
+        {activeCategory && <CategoryTabs category={activeCategory} t={t} />}
+        <main className="flex-1 max-w-[1400px] w-full mx-auto min-w-0 p-4 pb-28 lg:p-8 lg:pb-8"><Outlet /></main>
         <RiderMotivation user={user} />
 
-        {moreOpen && <div className="lg:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setMoreOpen(false)} />}
-        <nav className={`${forceMobile ? "" : "lg:hidden"} fixed bottom-0 inset-x-0 z-50 bg-background/90 backdrop-blur-xl border-t border-border/70`} data-testid="bottom-nav">
-          {moreOpen && (
-            <div className="absolute bottom-full inset-x-2 mb-2 rounded-2xl bg-card border border-border shadow-2xl p-2 grid grid-cols-2 gap-1 fade-up gold" data-testid="more-menu">
-              {more.map((i) => <NavLink key={i.to} to={i.to} data-testid={`more-${i.key}`} className={({ isActive }) => `flex items-center gap-3 px-3 h-11 rounded-xl text-sm font-medium ${isActive ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}><i.icon className="w-4 h-4" />{t(i.key)}</NavLink>)}
-            </div>)}
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-background/90 backdrop-blur-xl border-t border-border/70" data-testid="bottom-nav">
           <div className="flex justify-around px-1 py-1.5 pb-[max(env(safe-area-inset-bottom),6px)]">
             {main.map((i) => (
               <NavLink key={i.to} to={i.to} end={i.to === "/"} data-testid={`bottomnav-${i.key}`}
                 className={({ isActive }) => `flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${isActive ? "text-primary" : "text-muted-foreground"}`}>
                 <i.icon className={`w-[0.95rem] h-[0.95rem] ${i.key === "pos" ? "text-primary scale-125" : ""}`} />
               </NavLink>))}
-            {more.length > 0 && (
-              <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${moreActive || moreOpen ? "text-primary" : "text-muted-foreground"}`}>
-                <MoreHorizontal className="w-[0.95rem] h-[0.95rem]" /></button>)}
+            {more.map((i) => (
+              <NavLink key={i.to} to={i.to} data-testid="bottomnav-more" className={() => `flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${activeCategory?.name === "Lainnya" ? "text-primary" : "text-muted-foreground"}`}>
+                <MoreHorizontal className="w-[0.95rem] h-[0.95rem]" />
+              </NavLink>
+            ))}
           </div>
         </nav>
       </div>

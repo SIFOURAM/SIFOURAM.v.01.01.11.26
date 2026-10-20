@@ -11,7 +11,7 @@ import { useT } from "../lib/i18n";
 import { PageHeader, Bento, Stat, DateFilter, Field, Select, Empty } from "../components/common";
 
 const CATS = ["Raw Material", "Packaging", "Fuel / Transport", "Salary", "Rent", "Utilities", "Marketing", "Equipment", "Other"];
-const COLORS = ["#FF6B00", "#D4AF37", "#ef4444", "#f59e0b", "#fb923c", "#a16207", "#eab308", "#78350f", "#9ca3af"];
+const COLORS = ["#FF6B00", "#F97316", "#EF4444", "#FB923C", "#FF7A1A", "#C2410C", "#EA580C", "#9A3412", "#9CA3AF"];
 
 export default function Finance() {
   const { t } = useT();

@@ -12,7 +12,7 @@ import { useAuth } from "../context/AuthContext";
 import { PageHeader, Bento, Stat, DateFilter, Select, Empty, Field, ReceiptModal, RLine } from "../components/common";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
-const COLORS = ["#FF6B00", "#D4AF37", "#f59e0b", "#fb923c", "#eab308", "#a16207", "#f97316", "#fbbf24", "#78350f"];
+const COLORS = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74", "#FF7A1A", "#E85D04", "#9A3412"];
 const tip = { contentStyle: { borderRadius: 12, border: "1px solid #333", background: "#111", color: "#fff", fontSize: 12 } };
 const RANK_ASSETS = {
   Herald: "/assets/rank-herald.png",
@@ -58,7 +58,7 @@ export function TierProgress({ s, count = 1 }) {
     <div data-testid="tier-progress">
       <div className="flex items-center justify-between mb-2 gap-2 flex-wrap"><span className="flex items-center gap-2 text-sm font-semibold"><Trophy className="w-4 h-4 text-primary" />{s.tier === "None" ? "—" : s.tier}<span className="text-xs text-muted-foreground">({Math.round(s.incentive_pct * 100)}%)</span></span>
         {nt && <span className="text-xs text-muted-foreground">{t("nextTier")}: <b className="text-foreground">{nt.name}</b> · {fmtRp(nt.threshold * count)}</span>}</div>
-      <div className="h-3 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-primary to-[#D4AF37] transition-all duration-700" style={{ width: `${Math.min(100, nt ? (s.gross / (nt.threshold * count)) * 100 : 100)}%` }} /></div>
+      <div className="h-3 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-primary to-[#F97316] transition-all duration-700" style={{ width: `${Math.min(100, nt ? (s.gross / (nt.threshold * count)) * 100 : 100)}%` }} /></div>
       {nt && <p className="text-xs text-muted-foreground mt-2">{fmtRp(Math.max(0, nt.threshold * count - s.gross))} → {nt.name}{nt.min_days ? ` · min ${nt.min_days} ${t("attendance").toLowerCase()}` : ""}</p>}
     </div>
   );
@@ -189,7 +189,7 @@ export default function RiderDashboard() {
 
           <Bento className="col-span-2 fade-up" testId="chart-daily">
             <p className="eyebrow mb-4">{t("dailySales")} (Cash + QRIS)</p>
-            {sum.by_date.length ? <ResponsiveContainer width="100%" height={220}><LineChart data={sum.by_date.map((d) => ({ d: d.date.slice(5), v: d.cash + d.qris }))}><CartesianGrid strokeDasharray="3 3" stroke="#3333" /><XAxis dataKey="d" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis hide /><Tooltip {...tip} formatter={(v) => fmtRp(v)} /><Line type="monotone" dataKey="v" stroke="#fcf6ba" strokeWidth={2.5} dot={{ fill: "#FF6B00", r: 3 }} /></LineChart></ResponsiveContainer> : <Empty text={t("noData")} />}
+            {sum.by_date.length ? <ResponsiveContainer width="100%" height={220}><LineChart data={sum.by_date.map((d) => ({ d: d.date.slice(5), v: d.cash + d.qris }))}><CartesianGrid strokeDasharray="3 3" stroke="#3333" /><XAxis dataKey="d" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis hide /><Tooltip {...tip} formatter={(v) => fmtRp(v)} /><Line type="monotone" dataKey="v" stroke="#F97316" strokeWidth={2.5} dot={{ fill: "#FF6B00", r: 3 }} /></LineChart></ResponsiveContainer> : <Empty text={t("noData")} />}
           </Bento>
           <Bento className="col-span-2 fade-up" testId="chart-best-selling">
             <p className="eyebrow mb-4">{t("bestSelling")}</p>

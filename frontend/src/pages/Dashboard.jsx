@@ -8,7 +8,7 @@ import { PageHeader, Stat, Bento, DateFilter, Empty } from "../components/common
 import GpsMap from "../components/GpsMap";
 
 const tip = { contentStyle: { borderRadius: 12, border: "1px solid #333", background: "#111", color: "#fff", fontSize: 12 } };
-const menuColors = ["#FF6B00", "#FFD700", "#16a34a", "#2563eb", "#dc2626", "#9333ea"];
+const menuColors = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74"];
 
 export default function Dashboard() {
   const { t } = useT();
@@ -44,7 +44,7 @@ export default function Dashboard() {
                 <BarChart data={d.by_rider.slice(0, 5).map((r) => ({ name: r.rider_name.split(" ")[0], cash: r.cash, qris: r.qris }))}>
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis hide /><Tooltip {...tip} formatter={(v) => fmtRp(v)} />
-                  <Bar dataKey="cash" stackId="a" fill="#FF6B00" radius={[0, 0, 6, 6]} /><Bar dataKey="qris" stackId="a" fill="#D4AF37" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="cash" stackId="a" fill="#FF6B00" radius={[0, 0, 6, 6]} /><Bar dataKey="qris" stackId="a" fill="#F97316" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <Empty text={t("noData")} />}

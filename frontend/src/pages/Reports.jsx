@@ -8,7 +8,7 @@ import { api, errMsg } from "../lib/api";
 import { fmtRp } from "../lib/helpers";
 import { Bento, DateFilter, Empty, PageHeader, Select, Stat } from "../components/common";
 
-const COLORS = ["#FF6B00", "#FFD700", "#16a34a", "#2563eb", "#dc2626", "#9333ea"];
+const COLORS = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74"];
 const tooltip = { contentStyle: { borderRadius: 8, border: "1px solid #444", fontSize: 12 } };
 
 export default function Reports() {

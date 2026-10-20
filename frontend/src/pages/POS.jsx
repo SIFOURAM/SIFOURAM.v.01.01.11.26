@@ -176,7 +176,7 @@ export default function POS() {
             <Bento gold className="fade-up py-4" testId="daily-target">
               {(() => { const sold = stock.items.reduce((s, i) => s + i.sold, 0); const tgt = 50; const pct = Math.min(100, Math.round((sold / tgt) * 100)); const lvl = sold >= 50 ? "🏆" : sold >= 31 ? "🚀" : "💪";
                 return <><div className="flex justify-between items-end mb-2"><div><p className="eyebrow">{L ? "Target Harian" : "Daily Target"} {lvl}</p><p className="text-2xl font-bold num font-heading">{sold} <span className="text-sm text-muted-foreground">/ {tgt} {t("cups")}</span></p></div><p className="text-xs text-muted-foreground text-right">{sold < 31 ? `${31 - sold} → 🚀` : sold < 50 ? `${50 - sold} → 🏆` : (L ? "Target tercapai!" : "Target smashed!")}</p></div>
-                  <div className="h-2.5 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-primary to-[#D4AF37] transition-all duration-700" style={{ width: `${pct}%` }} /></div></>; })()}
+                  <div className="h-2.5 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-primary to-[#F97316] transition-all duration-700" style={{ width: `${pct}%` }} /></div></>; })()}
             </Bento>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3" data-testid="product-grid">
               {stock.items.map((i) => (

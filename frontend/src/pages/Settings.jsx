@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Moon, Sun, Globe, Bell, MapPin, ShieldCheck, Type, Bold, Monitor, Tablet, Smartphone } from "lucide-react";
+import { Moon, Sun, Globe, Bell, MapPin, ShieldCheck, Type, Bold } from "lucide-react";
 import { api } from "../lib/api";
 import { useT, LANGS } from "../lib/i18n";
 import { useAuth } from "../context/AuthContext";
@@ -47,9 +47,6 @@ export default function Settings() {
             >
               {LANGS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </select>
-          </Row>
-          <Row icon={Monitor} title="Tampilan" sub="Web · Tablet · Mobile">
-            <div className="flex gap-1">{[["web", "Web", Monitor], ["tablet", "Tablet", Tablet], ["mobile", "Mobile", Smartphone]].map(([k, l, Ic]) => <button key={k} data-testid={`view-${k}`} onClick={() => upd({ view: k })} className={`h-8 px-3 rounded-full text-[11px] font-semibold flex items-center gap-1 ${ap.view === k ? "bg-primary text-white" : "bg-muted"}`}><Ic className="w-3 h-3" />{l}</button>)}</div>
           </Row>
           <Row icon={Bell} title={t("notifications")}><Toggle testId="notifications-toggle" on={s.notifications !== false} onChange={(v) => save({ notifications: v })} /></Row>
           {user.role === "rider" && <Row icon={MapPin} title={t("gps")} sub={t("whileUsing")}>
