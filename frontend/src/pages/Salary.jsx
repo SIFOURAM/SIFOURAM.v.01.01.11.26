@@ -38,7 +38,7 @@ export default function Salary() {
               <div className="flex items-center gap-3 mb-4">
                 <div className="relative w-11 h-11 shrink-0">
                   <div className="w-11 h-11 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center overflow-hidden">{r.photo ? <img src={r.photo} alt="" className="w-full h-full object-cover" /> : initials(r.rider_name)}</div>
-                  {user.role === "superadmin" && <label className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center cursor-pointer shadow"><Camera className="w-3 h-3" /><input type="file" accept="image/*" className="hidden" data-testid={`salary-photo-${r.rider_id}`} onChange={(e) => e.target.files[0] && changePhoto(r.rider_id, e.target.files[0])} /></label>}
+                  {user.role === "owner" && <label className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center cursor-pointer shadow"><Camera className="w-3 h-3" /><input type="file" accept="image/*" className="hidden" data-testid={`salary-photo-${r.rider_id}`} onChange={(e) => e.target.files[0] && changePhoto(r.rider_id, e.target.files[0])} /></label>}
                 </div>
                 <div className="flex-1"><button data-testid={`salary-rider-link-${r.rider_id}`} onClick={() => nav(`/rider-dashboard?rider=${r.rider_id}`)} className="font-heading font-bold text-primary hover:underline text-left">{r.rider_name} →</button><p className="text-xs text-muted-foreground">{r.cups} cups · {r.attendance_days} {t("attendance").toLowerCase()}</p></div>
                 <div className="text-right"><p className="eyebrow">{t("totalIncome")}</p><p className="num font-bold text-primary">{fmtRp(r.total_income)}</p></div></div>
@@ -57,7 +57,7 @@ export default function Salary() {
                       <b className="num">{fmtRp(w.amount)}</b>
                       {w.status === "diterima"
                         ? <span data-testid={`wd-status-${w.id}`} className="shrink-0 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 rounded-full px-2 py-0.5">Diterima ✓</span>
-                        : user.role === "superadmin"
+                        : user.role === "owner"
                           ? <button data-testid={`wd-accept-${w.id}`} onClick={() => accept(w.id)} className="shrink-0 text-[10px] font-bold text-primary border border-primary/50 rounded-full px-2 py-0.5 hover:bg-primary hover:text-white transition-colors">Diterima</button>
                           : <span data-testid={`wd-status-${w.id}`} className="shrink-0 text-[10px] font-semibold text-amber-500 bg-amber-500/10 rounded-full px-2 py-0.5">Pending</span>}
                     </div>))}

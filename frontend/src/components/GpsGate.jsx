@@ -17,7 +17,7 @@ export default function GpsGate({ role, children }) {
       <div className="bento gold max-w-sm text-center fade-up">
         <div className="w-16 h-16 rounded-2xl bg-primary/15 text-primary flex items-center justify-center mx-auto mb-4"><MapPin className="w-8 h-8" /></div>
         <h2 className="text-2xl font-bold mb-2">Aktifkan Lokasi</h2>
-        <p className="text-sm text-muted-foreground mb-6">Aplikasi kasir wajib mengakses GPS ("Izinkan Saat Aplikasi Digunakan") agar Superadmin bisa memantau rider dan Coach AI bisa merekomendasikan lokasi ramai terdekat.</p>
+        <p className="text-sm text-muted-foreground mb-6">Aplikasi kasir wajib mengakses GPS ("Izinkan Saat Aplikasi Digunakan") agar Owner bisa memantau rider dan Coach AI bisa merekomendasikan lokasi ramai terdekat.</p>
         {ok === false && <p className="text-xs text-red-500 mb-3">Izin lokasi ditolak. Buka pengaturan browser → Izin situs → Lokasi → Izinkan, lalu coba lagi.</p>}
         <button data-testid="gps-enable-button" onClick={ask} className="btn-primary w-full">Izinkan Lokasi</button>
       </div>

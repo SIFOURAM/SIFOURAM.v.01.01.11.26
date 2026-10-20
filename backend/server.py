@@ -21,6 +21,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("si4am")
 JWT_ALG = "HS256"
 NOID = {"_id": 0}
+TERMS_VERSION = "2026-06-01"
+PRIVACY_VERSION = "2026-06-01"
+VALID_ROLES = {"owner", "admin", "barteam", "rider"}
 
 
 def now_iso():
@@ -130,8 +133,28 @@ def check_pw(p: str, h: str) -> bool:
         return False
 
 
-def make_token(user_id: str, days: int) -> str:
-    return jwt.encode({"sub": user_id, "exp": datetime.now(timezone.utc) + timedelta(days=days), "type": "access"}, os.environ["JWT_SECRET"], algorithm=JWT_ALG)
+def make_token(user_id: str, days: int, token_type: str = "access") -> str:
+    return jwt.encode(
+        {
+            "sub": user_id,
+            "exp": datetime.now(timezone.utc) + timedelta(days=days),
+            "type": token_type,
+        },
+        os.environ["JWT_SECRET"],
+        algorithm=JWT_ALG,
+    )
+
+
+def make_identify_token(user_id: str) -> str:
+    return jwt.encode(
+        {
+            "sub": user_id,
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
+            "type": "identified",
+        },
+        os.environ["JWT_SECRET"],
+        algorithm=JWT_ALG,
+    )
 
 
 def public_user(u: dict) -> dict:
@@ -153,8 +176,10 @@ async def get_user(request: Request) -> dict:
         raise HTTPException(401, "Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Invalid token")
+    if payload.get("type") != "access":
+        raise HTTPException(401, "Invalid token type")
     u = await db.users.find_one({"id": payload["sub"]})
-    if not u:
+    if not u or u.get("active", True) is False:
         raise HTTPException(401, "User not found")
     return u
 
@@ -167,20 +192,37 @@ def roles(*allowed):
     return dep
 
 
-STAFF = roles("superadmin", "barteam")
-SUPER = roles("superadmin")
+STAFF = roles("owner", "admin", "barteam")
+SUPER = roles("owner")
 ANY = get_user
 
 
 # ---------- Models ----------
-class LoginIn(BaseModel):
+class IdentifyIn(BaseModel):
     identifier: str
-    password: str
+    terms_accepted: bool
+    privacy_accepted: bool
+
+
+class LoginIn(BaseModel):
+    account_token: str
+    pin: str
     remember: bool = False
 
 
 class PinIn(BaseModel):
     pin: str
+
+
+class UserCreateIn(BaseModel):
+    name: str
+    username: str
+    role: str
+    pin: str
+    email: Optional[str] = None
+    whatsapp: Optional[str] = None
+    password: Optional[str] = None
+    active: bool = True
 
 
 class ProfileIn(BaseModel):
@@ -391,6 +433,7 @@ class SettingsIn(BaseModel):
 async def seed():
     await db.users.create_index("username", unique=True)
     await db.users.create_index("id", unique=True)
+    await db.users.create_index("whatsapp")
     await db.attendance.create_index([("rider_id", 1), ("date", 1)], unique=True)
     await db.rider_stock.create_index([("rider_id", 1), ("date", 1)], unique=True)
     await db.deposits.create_index([("rider_id", 1), ("date", 1)], unique=True)
@@ -399,7 +442,13 @@ async def seed():
     await db.login_attempts.create_index("identifier")
     for su in SEED_USERS:
         ex = await db.users.find_one({"username": su["username"]})
-        doc = {"name": su["name"], "email": su["email"].lower(), "whatsapp": su["whatsapp"], "role": su["role"]}
+        doc = {
+            "name": su["name"],
+            "email": su["email"].lower(),
+            "whatsapp": su["whatsapp"],
+            "role": su["role"],
+            "active": True,
+        }
         if not ex:
             doc.update({"id": uid(), "username": su["username"], "password_hash": hash_pw(su["password"]), "pin_hash": hash_pw(su["pin"]),
                         "photo": None, "joined_at": "2024-01-01", "placement": "Jakarta", "created_at": now_iso(),
@@ -411,6 +460,9 @@ async def seed():
                 upd["password_hash"] = hash_pw(su["password"])
             if not check_pw(su["pin"], ex.get("pin_hash", "")):
                 upd["pin_hash"] = hash_pw(su["pin"])
+            for key, value in doc.items():
+                if ex.get(key) != value:
+                    upd[key] = value
             if upd:
                 await db.users.update_one({"username": su["username"]}, {"$set": upd})
     if await db.materials.count_documents({}) == 0:
@@ -469,17 +521,62 @@ async def delete_file(path: str, u=Depends(SUPER)):
 
 
 # ---------- Auth ----------
+@api.post("/auth/identify")
+async def identify_account(body: IdentifyIn):
+    ident = body.identifier.strip().lower()
+    phone = re.sub(r"\D", "", ident)
+    u = await db.users.find_one(
+        {
+            "$or": [
+                {"username": ident},
+                {"email": ident},
+                {"whatsapp": ident},
+                {"whatsapp": phone},
+            ]
+        }
+    )
+    if not u or u.get("active", True) is False:
+        raise HTTPException(
+            404,
+            "Email atau username tidak ditemukan, atau akun tidak aktif. "
+            "Segera hubungi Tim Bar atau Owner.",
+        )
+    if not body.terms_accepted or not body.privacy_accepted:
+        raise HTTPException(400, "Syarat & Ketentuan serta Kebijakan Privasi harus disetujui.")
+    consent = {
+        "terms_version": TERMS_VERSION,
+        "privacy_version": PRIVACY_VERSION,
+        "accepted_at": now_iso(),
+    }
+    await db.users.update_one({"id": u["id"]}, {"$set": {"consent": consent}})
+    u["consent"] = consent
+    return {"account_token": make_identify_token(u["id"]), "user": public_user(u)}
+
+
 @api.post("/auth/login")
 async def login(body: LoginIn, request: Request):
-    ident = body.identifier.strip().lower()
-    key = f"{request.client.host}:{ident}"
+    try:
+        payload = jwt.decode(body.account_token, os.environ["JWT_SECRET"], algorithms=[JWT_ALG])
+    except jwt.InvalidTokenError:
+        raise HTTPException(401, "Sesi identifikasi telah berakhir. Masukkan akun kembali.")
+    if payload.get("type") != "identified":
+        raise HTTPException(401, "Sesi identifikasi tidak valid.")
+    u = await db.users.find_one({"id": payload.get("sub")})
+    if not u or u.get("active", True) is False:
+        raise HTTPException(
+            401,
+            "PIN belum didaftarkan, atau akun tidak aktif. Segera hubungi Tim Bar atau Owner.",
+        )
+    key = f"{request.client.host}:{u['id']}"
     att = await db.login_attempts.find_one({"identifier": key})
     if att and att.get("count", 0) >= 5 and datetime.fromisoformat(att["last"]) > datetime.now(timezone.utc) - timedelta(minutes=15):
         raise HTTPException(429, "Too many attempts. Try again in 15 minutes.")
-    u = await db.users.find_one({"username": ident}) or await db.users.find_one({"email": ident})
-    if not u or not check_pw(body.password, u["password_hash"]):
+    if not u.get("pin_hash") or not check_pw(body.pin, u["pin_hash"]):
         await db.login_attempts.update_one({"identifier": key}, {"$inc": {"count": 1}, "$set": {"last": now_iso()}}, upsert=True)
-        raise HTTPException(401, "Invalid username/email or password")
+        raise HTTPException(
+            401,
+            "PIN belum didaftarkan, atau akun tidak aktif. Segera hubungi Tim Bar atau Owner.",
+        )
     await db.login_attempts.delete_one({"identifier": key})
     token = make_token(u["id"], 30 if body.remember else 1)
     return {"token": token, "user": public_user(u)}
@@ -544,9 +641,40 @@ async def list_users(role: Optional[str] = None, u=Depends(ANY)):
     if u["role"] == "rider":
         q = {"role": "rider"}
     users = await db.users.find(q, {"_id": 0, "password_hash": 0, "pin_hash": 0}).to_list(200)
-    if u["role"] == "rider" and role == "superadmin":
-        users = await db.users.find({"role": "superadmin"}, {"_id": 0, "id": 1, "name": 1, "whatsapp": 1, "role": 1}).to_list(10)
+    if u["role"] == "rider" and role == "owner":
+        users = await db.users.find(
+            {"role": "owner"},
+            {"_id": 0, "id": 1, "name": 1, "whatsapp": 1, "role": 1},
+        ).to_list(10)
     return users
+
+
+@api.post("/users")
+async def create_user(body: UserCreateIn, u=Depends(SUPER)):
+    username = body.username.strip().lower()
+    if body.role not in VALID_ROLES:
+        raise HTTPException(400, "Role tidak valid")
+    if len(body.pin) != 6 or not body.pin.isdigit():
+        raise HTTPException(400, "PIN harus berisi 6 angka")
+    if await db.users.find_one({"username": username}):
+        raise HTTPException(409, "Username sudah digunakan")
+    doc = {
+        "id": uid(),
+        "name": body.name.strip(),
+        "username": username,
+        "email": (body.email or "").strip().lower(),
+        "whatsapp": (body.whatsapp or "").strip(),
+        "role": body.role,
+        "active": body.active,
+        "password_hash": hash_pw(body.password or uid()),
+        "pin_hash": hash_pw(body.pin),
+        "photo": None,
+        "banks": [],
+        "settings": {"theme": "dark", "language": "id", "notifications": True},
+        "created_at": now_iso(),
+    }
+    await db.users.insert_one(doc)
+    return public_user(doc)
 
 
 # ---------- Inventory ----------
@@ -1012,7 +1140,7 @@ async def save_deposit(body: DepositIn, u=Depends(STAFF)):
            "expenses": body.expenses, "expense_note": body.expense_note, "net_cash": net_cash, "motivation": motiv, "updated_at": now_iso()}
     await db.deposits.update_one({"rider_id": body.rider_id, "date": body.date}, {"$set": doc}, upsert=True)
     await gs_sync("deposits", {**doc, "rows": "; ".join(f"{r['name']}: stock {r['stock']} sisa {r['remaining']} cash {r['cash']} qris {r['qris']} waste {r['wastage']}" for r in rows), "bundles": str(bundles_out)})
-    await db.notifications.insert_one({"id": uid(), "for_role": "superadmin", "type": "deposit", "title": f"Setoran · {rider['name']}",
+    await db.notifications.insert_one({"id": uid(), "for_role": "owner", "type": "deposit", "title": f"Setoran · {rider['name']}",
                                        "body": f"{cups} cups · Cash Rp {int(cash):,} · QRIS Rp {int(qris):,} · Net Rp {int(net_cash):,}".replace(",", "."),
                                        "ref_id": doc["id"], "read": False, "created_at": now_iso()})
     return doc
@@ -1049,7 +1177,7 @@ async def create_invoice(body: InvoiceIn, u=Depends(SUPER)):
     await db.invoices.insert_one(doc)
     doc.pop("_id", None)
     await gs_sync("invoices", {**doc, "rows": "; ".join(f"{r['name']} x{r['qty']}" for r in rows), "payments": str(doc["payments"])})
-    await db.notifications.insert_one({"id": uid(), "for_role": "superadmin", "type": "order", "title": f"Pesanan Barang · {doc['customer_name'] or '-'}",
+    await db.notifications.insert_one({"id": uid(), "for_role": "owner", "type": "order", "title": f"Pesanan Barang · {doc['customer_name'] or '-'}",
                                        "body": f"{doc['invoice_no']} · {doc['cups']} item · Rp {int(total):,}".replace(",", "."), "ref_id": doc["id"], "read": False, "created_at": now_iso()})
     return doc
 
@@ -1148,7 +1276,7 @@ async def create_withdrawal(body: WithdrawalIn, start: str, end: str, u=Depends(
            "status": "pending", "created_at": now_iso()}
     await db.withdrawals.insert_one(doc)
     doc.pop("_id", None)
-    await db.notifications.insert_one({"id": uid(), "for_role": "superadmin", "type": "withdrawal", "title": f"{'Uang Harian' if body.type == 'allowance' else 'Insentif'} · {rs['rider_name']}",
+    await db.notifications.insert_one({"id": uid(), "for_role": "owner", "type": "withdrawal", "title": f"{'Uang Harian' if body.type == 'allowance' else 'Insentif'} · {rs['rider_name']}",
                                        "body": f"Rp {body.amount:,.0f} via {body.method.upper()} · {body.date} {doc['time']}", "ref_id": doc["id"], "read": False, "created_at": now_iso()})
     await gs_sync("withdrawals", doc)
     return doc
@@ -1168,18 +1296,18 @@ async def accept_withdrawal(wid: str, u=Depends(SUPER)):
 
 @api.get("/notifications")
 async def list_notifications(u=Depends(SUPER)):
-    return await db.notifications.find({"for_role": "superadmin"}, NOID).sort("created_at", -1).limit(30).to_list(30)
+    return await db.notifications.find({"for_role": "owner"}, NOID).sort("created_at", -1).limit(30).to_list(30)
 
 
 @api.post("/notifications/read")
 async def read_notifications(u=Depends(SUPER)):
-    await db.notifications.update_many({"for_role": "superadmin", "read": False}, {"$set": {"read": True}})
+    await db.notifications.update_many({"for_role": "owner", "read": False}, {"$set": {"read": True}})
     return {"ok": True}
 
 
 @api.post("/notifications/clear")
 async def clear_notifications(u=Depends(SUPER)):
-    await db.notifications.delete_many({"for_role": "superadmin"})
+    await db.notifications.delete_many({"for_role": "owner"})
     return {"ok": True}
 
 
@@ -1202,18 +1330,31 @@ class UserUpdateIn(BaseModel):
     banks: Optional[list] = None
     password: Optional[str] = None
     pin: Optional[str] = None
+    role: Optional[str] = None
+    active: Optional[bool] = None
 
 
 @api.put("/users/{uid}")
 async def admin_update_user(uid: str, body: UserUpdateIn, u=Depends(SUPER)):
+    if uid == u["id"] and (body.active is False or (body.role and body.role != "owner")):
+        raise HTTPException(400, "Owner tidak dapat menonaktifkan atau menurunkan role akunnya sendiri")
     upd = {}
-    for k in ("name", "username", "email", "whatsapp", "banks"):
+    for k in ("name", "username", "email", "whatsapp", "banks", "role", "active"):
         v = getattr(body, k)
         if v is not None:
+            if k == "role" and v not in VALID_ROLES:
+                raise HTTPException(400, "Role tidak valid")
+            if k == "username":
+                v = v.strip().lower()
+                existing = await db.users.find_one({"username": v, "id": {"$ne": uid}})
+                if existing:
+                    raise HTTPException(409, "Username sudah digunakan")
             upd[k] = v.lower() if k == "email" else v
     if body.password:
         upd["password_hash"] = hash_pw(body.password)
     if body.pin:
+        if len(body.pin) != 6 or not body.pin.isdigit():
+            raise HTTPException(400, "PIN harus berisi 6 angka")
         upd["pin_hash"] = hash_pw(body.pin)
     if upd:
         await db.users.update_one({"id": uid}, {"$set": upd})
@@ -1366,6 +1507,125 @@ def tier_for(gross: float, days: int):
 
 
 TIERS = [("Bronze", 1000000, 0.05, 0), ("Silver", 5000000, 0.10, 25), ("Gold", 10000000, 0.15, 25), ("Platinum", 20000000, 0.20, 25)]
+RIDER_RANKS = [
+    ("Herald", 0, 1750000, 20000, 0.00),
+    ("Warriors", 1750000, 2520000, 30000, 0.05),
+    ("Masters", 2520000, 3220000, 35000, 0.07),
+    ("Divine", 3220000, 4000000, 40000, 0.10),
+    ("Immortal", 4000000, None, 50000, 0.15),
+]
+
+
+def rider_rank_for(gross: float) -> dict:
+    for index, (name, minimum, maximum, attendance, commission) in enumerate(RIDER_RANKS):
+        if maximum is None or gross < maximum:
+            next_rank = RIDER_RANKS[index + 1] if index + 1 < len(RIDER_RANKS) else None
+            return {
+                "name": name,
+                "minimum": minimum,
+                "maximum": maximum,
+                "attendance_benefit": attendance,
+                "commission_pct": commission,
+                "next": {
+                    "name": next_rank[0],
+                    "minimum": next_rank[1],
+                } if next_rank else None,
+            }
+    return {}
+
+
+@api.get("/rider-rank")
+async def rider_rank(start: str, end: str, rider_id: Optional[str] = None, u=Depends(ANY)):
+    target_id = u["id"] if u["role"] == "rider" else rider_id
+    if not target_id:
+        raise HTTPException(400, "Pilih rider")
+    recs = await daily_summaries(start, end, target_id)
+    gross = sum(item["cash"] + item["qris"] for item in recs)
+    attendance_days = await db.attendance.count_documents(
+        {"rider_id": target_id, "date": {"$gte": start, "$lte": end}}
+    )
+    rank = rider_rank_for(gross)
+    next_minimum = rank.get("next", {}).get("minimum") if rank.get("next") else None
+    return {
+        "rider_id": target_id,
+        "start": start,
+        "end": end,
+        "gross": gross,
+        "attendance_days": attendance_days,
+        "rank": rank,
+        "attendance_total": rank.get("attendance_benefit", 0) * attendance_days,
+        "commission": round(gross * rank.get("commission_pct", 0)),
+        "main_estimated_commission": round(gross * rank.get("commission_pct", 0)),
+        "progress": 100 if not next_minimum else round(min(100, gross / next_minimum * 100), 1),
+        "remaining": 0 if not next_minimum else max(0, next_minimum - gross),
+    }
+
+
+@api.get("/reports/sales")
+async def sales_report(
+    start: str,
+    end: str,
+    payment_method: Optional[str] = None,
+    order_type: Optional[str] = None,
+    u=Depends(SUPER),
+):
+    query: Dict[str, Any] = {"date": {"$gte": start, "$lte": end}}
+    if payment_method and payment_method != "all":
+        query["payment_method"] = payment_method
+    rows = await db.sales.find(query, NOID).sort([("date", 1), ("time", 1)]).to_list(5000)
+    filtered = []
+    for sale in rows:
+        sale_type = "bundling" if any(item.get("bundle") for item in sale["items"]) else "regular"
+        if order_type and order_type != "all" and sale_type != order_type:
+            continue
+        sale["order_type"] = sale_type
+        filtered.append(sale)
+    by_date: Dict[str, float] = {}
+    by_payment: Dict[str, float] = {}
+    by_type: Dict[str, float] = {}
+    by_hour: Dict[str, dict] = {}
+    products: Dict[str, dict] = {}
+    for sale in filtered:
+        amount = sale["total"]
+        by_date[sale["date"]] = by_date.get(sale["date"], 0) + amount
+        method = sale.get("payment_method", "other")
+        by_payment[method] = by_payment.get(method, 0) + amount
+        kind = sale["order_type"]
+        by_type[kind] = by_type.get(kind, 0) + amount
+        hour = (sale.get("time") or "00:00")[:2]
+        hour_row = by_hour.setdefault(hour, {"hour": f"{hour}:00", "transactions": 0, "revenue": 0})
+        hour_row["transactions"] += 1
+        hour_row["revenue"] += amount
+        for item in sale["items"]:
+            if item.get("bundle"):
+                names = item.get("component_names", {})
+                cup_total = sum(names.values()) or 1
+                for name, quantity in names.items():
+                    item_row = products.setdefault(name, {"name": name, "qty": 0, "revenue": 0})
+                    item_row["qty"] += quantity
+                    item_row["revenue"] += item["subtotal"] * quantity / cup_total
+            else:
+                item_row = products.setdefault(item["name"], {"name": item["name"], "qty": 0, "revenue": 0})
+                item_row["qty"] += item["qty"]
+                item_row["revenue"] += item["subtotal"]
+    total_revenue = sum(sale["total"] for sale in filtered)
+    for item in products.values():
+        item["revenue"] = round(item["revenue"])
+    product_rows = sorted(products.values(), key=lambda item: (-item["revenue"], -item["qty"]))
+    for index, item in enumerate(product_rows, start=1):
+        item["rank"] = index
+    return {
+        "filters": {"start": start, "end": end, "payment_method": payment_method, "order_type": order_type},
+        "transactions": len(filtered),
+        "revenue": total_revenue,
+        "average_order": round(total_revenue / len(filtered)) if filtered else 0,
+        "discount": 0,
+        "daily_revenue": [{"date": key, "revenue": value} for key, value in sorted(by_date.items())],
+        "payment_distribution": [{"name": key.upper(), "value": value} for key, value in by_payment.items()],
+        "order_distribution": [{"name": key, "value": value} for key, value in by_type.items()],
+        "hourly": [by_hour[key] for key in sorted(by_hour)],
+        "products": product_rows,
+    }
 
 
 @api.get("/dashboard/summary")
@@ -1386,7 +1646,7 @@ async def dashboard_summary(start: str, end: str, rider_id: Optional[str] = None
     exp_q = {"date": {"$gte": start, "$lte": end}}
     expenses = await db.expenses.find(exp_q, NOID).to_list(1000) if u["role"] != "rider" else []
     purchases = await db.inventory_tx.find({**exp_q, "type": "in"}, NOID).to_list(1000) if u["role"] != "rider" else []
-    invoices = await db.invoices.find(exp_q, NOID).to_list(1000) if u["role"] == "superadmin" else []
+    invoices = await db.invoices.find(exp_q, NOID).to_list(1000) if u["role"] == "owner" else []
     total_exp = sum(e["amount"] for e in expenses if e.get("type", "expense") == "expense") + sum(p["cost"] for p in purchases)
     inv_income = sum(i["total"] for i in invoices)
     for bd in by_date.values():
@@ -1480,8 +1740,23 @@ async def finance_summary(start: str, end: str, u=Depends(SUPER)):
 # ---------- GPS ----------
 @api.post("/gps")
 async def post_gps(body: GpsIn, u=Depends(ANY)):
+    if u["role"] != "rider":
+        raise HTTPException(403, "GPS hanya untuk rider")
+    date = datetime.now(WIB).strftime("%Y-%m-%d")
+    attendance = await db.attendance.find_one({"rider_id": u["id"], "date": date, "checkout_at": None})
+    if not attendance:
+        raise HTTPException(403, "GPS hanya dikirim saat rider sedang bertugas")
     await db.gps.update_one({"rider_id": u["id"]}, {"$set": {"rider_id": u["id"], "rider_name": u["name"], "lat": body.lat, "lng": body.lng, "updated_at": now_iso()}}, upsert=True)
     return {"ok": True}
+
+
+@api.get("/attendance/on-duty")
+async def attendance_on_duty(u=Depends(ANY)):
+    if u["role"] != "rider":
+        return {"on_duty": False}
+    date = datetime.now(WIB).strftime("%Y-%m-%d")
+    record = await db.attendance.find_one({"rider_id": u["id"], "date": date, "checkout_at": None})
+    return {"on_duty": bool(record), "date": date}
 
 
 @api.get("/gps/active")

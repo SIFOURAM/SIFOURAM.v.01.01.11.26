@@ -9,7 +9,7 @@ import { PageHeader, Bento, Field } from "../components/common";
 export default function Profile() {
   const { t } = useT();
   const { user, setUser, logout } = useAuth();
-  const canEdit = user.role === "superadmin";
+  const canEdit = user.role === "owner";
   const [f, setF] = useState({ name: user.name, whatsapp: user.whatsapp, email: user.email, joined_at: user.joined_at || "", placement: user.placement || "" });
   const BANKS = ["Bank BCA", "Bank Mandiri (Livin')", "Bank BRI (BRImo)", "Bank BNI (wondr)", "Bank BTN (Bale)", "CIMB Niaga (OCTO Mobile)", "Bank Danamon (D-Bank PRO)", "Bank Permata (PermataMobile X)", "OCBC Indonesia (OCBC mobile)", "Bank Syariah Indonesia (BYOND)", "Bank Jago", "Bank Neo Commerce (neobank)", "Allo Bank", "SeaBank", "blu by BCA Digital", "LINE Bank", "Jenius", "MotionBank", "Bank Raya", "Bank Saqu", "Superbank", "TMRW by UOB"];
   const [banks, setBanks] = useState(user.banks?.length ? user.banks : (user.bank_name ? [{ bank_name: user.bank_name, bank_account: user.bank_account || "", bank_holder: user.bank_holder || "" }] : []));

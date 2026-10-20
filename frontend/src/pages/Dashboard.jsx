@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Coffee, Banknote, QrCode, TrendingDown, MapPin } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { api } from "../lib/api";
 import { fmtRp, today } from "../lib/helpers";
 import { useT } from "../lib/i18n";
@@ -8,6 +8,7 @@ import { PageHeader, Stat, Bento, DateFilter, Empty } from "../components/common
 import GpsMap from "../components/GpsMap";
 
 const tip = { contentStyle: { borderRadius: 12, border: "1px solid #333", background: "#111", color: "#fff", fontSize: 12 } };
+const menuColors = ["#FF6B00", "#FFD700", "#16a34a", "#2563eb", "#dc2626", "#9333ea"];
 
 export default function Dashboard() {
   const { t } = useT();
@@ -37,16 +38,20 @@ export default function Dashboard() {
           <Stat label={t("expenses")} value={fmtRp(d.expenses)} sub={`Invoices: ${fmtRp(d.invoice_income)}`} icon={TrendingDown} testId="stat-expenses" />
 
           <Bento className="col-span-2 lg:col-span-2 fade-up" testId="chart-rider-sales">
-            <p className="eyebrow mb-4">Rider Sales / Revenue</p>
+            <p className="eyebrow mb-4">5 Penjualan Rider Tertinggi</p>
             {d.by_rider.length ? (
               <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={d.by_rider.map((r) => ({ name: r.rider_name.split(" ")[0], cash: r.cash, qris: r.qris }))}>
+                <BarChart data={d.by_rider.slice(0, 5).map((r) => ({ name: r.rider_name.split(" ")[0], cash: r.cash, qris: r.qris }))}>
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis hide /><Tooltip {...tip} formatter={(v) => fmtRp(v)} />
                   <Bar dataKey="cash" stackId="a" fill="#FF6B00" radius={[0, 0, 6, 6]} /><Bar dataKey="qris" stackId="a" fill="#D4AF37" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <Empty text={t("noData")} />}
+          </Bento>
+          <Bento className="col-span-2 fade-up" testId="dashboard-menu-donut">
+            <p className="eyebrow mb-4">Menu / Produk Terjual</p>
+            {d.by_menu.length ? <div className="flex items-center gap-4"><ResponsiveContainer width="52%" height={240}><PieChart><Pie data={d.by_menu} dataKey="qty" nameKey="name" innerRadius={58} outerRadius={90} paddingAngle={3}>{d.by_menu.map((row, index) => <Cell key={row.name} fill={menuColors[index % menuColors.length]} />)}</Pie><Tooltip {...tip} formatter={(value, name) => [`${value} cup`, name]} /></PieChart></ResponsiveContainer><div className="flex-1 text-xs space-y-2">{d.by_menu.slice(0, 5).map((row, index) => <div key={row.name} className="flex justify-between gap-2"><span className="truncate flex items-center gap-2"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: menuColors[index % menuColors.length] }} />{row.name}</span><b className="num">{row.qty}</b></div>)}</div></div> : <Empty text={t("noData")} />}
           </Bento>
           <Bento className="col-span-2 fade-up" testId="chart-money-flow">
             <p className="eyebrow mb-4">{t("income")} vs {t("outgo")}</p>

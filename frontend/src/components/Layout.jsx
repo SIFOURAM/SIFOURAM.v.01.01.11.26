@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Boxes, Layers, ShoppingCart, Bike, Wallet, FileText, HandCoins, LineChart, BadgeDollarSign, Settings as Cog, MoreHorizontal, LogOut, Sun, Moon, Gauge, Users, Bell, UserCog } from "lucide-react";
+import { LayoutDashboard, Boxes, Layers, ShoppingCart, Bike, Wallet, FileText, HandCoins, LineChart, BadgeDollarSign, Settings as Cog, MoreHorizontal, LogOut, Sun, Moon, Gauge, Users, Bell, UserCog, ChartNoAxesCombined } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useT } from "../lib/i18n";
 import { api } from "../lib/api";
@@ -56,29 +56,45 @@ function NotifBell() {
   );
 }
 
-const I = { dashboard: LayoutDashboard, inventory: Boxes, menuStock: Layers, pos: ShoppingCart, riderStock: Bike, deposit: Wallet, invoice: FileText, riderDash: Gauge, handover: HandCoins, finance: LineChart, salary: BadgeDollarSign, settings: Cog, customers: Users, userInfo: UserCog };
+const I = { dashboard: LayoutDashboard, inventory: Boxes, menuStock: Layers, pos: ShoppingCart, riderStock: Bike, deposit: Wallet, invoice: FileText, riderDash: Gauge, handover: HandCoins, finance: LineChart, salary: BadgeDollarSign, settings: Cog, customers: Users, userInfo: UserCog, reports: ChartNoAxesCombined };
 const item = (to, key) => ({ to, key, icon: I[key] });
 
 // Bottom nav (mobile) + "More" sub-tabs. Desktop sidebar shows main + more flat.
 export const NAV = {
-  superadmin: { main: [item("/", "dashboard"), item("/rider-stock", "riderStock"), item("/deposit", "deposit"), item("/handover", "handover")],
-    more: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/pos", "pos"), item("/invoice", "invoice"), item("/rider-dashboard", "riderDash"), item("/finance", "finance"), item("/salary", "salary"), item("/customers", "customers"), item("/user-info", "userInfo"), item("/settings", "settings")] },
-  barteam: { main: [item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock"), item("/deposit", "deposit"), item("/inventory", "inventory"), item("/rider-dashboard", "riderDash"), item("/settings", "settings")], more: [] },
+  owner: { main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock", "menuStock")],
+    more: [item("/rider-stock", "riderStock"), item("/deposit", "deposit"), item("/handover", "handover"), item("/invoice", "invoice"), item("/rider-dashboard", "riderDash"), item("/reports", "reports"), item("/finance", "finance"), item("/salary", "salary"), item("/customers", "customers"), item("/user-info", "userInfo"), item("/settings", "settings")] },
+  admin: { main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock", "menuStock")],
+    more: [item("/rider-stock", "riderStock"), item("/deposit", "deposit"), item("/rider-dashboard", "riderDash"), item("/settings", "settings")] },
+  barteam: { main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock", "menuStock")],
+    more: [item("/rider-stock", "riderStock"), item("/deposit", "deposit"), item("/rider-dashboard", "riderDash"), item("/settings", "settings")] },
   rider: { main: [item("/pos", "pos"), item("/rider-dashboard", "riderDash"), item("/settings", "settings")], more: [] },
 };
-export const HOME = { superadmin: "/", barteam: "/menu-stock", rider: "/pos" };
+export const HOME = { owner: "/", admin: "/", barteam: "/", rider: "/pos" };
 
 function useRiderGps(user) {
   const last = useRef(0);
+  const [onDuty, setOnDuty] = useState(false);
   useEffect(() => {
-    if (!user || user.role !== "rider" || user.settings?.gps_mode === "off" || !navigator.geolocation) return;
+    if (!user || user.role !== "rider") {
+      setOnDuty(false);
+      return undefined;
+    }
+    const checkDuty = () => api.get("/attendance/on-duty")
+      .then((response) => setOnDuty(response.data.on_duty))
+      .catch(() => setOnDuty(false));
+    checkDuty();
+    const interval = setInterval(checkDuty, 15000);
+    return () => clearInterval(interval);
+  }, [user]);
+  useEffect(() => {
+    if (!user || user.role !== "rider" || !onDuty || user.settings?.gps_mode === "off" || !navigator.geolocation) return;
     const id = navigator.geolocation.watchPosition((p) => {
       if (Date.now() - last.current < 30000) return;
       last.current = Date.now();
       api.post("/gps", { lat: p.coords.latitude, lng: p.coords.longitude }).catch(() => {});
     }, () => {}, { enableHighAccuracy: true });
     return () => navigator.geolocation.clearWatch(id);
-  }, [user]);
+  }, [user, onDuty]);
 }
 
 export default function Layout() {
@@ -93,7 +109,7 @@ export default function Layout() {
   useRiderGps(user);
   useEffect(() => setMoreOpen(false), [loc.pathname]);
   const { main, more } = NAV[user.role] || { main: [], more: [] };
-  const roleLabel = { superadmin: "Superadmin", barteam: "Bar Team", rider: "Rider" }[user.role];
+  const roleLabel = { owner: "Owner", admin: "Admin", barteam: "Bar Team", rider: "Rider" }[user.role];
   const moreActive = more.some((m) => m.to === loc.pathname);
   const linkCls = (isActive) => `flex items-center gap-3 px-4 h-11 rounded-xl text-sm font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`;
 
@@ -121,11 +137,11 @@ export default function Layout() {
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="flex items-center justify-between px-4 lg:px-8 h-16 border-b border-border/70 sticky top-0 bg-background/80 backdrop-blur-xl z-40" data-testid="top-header">
+        <header className="flex items-center justify-between px-4 lg:px-8 h-16 sticky top-0 bg-primary text-black z-40" data-testid="top-header">
           <div className={`items-center gap-2 ${forceMobile ? "flex" : "flex lg:hidden"}`}><img src="/logo.png" alt="SI FOUR AM" className="w-8 h-8 rounded-xl object-contain" /><span className="font-heading font-bold">SI FOUR AM</span></div>
           <div className={forceMobile ? "hidden" : "hidden lg:block"}><p className="eyebrow">{roleLabel}</p></div>
           <div className="flex items-center gap-2">
-            {user.role === "superadmin" && <NotifBell />}
+            {user.role === "owner" && <NotifBell />}
             <ThemeBtn id="theme-toggle-button" />
             <div className="text-right hidden sm:block"><p className="text-sm font-semibold leading-tight">{user.name}</p><p className="text-[0.7rem] text-muted-foreground">@{user.username}</p></div>
             <Avatar />
@@ -143,11 +159,11 @@ export default function Layout() {
             {main.map((i) => (
               <NavLink key={i.to} to={i.to} end={i.to === "/"} data-testid={`bottomnav-${i.key}`}
                 className={({ isActive }) => `flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                <i.icon className="w-[0.95rem] h-[0.95rem]" /><span className="truncate w-full text-center">{t(i.key)}</span>
+                <i.icon className={`w-[0.95rem] h-[0.95rem] ${i.key === "pos" ? "text-primary scale-125" : ""}`} />
               </NavLink>))}
             {more.length > 0 && (
               <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${moreActive || moreOpen ? "text-primary" : "text-muted-foreground"}`}>
-                <MoreHorizontal className="w-[0.95rem] h-[0.95rem]" /><span>{t("more")}</span></button>)}
+                <MoreHorizontal className="w-[0.95rem] h-[0.95rem]" /></button>)}
           </div>
         </nav>
       </div>

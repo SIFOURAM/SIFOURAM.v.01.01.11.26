@@ -13,7 +13,7 @@ export const FONTS = [
   { key: "javanese", label: "Noto Sans Javanese", css: "'Noto Sans Javanese', sans-serif", google: "Noto+Sans+Javanese:wght@400;700" },
 ];
 
-export const DEFAULTS = { scale: 1, bold: false, color: "", font: "", view: "web" };
+export const DEFAULTS = { bold: false, font: "", view: "web" };
 
 const loaded = new Set();
 function loadFont(key) {
@@ -48,7 +48,6 @@ function hexToHsl(hex) {
 
 export function applyAppearance(a) {
   const root = document.documentElement;
-  root.style.setProperty("--font-scale", String(a.scale || 1));
   if (a.font) {
     const f = FONTS.find((x) => x.key === a.font) || FONTS[0];
     loadFont(f.key);
@@ -58,16 +57,16 @@ export function applyAppearance(a) {
     document.body.classList.remove("app-font");
   }
   document.body.classList.toggle("app-bold", !!a.bold);
-  const hsl = a.color ? hexToHsl(a.color) : null;
-  if (hsl) root.style.setProperty("--foreground", hsl);
-  else root.style.removeProperty("--foreground");
   document.body.classList.remove("vm-web", "vm-tablet", "vm-mobile");
   document.body.classList.add(`vm-${a.view || "web"}`);
   window.dispatchEvent(new Event("appearancechange"));
 }
 
 export function getAppearance() {
-  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem("si4am_appearance") || "{}") }; }
+  try {
+    const { scale, color, ...appearance } = JSON.parse(localStorage.getItem("si4am_appearance") || "{}");
+    return { ...DEFAULTS, ...appearance };
+  }
   catch { return { ...DEFAULTS }; }
 }
 

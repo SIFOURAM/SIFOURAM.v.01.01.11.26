@@ -6,11 +6,11 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 240 6% 6%;
+    --foreground: 0 0% 0%;
     --card: 0 0% 100%;
-    --card-foreground: 240 6% 6%;
+    --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 6% 6%;
+    --popover-foreground: 0 0% 0%;
     --primary: 25 100% 50%;
     --primary-foreground: 0 0% 100%;
     --secondary: 210 20% 97%;
@@ -35,11 +35,11 @@
   }
   .dark {
     --background: 0 0% 2%;
-    --foreground: 240 5% 96%;
+    --foreground: 0 0% 100%;
     --card: 240 4% 7%;
-    --card-foreground: 240 5% 96%;
+    --card-foreground: 0 0% 100%;
     --popover: 240 4% 7%;
-    --popover-foreground: 240 5% 96%;
+    --popover-foreground: 0 0% 100%;
     --primary: 25 100% 50%;
     --primary-foreground: 0 0% 100%;
     --secondary: 240 4% 11%;
@@ -121,8 +121,7 @@ html, body { max-width: 100%; overflow-x: hidden; overscroll-behavior-x: none; }
 }
 
 /* Global appearance controls (Settings > Text & Font) */
-:root { --font-scale: 1; --app-font: 'Plus Jakarta Sans', sans-serif; }
-html { font-size: calc(100% * var(--font-scale)); }
+:root { --app-font: 'Plus Jakarta Sans', sans-serif; }
 body.app-font, body.app-font h1, body.app-font h2, body.app-font h3, body.app-font h4, body.app-font .font-heading { font-family: var(--app-font) !important; }
 body.app-bold, body.app-bold p, body.app-bold span, body.app-bold a, body.app-bold td, body.app-bold th, body.app-bold li, body.app-bold label, body.app-bold input, body.app-bold button, body.app-bold h1, body.app-bold h2, body.app-bold h3, body.app-bold h4 { font-weight: 600 !important; }
 
@@ -140,3 +139,59 @@ body.app-bold, body.app-bold p, body.app-bold span, body.app-bold a, body.app-bo
 body.vm-tablet #root, body.vm-mobile #root { margin: 0 auto; min-height: 100vh; box-shadow: 0 0 0 1px hsl(var(--border)); }
 body.vm-tablet #root { max-width: 834px; }
 body.vm-mobile #root { max-width: 430px; }
+
+.auth-page {
+  min-height: 100dvh;
+  padding: max(1.25rem, env(safe-area-inset-top)) 1.25rem max(1.25rem, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(125deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
+}
+
+.auth-panel {
+  width: 100%;
+  max-width: 28rem;
+  padding: clamp(1.5rem, 5vw, 2.5rem);
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  background: hsl(var(--card));
+  box-shadow: 0 22px 50px -30px rgba(0, 0, 0, 0.55);
+}
+
+.auth-gold-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 3rem;
+  border-radius: 0.625rem;
+  background: #FFD700;
+  color: #000000;
+  font-size: 0.875rem;
+  font-weight: 800;
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.auth-gold-button:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+.auth-gold-button:active:not(:disabled) { transform: translateY(0); }
+.auth-gold-button:disabled { cursor: not-allowed; opacity: 0.42; }
+
+.pin-box {
+  width: min(13vw, 3rem);
+  height: min(15vw, 3.5rem);
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.25rem;
+  font-weight: 800;
+  outline: none;
+  transition: border-color 180ms ease, background-color 180ms ease;
+}
+
+.pin-box:focus { border-color: rgba(255, 215, 0, 0.9); background: rgba(255, 215, 0, 0.5); }
+.pin-box-filled { border-color: #FFD700; background: #FFD700; color: #000000; }

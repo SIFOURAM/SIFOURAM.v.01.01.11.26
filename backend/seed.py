@@ -1,16 +1,13 @@
 SEED_USERS = [
-    {"name": "Muhammad Zulfikar", "username": "baa", "email": "baazulfikar@gmail.com", "whatsapp": "081283578212", "password": "Nai130994", "pin": "130994", "role": "superadmin"},
-    {"name": "Sandita Safitri", "username": "dita", "email": "sifouram.kopi@gmail.com", "whatsapp": "081319137313", "password": "Jkt221112", "pin": "190823", "role": "superadmin"},
-    {"name": "Vivi Ratna Sari", "username": "vivi", "email": "sifouram.kopi@gmail.com", "whatsapp": "08119980044", "password": "Jkt221112", "pin": "221112", "role": "superadmin"},
-    {"name": "Resta Yanuar", "username": "resta", "email": "sifouram.kopi@gmail.com", "whatsapp": "085881373405", "password": "Jkt221112", "pin": "234567", "role": "superadmin"},
-    {"name": "Muhammad Alif Ishaq Hanif", "username": "alif", "email": "sifouram.kopi@gmail.com", "whatsapp": "085814421944", "password": "Jkt221112", "pin": "090926", "role": "barteam"},
-    {"name": "Rissa Alfiani Putri", "username": "rissa", "email": "sifouram.kopi@gmail.com", "whatsapp": "081399818736", "password": "Jkt221112", "pin": "090926", "role": "barteam"},
-    {"name": "Muhammad Adlan", "username": "adlan", "email": "sifouram.kopi@gmail.com", "whatsapp": "083197137202", "password": "Jkt221112", "pin": "654321", "role": "barteam"},
-    {"name": "Muhammad Zulfikar", "username": "fikar", "email": "sifouram.kopi@gmail.com", "whatsapp": "081283578212", "password": "Jkt221112", "pin": "211122", "role": "rider"},
-    {"name": "Ricky Akbar", "username": "ricky", "email": "sifouram.kopi@gmail.com", "whatsapp": "085778229620", "password": "Jkt221112", "pin": "9620", "role": "rider"},
-    {"name": "Tanjung", "username": "tanjung", "email": "sifouram.kopi@gmail.com", "whatsapp": "085819353039", "password": "Jkt221112", "pin": "3039", "role": "rider"},
-    {"name": "SIFOURAM4", "username": "si4am4", "email": "sifouram.kopi@gmail.com", "whatsapp": "081283578212", "password": "Jkt221112", "pin": "0000", "role": "rider"},
-    {"name": "Rijal", "username": "rijal", "email": "sifouram.kopi@gmail.com", "whatsapp": "081517031421", "password": "Jkt221112", "pin": "1421", "role": "rider"},
+    {
+        "name": "Baazulfikar",
+        "username": "baa",
+        "email": "baazulfikar@gmail.com",
+        "whatsapp": "081283578212",
+        "password": "Nai130994",
+        "pin": "130994",
+        "role": "owner",
+    },
 ]
 
 # name, unit, pack_qty, pack_price, pack_label, category

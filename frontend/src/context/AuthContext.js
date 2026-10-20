@@ -17,8 +17,21 @@ export function AuthProvider({ children }) {
     api.get("/auth/me").then((r) => setUser(r.data)).catch(() => setUser(false));
   }, []);
 
-  const login = useCallback(async (identifier, password, remember) => {
-    const { data } = await api.post("/auth/login", { identifier, password, remember });
+  const identify = useCallback(async (identifier, termsAccepted, privacyAccepted) => {
+    const { data } = await api.post("/auth/identify", {
+      identifier,
+      terms_accepted: termsAccepted,
+      privacy_accepted: privacyAccepted,
+    });
+    return data;
+  }, []);
+
+  const login = useCallback(async (accountToken, pin, remember) => {
+    const { data } = await api.post("/auth/login", {
+      account_token: accountToken,
+      pin,
+      remember,
+    });
     (remember ? localStorage : sessionStorage).setItem("si4am_token", data.token);
     setUser(data.user);
     return data.user;
@@ -31,7 +44,7 @@ export function AuthProvider({ children }) {
   const unlockPos = () => { sessionStorage.setItem("si4am_pos", "1"); setPosUnlocked(true); };
   const setTheme = (t) => setThemeState(t);
 
-  return <AuthCtx.Provider value={{ user, setUser, login, logout, theme, setTheme, posUnlocked, unlockPos }}>{children}</AuthCtx.Provider>;
+  return <AuthCtx.Provider value={{ user, setUser, identify, login, logout, theme, setTheme, posUnlocked, unlockPos }}>{children}</AuthCtx.Provider>;
 }
 
 export const useAuth = () => useContext(AuthCtx);

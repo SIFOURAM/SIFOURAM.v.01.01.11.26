@@ -14,6 +14,42 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 
 const COLORS = ["#FF6B00", "#D4AF37", "#f59e0b", "#fb923c", "#eab308", "#a16207", "#f97316", "#fbbf24", "#78350f"];
 const tip = { contentStyle: { borderRadius: 12, border: "1px solid #333", background: "#111", color: "#fff", fontSize: 12 } };
+const RANK_ASSETS = {
+  Herald: "/assets/rank-herald.png",
+  Warriors: "/assets/rank-warriors.png",
+  Masters: "/assets/rank-masters.png",
+  Divine: "/assets/rank-divine.png",
+  Immortal: "/assets/rank-immortal.png",
+};
+
+function RankCard({ data, onOpen }) {
+  const rank = data.rank || {};
+  return (
+    <button data-testid="rider-rank-card" onClick={onOpen} className="col-span-2 lg:col-span-1 text-left">
+      <Bento gold className="fade-up h-full overflow-hidden">
+        <img src={RANK_ASSETS[rank.name]} alt={`Rank ${rank.name}`} className="w-full aspect-[16/7] object-cover rounded-lg" />
+        <div className="mt-3 flex justify-between gap-3"><div><p className="eyebrow">Rank Mingguan</p><p className="font-heading font-bold text-xl">{rank.name}</p></div><div className="text-right"><p className="eyebrow">Komisi Estimasi</p><p className="num font-bold text-primary">{fmtRp(data.main_estimated_commission)}</p></div></div>
+        <div className="mt-3 h-2 bg-muted overflow-hidden rounded-full"><div className="h-full bg-primary rounded-full" style={{ width: `${data.progress}%` }} /></div>
+        <p className="text-xs text-muted-foreground mt-2">{rank.next ? `${fmtRp(data.remaining)} menuju ${rank.next.name}` : "Rank tertinggi tercapai"}</p>
+      </Bento>
+    </button>
+  );
+}
+
+function RankDialog({ data, onClose }) {
+  const rank = data.rank || {};
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent data-testid="rank-detail-dialog" className="max-w-md">
+        <DialogHeader><DialogTitle>Rank {rank.name}</DialogTitle></DialogHeader>
+        <img src={RANK_ASSETS[rank.name]} alt="Kartu rank rider" className="w-full rounded-lg" />
+        <div className="grid grid-cols-2 gap-3 text-sm"><div className="bg-muted p-3 rounded-lg"><p className="eyebrow">Total penjualan</p><p className="num font-bold">{fmtRp(data.gross)}</p></div><div className="bg-muted p-3 rounded-lg"><p className="eyebrow">Hari hadir</p><p className="num font-bold">{data.attendance_days}</p></div><div className="bg-muted p-3 rounded-lg"><p className="eyebrow">Benefit hadir</p><p className="num font-bold">{fmtRp(rank.attendance_benefit)} / hari</p></div><div className="bg-primary/10 p-3 rounded-lg"><p className="eyebrow">Bonus penjualan</p><p className="num font-bold">{Math.round((rank.commission_pct || 0) * 100)}%</p></div></div>
+        <p className="text-sm">Total benefit hadir: <b>{fmtRp(data.attendance_total)}</b> · Komisi estimasi: <b>{fmtRp(data.commission)}</b></p>
+        <p className="text-xs text-muted-foreground">{rank.next ? `Target berikutnya ${rank.next.name}: ${fmtRp(rank.next.minimum)}.` : "Immortal adalah rank tertinggi."}</p>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function TierProgress({ s, count = 1 }) {
   const { t } = useT();
@@ -39,7 +75,7 @@ function WithdrawDialog({ type, s, range, onClose, onDone }) {
   const [admins, setAdmins] = useState([]);
   const avail = type === "allowance" ? s.allowance_available : s.incentive_available;
   const load = () => api.get("/withdrawals", { params: { ...range, rider_id: s.rider_id } }).then((r) => setHist(r.data.filter((w) => w.type === type)));
-  useEffect(() => { load(); api.get("/users", { params: { role: "superadmin" } }).then((r) => setAdmins(r.data.filter((u) => u.role === "superadmin"))).catch(() => {}); }, []); // eslint-disable-line
+  useEffect(() => { load(); api.get("/users", { params: { role: "owner" } }).then((r) => setAdmins(r.data.filter((u) => u.role === "owner"))).catch(() => {}); }, []); // eslint-disable-line
   const submit = async () => {
     const bk = f.method === "bank" ? banks[f.bank_idx] || {} : {};
     try { const { data } = await api.post("/withdrawals", { rider_id: s.rider_id, type, method: f.method, date: f.date, note: f.note, amount: Number(f.amount), bank_name: bk.bank_name, bank_account: bk.bank_account, bank_holder: bk.bank_holder }, { params: range }); toast.success(t("withdraw") + " ✓"); setF({ ...f, amount: "" }); load(); onDone(); setDone(data); }
@@ -91,6 +127,8 @@ export default function RiderDashboard() {
   const [sales, setSales] = useState([]);
   const [deps, setDeps] = useState([]);
   const [wd, setWd] = useState(null);
+  const [rank, setRank] = useState(null);
+  const [showRank, setShowRank] = useState(false);
   const tableRef = useRef();
 
   useEffect(() => { if (!isRider) api.get("/users", { params: { role: "rider" } }).then((r) => setRiders(r.data)); }, [isRider]);
@@ -102,6 +140,8 @@ export default function RiderDashboard() {
     api.get("/rider-stock/history", { params: p }).then((r) => setStockHist(r.data));
     api.get("/sales", { params: p }).then((r) => setSales(r.data));
     api.get("/deposits", { params: p }).then((r) => setDeps(r.data));
+    if (riderId !== "all") api.get("/rider-rank", { params: p }).then((r) => setRank(r.data));
+    else setRank(null);
   };
   useEffect(() => { load(); }, [range, riderId]); // eslint-disable-line
 
@@ -124,7 +164,7 @@ export default function RiderDashboard() {
     <div data-testid="rider-dashboard">
       <PageHeader eyebrow={isRider ? (lang === "id" ? "Performa saya" : "My performance") : "Riders"} title={t("riderDash")}>
         {!isRider && <Select testId="rider-dash-select" value={riderId} onChange={setRiderId} className="w-44" options={[{ value: "all", label: t("allRiders") }, ...riders.map((r) => ({ value: r.id, label: r.name }))]} />}
-        <DateFilter onChange={setRange} />
+        <DateFilter onChange={setRange} riderPeriods={isRider} />
       </PageHeader>
       {sum && agg && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -142,6 +182,8 @@ export default function RiderDashboard() {
             <button data-testid="incentive-card-button" disabled={!single} onClick={() => setWd("incentive")} className="w-full text-left">
               <p className="eyebrow">{t("incentive")} · {agg.tier}</p><p className="mt-3 text-2xl font-bold num font-heading">{fmtRp(agg.incentive)}</p><p className="text-xs text-muted-foreground">{t("available")}: <b className="num">{fmtRp(agg.incentive_available)}</b>{single && ` · ${t("withdraw")} →`}</p></button></Bento>
           <Stat label={t("totalCups")} value={sum.cups} sub={`${agg.attendance_days} ${t("attendance").toLowerCase()} · ${fmtRp(agg.gross)}`} testId="rider-stat-cups" />
+
+          {rank && <RankCard data={rank} onOpen={() => setShowRank(true)} />}
 
           <Bento className="col-span-2 lg:col-span-4 fade-up" testId="tier-card"><p className="eyebrow mb-4">{t("nextTier")}{riderId === "all" ? ` (× ${agg.count} riders)` : ""}</p><TierProgress s={agg} count={riderId === "all" ? agg.count : 1} /></Bento>
 
@@ -170,6 +212,7 @@ export default function RiderDashboard() {
         </div>
       )}
       {wd && single && <WithdrawDialog type={wd} s={agg} range={range} onClose={() => setWd(null)} onDone={load} />}
+      {showRank && rank && <RankDialog data={rank} onClose={() => setShowRank(false)} />}
     </div>
   );
 }

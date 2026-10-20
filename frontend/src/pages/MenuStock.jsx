@@ -35,7 +35,7 @@ export default function MenuStock() {
   return (
     <div data-testid="menu-stock-page">
       <PageHeader eyebrow="Bar Team" title={t("menuStock")}>
-        {user.role === "superadmin" && <button data-testid="add-menu-button" onClick={() => setEdit({ name: "", price: "", max_stock: 30, photo: "", recipe: [{ material_id: "", qty: "" }] })} className="btn-primary h-10"><Plus className="w-4 h-4" />Add Menu</button>}
+        {user.role === "owner" && <button data-testid="add-menu-button" onClick={() => setEdit({ name: "", price: "", max_stock: 30, photo: "", recipe: [{ material_id: "", qty: "" }] })} className="btn-primary h-10"><Plus className="w-4 h-4" />Add Menu</button>}
       </PageHeader>
       <div className="grid lg:grid-cols-3 gap-6">
         <Bento gold className="fade-up" testId="produce-form">
@@ -57,7 +57,7 @@ export default function MenuStock() {
           {menus.map((m) => (
             <Bento key={m.id} className="fade-up p-0 overflow-hidden" testId={`menu-card-${m.id}`}>
               <div className="h-28 bg-muted relative">{m.photo && <img src={m.photo} alt={m.name} className="w-full h-full object-cover" />}
-                {user.role === "superadmin" && <button data-testid={`edit-menu-${m.id}`} onClick={() => setEdit({ ...m, recipe: m.recipe.length ? m.recipe : [{ material_id: "", qty: "" }] })} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center"><Pencil className="w-3.5 h-3.5" /></button>}
+                {user.role === "owner" && <button data-testid={`edit-menu-${m.id}`} onClick={() => setEdit({ ...m, recipe: m.recipe.length ? m.recipe : [{ material_id: "", qty: "" }] })} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center"><Pencil className="w-3.5 h-3.5" /></button>}
                 <span className="absolute bottom-2 left-3 text-[10px] font-bold uppercase text-white bg-primary rounded-full px-2 py-0.5">#{m.order}</span></div>
               <div className="p-4"><p className="font-heading font-bold text-sm">{m.name}</p><p className="text-xs text-muted-foreground">{fmtRp(m.price)} · HPP {fmtRp(m.cost)}</p>
                 <div className="flex justify-between items-end mt-3"><span className="eyebrow">{t("remaining")}</span><span data-testid={`menu-stock-${m.id}`} className={`text-2xl font-bold num ${m.stock < 10 ? "text-red-500" : ""}`}>{m.stock}</span></div></div>

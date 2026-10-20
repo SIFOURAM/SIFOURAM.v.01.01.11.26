@@ -44,12 +44,14 @@ export const QtySelect = ({ value, onChange, max = 30, testId, className = "" })
   </select>
 );
 
-export function DateFilter({ onChange, showCustom = true }) {
+export function DateFilter({ onChange, showCustom = true, riderPeriods = false }) {
   const { t } = useT();
   const [preset, setPreset] = useState("today");
   const [custom, setCustom] = useState(rangeFor("today"));
   useEffect(() => { onChange(rangeFor(preset, custom), preset); }, [preset, custom]); // eslint-disable-line
-  const presets = ["today", "yesterday", "week", "month", "prevmonth"];
+  const presets = riderPeriods
+    ? ["today", "yesterday", "week", "prevweek", "month"]
+    : ["today", "yesterday", "week", "month", "prevmonth"];
   return (
     <div className="flex flex-col gap-2 w-full sm:w-auto" data-testid="date-filter">
       <select data-testid="filter-preset-select" value={preset} onChange={(e) => setPreset(e.target.value)} className="field h-9 w-full sm:w-52 text-xs font-semibold">

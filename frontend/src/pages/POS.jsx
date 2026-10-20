@@ -260,7 +260,7 @@ export default function POS() {
             {!hist.length && <Empty text={t("noData")} />}
           </div>
         </div>)}
-      {(user.role === "rider" || user.role === "superadmin") && <CoachChat />}
+      {(user.role === "rider" || user.role === "owner") && <CoachChat />}
 
       <Dialog open={showAbsen} onOpenChange={(o) => !o && setShowAbsen(false)}>
         <DialogContent data-testid="absen-dialog"><DialogHeader><DialogTitle>{L ? "Absen Kehadiran" : "Attendance"}</DialogTitle></DialogHeader>

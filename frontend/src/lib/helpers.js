@@ -18,6 +18,12 @@ export const rangeFor = (preset, custom) => {
   switch (preset) {
     case "yesterday": { const y = t.subtract(1, "day").format("YYYY-MM-DD"); return { start: y, end: y }; }
     case "week": return { start: t.startOf("week").add(1, "day").format("YYYY-MM-DD"), end: t.format("YYYY-MM-DD") };
+    case "prevweek": {
+      return {
+        start: t.subtract(1, "week").startOf("week").add(1, "day").format("YYYY-MM-DD"),
+        end: t.subtract(1, "week").endOf("week").add(1, "day").format("YYYY-MM-DD"),
+      };
+    }
     case "month": return periodFor(t);
     case "prevmonth": return periodFor(t.subtract(1, "month"));
     case "custom": return custom;
@@ -90,4 +96,9 @@ export const compressImage = (file, max = 640) =>
   });
 
 export const initials = (name = "") => name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-export const roleLabel = (r) => ({ superadmin: "Superadmin", barteam: "Bar Team", rider: "Rider" }[r] || r);
+export const roleLabel = (r) => ({
+  owner: "Owner",
+  admin: "Admin",
+  barteam: "Bar Team",
+  rider: "Rider",
+}[r] || r);

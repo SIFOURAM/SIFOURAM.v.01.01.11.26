@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Moon, Sun, Globe, Bell, MapPin, ShieldCheck, Type, Bold, Palette, CaseSensitive, Monitor, Tablet, Smartphone } from "lucide-react";
+import { Moon, Sun, Globe, Bell, MapPin, ShieldCheck, Type, Bold, Monitor, Tablet, Smartphone } from "lucide-react";
 import { api } from "../lib/api";
 import { useT, LANGS } from "../lib/i18n";
 import { useAuth } from "../context/AuthContext";
@@ -36,7 +36,18 @@ export default function Settings() {
           <Row icon={theme === "dark" ? Moon : Sun} title={theme === "dark" ? t("darkMode") : t("lightMode")}>
             <div className="flex gap-1">{["dark", "light"].map((k) => <button key={k} data-testid={`theme-${k}`} onClick={() => { setTheme(k); save({ theme: k }); }} className={`h-9 px-4 rounded-full text-xs font-semibold capitalize ${theme === k ? "bg-primary text-white" : "bg-muted"}`}>{k}</button>)}</div></Row>
           <Row icon={Globe} title={t("language")} sub="ID · EN · 日本語 · 中文 · العربية">
-            <div className="flex flex-wrap gap-1 justify-end">{LANGS.map(([k, l]) => <button key={k} data-testid={`lang-${k}`} onClick={() => { setLang(k); save({ language: k }); }} className={`h-8 px-3 rounded-full text-[11px] font-semibold ${lang === k ? "bg-primary text-white" : "bg-muted"}`}>{l}</button>)}</div></Row>
+            <select
+              data-testid="language-dropdown"
+              className="field w-36 h-9 text-xs"
+              value={lang}
+              onChange={(event) => {
+                setLang(event.target.value);
+                save({ language: event.target.value });
+              }}
+            >
+              {LANGS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </select>
+          </Row>
           <Row icon={Monitor} title="Tampilan" sub="Web · Tablet · Mobile">
             <div className="flex gap-1">{[["web", "Web", Monitor], ["tablet", "Tablet", Tablet], ["mobile", "Mobile", Smartphone]].map(([k, l, Ic]) => <button key={k} data-testid={`view-${k}`} onClick={() => upd({ view: k })} className={`h-8 px-3 rounded-full text-[11px] font-semibold flex items-center gap-1 ${ap.view === k ? "bg-primary text-white" : "bg-muted"}`}><Ic className="w-3 h-3" />{l}</button>)}</div>
           </Row>
@@ -47,19 +58,7 @@ export default function Settings() {
 
         <Bento className="fade-up" testId="settings-text">
           <p className="eyebrow mb-2">{t("textFont")}</p>
-          <Row icon={CaseSensitive} title={t("textSize")} sub={`${Math.round(ap.scale * 100)}%`}>
-            <div className="flex items-center gap-1.5">
-              <button data-testid="text-smaller" onClick={() => upd({ scale: Math.max(0.5, +(ap.scale - 0.1).toFixed(2)) })} className="w-9 h-9 rounded-full bg-muted font-bold text-xs">A-</button>
-              <button data-testid="text-bigger" onClick={() => upd({ scale: Math.min(1.5, +(ap.scale + 0.1).toFixed(2)) })} className="w-9 h-9 rounded-full bg-muted font-bold text-base">A+</button>
-            </div>
-          </Row>
           <Row icon={Bold} title={t("boldText")}><Toggle testId="bold-toggle" on={ap.bold} onChange={(v) => upd({ bold: v })} /></Row>
-          <Row icon={Palette} title={t("textColor")}>
-            <div className="flex items-center gap-2">
-              <input data-testid="text-color" type="color" value={ap.color || "#111111"} onChange={(e) => upd({ color: e.target.value })} className="w-9 h-9 rounded-full border-0 bg-transparent cursor-pointer p-0" />
-              {ap.color && <button data-testid="text-color-reset" onClick={() => upd({ color: "" })} className="text-[11px] text-muted-foreground underline">{t("defaultFont")}</button>}
-            </div>
-          </Row>
           <Row icon={Type} title={t("fontType")}>
             <select data-testid="font-select" className="field w-44 h-9" value={ap.font} onChange={(e) => upd({ font: e.target.value })}>
               <option value="">{t("defaultFont")}</option>
@@ -72,7 +71,7 @@ export default function Settings() {
           <p className="eyebrow mb-2">{t("permissions")} · {user.role}</p>
           <Row icon={ShieldCheck} title="Modules" sub={`${perms.length} modules`} />
           <div className="flex flex-wrap gap-2 mt-3">{perms.map((p) => <span key={p} className="text-xs font-semibold rounded-full bg-muted px-3 py-1">{p}</span>)}</div>
-          {user.role === "superadmin" && <div className="mt-6 pt-4 border-t border-border/50">
+          {user.role === "owner" && <div className="mt-6 pt-4 border-t border-border/50">
             <p className="eyebrow mb-2">{t("appsScript")} (Google Sheets + Drive)</p>
             <div className="flex gap-2"><input data-testid="apps-script-url-input" className="field text-xs" placeholder="https://script.google.com/macros/s/.../exec" value={gsUrl} onChange={(e) => setGsUrl(e.target.value)} />
               <button data-testid="apps-script-save" onClick={async () => { await api.put("/config", { apps_script_url: gsUrl }); toast.success(t("save") + " ✓"); }} className="btn-primary h-10 px-4 text-xs">{t("save")}</button></div>

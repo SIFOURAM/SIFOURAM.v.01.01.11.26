@@ -51,7 +51,7 @@ export default function CashHandover() {
           </div>}
           <div className="grid sm:grid-cols-2 gap-3 mt-4">
             <Field label={t("giver")}><Select testId="handover-giver-select" value={f.giver_id} onChange={(v) => setF({ ...f, giver_id: v })} placeholder="—" options={staff.map((s) => ({ value: s.id, label: `${s.name} (${s.role})` }))} /></Field>
-            <Field label={t("receiver")}><Select testId="handover-receiver-select" value={f.receiver_id} onChange={(v) => setF({ ...f, receiver_id: v })} options={staff.filter((s) => s.role === "superadmin").map((s) => ({ value: s.id, label: s.name }))} /></Field>
+            <Field label={t("receiver")}><Select testId="handover-receiver-select" value={f.receiver_id} onChange={(v) => setF({ ...f, receiver_id: v })} options={staff.filter((s) => s.role === "owner").map((s) => ({ value: s.id, label: s.name }))} /></Field>
             <Field label={t("handoverDate")}><input data-testid="handover-date-input" type="date" className="field" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>
             <Field label={`${t("receivedCash")} (Rp)`}><input data-testid="handover-received-input" type="number" className="field num" value={f.received_cash} onChange={(e) => setF({ ...f, received_cash: e.target.value })} /></Field>
           </div>
