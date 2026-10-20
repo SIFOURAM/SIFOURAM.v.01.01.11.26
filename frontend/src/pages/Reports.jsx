@@ -121,6 +121,10 @@ export default function Reports() {
           {REPORT_TABS.map(([key, label]) => (
             <button
               key={key}
+              type="button"
+              role="tab"
+              aria-selected={view === key}
+              data-state={view === key ? "active" : "inactive"}
               data-testid={`report-${key}-tab`}
               onClick={() => setView(key)}
               className={`report-switcher-tab ${view === key ? "report-switcher-active" : ""}`}
@@ -241,7 +245,7 @@ function OperationsReport({ kind, setView }) {
       <PageHeader>
         <div className="report-switcher">
           {REPORT_TABS.map(([key, label]) => (
-            <button key={key} data-testid={`report-${key}-tab`} onClick={() => setView(key)} className={`report-switcher-tab ${key === kind ? "report-switcher-active" : ""}`}>{label}</button>
+            <button key={key} type="button" role="tab" aria-selected={key === kind} data-state={key === kind ? "active" : "inactive"} data-testid={`report-${key}-tab`} onClick={() => setView(key)} className={`report-switcher-tab ${key === kind ? "report-switcher-active" : ""}`}>{label}</button>
           ))}
         </div>
         {kind !== "inventory" && <DateFilter onChange={setRange} />}

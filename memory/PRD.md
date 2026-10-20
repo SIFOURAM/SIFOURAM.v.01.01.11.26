@@ -99,7 +99,8 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   sedangkan kutipan umum memakai sumber pidato Steve Jobs yang dapat ditelusuri.
 - Revisi navigasi terbaru: logo crest orange, seluruh aksen gold diganti orange, border avatar dan
   inisial hitam, serta pilihan mode Web/Tablet/Mobile dihapus. Tab kategori sticky berada tepat di
-  bawah header, dapat digeser horizontal, dan memprioritaskan tiga tab awal pada mobile.
+  bawah header, dapat digeser horizontal dengan swipe/momentum/keyboard focus, dan memprioritaskan
+  tiga tab awal pada mobile. Seluruh sub-tab laporan memakai perilaku horizontal yang sama.
 - Laporan Owner diperluas dengan tab Waste, Nilai Persediaan, Pembelian, dan Stok Opname berbasis
   koleksi transaksi sebenarnya, termasuk Excel/PDF/cetak dan empty state. Inventory tetap berupa
   snapshot saat ini, sehingga filter tanggal sengaja tidak ditampilkan pada tab tersebut.

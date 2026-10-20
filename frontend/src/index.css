@@ -203,11 +203,18 @@ body.app-bold, body.app-bold p, body.app-bold span, body.app-bold a, body.app-bo
 
 .category-tab-list {
   display: flex;
+  flex-wrap: nowrap;
   min-height: 2.75rem;
   width: 100%;
   max-width: 100%;
   align-items: stretch;
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
   padding: 0 1rem;
   scrollbar-width: none;
 }
@@ -225,6 +232,7 @@ body.app-bold, body.app-bold p, body.app-bold span, body.app-bold a, body.app-bo
   font-size: 0.8125rem;
   font-weight: 700;
   white-space: nowrap;
+  scroll-snap-align: start;
   transition: color 180ms ease, border-color 180ms ease;
 }
 
@@ -233,8 +241,15 @@ body.app-bold, body.app-bold p, body.app-bold span, body.app-bold a, body.app-bo
 
 .report-switcher {
   display: flex;
+  flex-wrap: nowrap;
   max-width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
   border-bottom: 1px solid hsl(var(--border));
   scrollbar-width: none;
 }
@@ -249,6 +264,7 @@ body.app-bold, body.app-bold p, body.app-bold span, body.app-bold a, body.app-bo
   font-size: 0.75rem;
   font-weight: 700;
   white-space: nowrap;
+  scroll-snap-align: start;
   transition: color 180ms ease, border-color 180ms ease;
 }
 
