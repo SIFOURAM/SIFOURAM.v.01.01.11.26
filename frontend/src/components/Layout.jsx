@@ -110,36 +110,21 @@ export const CATEGORIES = {
 
 function CategoryTabs({ category, t }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = `${location.pathname}${location.search}`;
   return (
     <nav data-testid="category-tabs" className={`category-tab-bar ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
-      <div
-        role="tablist"
-        aria-orientation="horizontal"
-        tabIndex={0}
-        data-orientation="horizontal"
-        className="category-tab-list"
-        onWheel={(event) => {
-          if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-            event.currentTarget.scrollLeft += event.deltaY;
-          }
-        }}
-      >
-        {category.tabs.map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            end={tab.to === "/"}
-            role="tab"
-            aria-selected={tab.to === currentPath || (tab.to === "/" && currentPath === "/")}
-            data-state={tab.to === currentPath || (tab.to === "/" && currentPath === "/") ? "active" : "inactive"}
-            data-testid={`category-tab-${tab.key}`}
-            className={({ isActive }) => `category-tab ${isActive ? "category-tab-active" : ""}`}
-          >
-            {t(tab.key)}
-          </NavLink>
-        ))}
-      </div>
+      <label className="category-dropdown-wrap">
+        <span className="sr-only">Pilih halaman {category.name}</span>
+        <select
+          data-testid="category-tabs-dropdown"
+          value={currentPath}
+          onChange={(event) => navigate(event.target.value)}
+          className="category-dropdown"
+        >
+          {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{t(tab.key)}</option>)}
+        </select>
+      </label>
     </nav>
   );
 }
