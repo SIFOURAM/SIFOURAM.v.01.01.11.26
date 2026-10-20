@@ -34,9 +34,7 @@ export default function MenuStock() {
 
   return (
     <div data-testid="menu-stock-page">
-      <PageHeader eyebrow="Bar Team" title={t("menuStock")}>
-        {user.role === "owner" && <button data-testid="add-menu-button" onClick={() => setEdit({ name: "", price: "", max_stock: 30, photo: "", recipe: [{ material_id: "", qty: "" }] })} className="btn-primary h-10"><Plus className="w-4 h-4" />Add Menu</button>}
-      </PageHeader>
+      <PageHeader eyebrow="Bar Team" title={t("menuStock")} />
       <div className="grid lg:grid-cols-3 gap-6">
         <Bento gold className="fade-up" testId="produce-form">
           <p className="eyebrow mb-4">Input Stock (Production)</p>
@@ -54,6 +52,10 @@ export default function MenuStock() {
               {menus.find((m) => m.id === form.menu_id)?.recipe.map((r, i) => <div key={i} className="flex justify-between"><span>{r.name}</span><span className="num">{r.qty * form.qty} {r.unit}</span></div>)}</div>)}
         </Bento>
         <div className="lg:col-span-2 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="sm:col-span-2 xl:col-span-3 flex items-center justify-between gap-3">
+            <p className="eyebrow">Recipes</p>
+            {user.role === "owner" && <button data-testid="add-menu-button" onClick={() => setEdit({ name: "", price: "", max_stock: 30, photo: "", recipe: [{ material_id: "", qty: "" }] })} className="btn-primary h-9 px-3 text-xs"><Plus className="w-4 h-4" />Add Menu</button>}
+          </div>
           {menus.map((m) => (
             <Bento key={m.id} className="fade-up p-0 overflow-hidden" testId={`menu-card-${m.id}`}>
               <div className="h-28 bg-muted relative">{m.photo && <img src={m.photo} alt={m.name} className="w-full h-full object-cover" />}
