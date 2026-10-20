@@ -237,11 +237,13 @@ function OperationsReport({ kind, setView }) {
       <h1 className="font-heading text-2xl font-bold mb-1">{labels[kind]}</h1>
       <p className="text-sm text-muted-foreground mb-4">Data operasional aktual sesuai periode yang dipilih.</p>
       <PageHeader>
-        <div className="report-switcher">
-          {REPORT_TABS.map(([key, label]) => (
-            <button key={key} type="button" role="tab" aria-selected={key === kind} data-state={key === kind ? "active" : "inactive"} data-testid={`report-${key}-tab`} onClick={() => setView(key)} className={`report-switcher-tab ${key === kind ? "report-switcher-active" : ""}`}>{label}</button>
-          ))}
-        </div>
+        <Select
+          testId="operations-report-dropdown"
+          className="w-full sm:w-48 h-9 text-xs"
+          value={kind}
+          onChange={setView}
+          options={REPORT_TABS.map(([value, label]) => ({ value, label }))}
+        />
         {kind !== "inventory" && <DateFilter onChange={setRange} />}
         {data && <div className="flex gap-1"><button data-testid="operations-excel" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button><button data-testid="operations-pdf" onClick={() => printPdf(true)} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button><button data-testid="operations-print" onClick={() => printPdf(false)} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button></div>}
       </PageHeader>
