@@ -115,24 +115,14 @@ export default function Reports() {
 
   return (
     <div data-testid="reports-page">
-      <h1 data-testid="reports-title" className="font-heading text-2xl font-bold mb-4">{title}</h1>
       <PageHeader>
-        <div className="report-switcher">
-          {REPORT_TABS.map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={view === key}
-              data-state={view === key ? "active" : "inactive"}
-              data-testid={`report-${key}-tab`}
-              onClick={() => setView(key)}
-              className={`report-switcher-tab ${view === key ? "report-switcher-active" : ""}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Select
+          testId="report-view-dropdown"
+          className="w-full sm:w-48 h-9 text-xs"
+          value={view}
+          onChange={setView}
+          options={REPORT_TABS.map(([value, label]) => ({ value, label }))}
+        />
         <Select testId="report-payment-filter" className="w-32 h-9 text-xs" value={method} onChange={setMethod} options={[{ value: "all", label: "Semua bayar" }, { value: "cash", label: "Cash" }, { value: "qris", label: "QRIS" }]} />
         <Select testId="report-type-filter" className="w-32 h-9 text-xs" value={orderType} onChange={setOrderType} options={[{ value: "all", label: "Semua order" }, { value: "regular", label: "Reguler" }, { value: "bundling", label: "Bundling" }]} />
         <DateFilter onChange={setRange} />
