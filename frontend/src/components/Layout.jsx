@@ -119,6 +119,11 @@ function CategoryTabs({ category, t }) {
         tabIndex={0}
         data-orientation="horizontal"
         className="category-tab-list"
+        onWheel={(event) => {
+          if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+            event.currentTarget.scrollLeft += event.deltaY;
+          }
+        }}
       >
         {category.tabs.map((tab) => (
           <NavLink

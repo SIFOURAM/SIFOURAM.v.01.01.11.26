@@ -123,4 +123,5 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Target Bronze/Silver/Gold/Platinum telah diganti di backend menjadi Herald/Warriors/Masters/Divine/Immortal.
 - POS sekarang dibatasi untuk Owner dan Rider; loading menggunakan logo SI FOUR AM beranimasi.
 - Stock awal Rider sekarang memerlukan verifikasi Rider sebelum stock dapat dipakai POS. Tampilan Pengambilan Rider dan endpoint verifikasi sudah dibuat.
+- Tab kategori sekarang mendukung swipe mobile, scrollbar horizontal tersembunyi, keyboard focus, serta roda mouse/trackpad untuk menggeser tab ke kanan atau kiri.
 - Remaining: Dashboard POS, tab Stock Awal/Sisa dengan filter penuh, Purchase Order + notifikasi, akun pembayaran Owner, serta perubahan keranjang POS sesuai referensi.
