@@ -61,15 +61,15 @@ const item = (to, key) => ({ to, key, icon: I[key] });
 
 export const NAV = {
   owner: {
-    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
+    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/pos", "pos"), item("/inventory", "inventory")],
     more: [item("/finance", "finance")],
   },
   admin: {
-    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
+    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/pos", "pos"), item("/inventory", "inventory")],
     more: [item("/settings", "settings")],
   },
   barteam: {
-    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
+    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/pos", "pos"), item("/inventory", "inventory")],
     more: [item("/settings", "settings")],
   },
   rider: {
@@ -82,21 +82,21 @@ export const HOME = { owner: "/", admin: "/", barteam: "/", rider: "/pos" };
 export const CATEGORIES = {
   owner: [
     { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/reports", "reports"), item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
-    { name: "Stock", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
+    { name: "Inventory", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit"), item("/invoice", "invoice"), item("/customers", "customers"), item("/handover", "handover")] },
     { name: "Production", icon: Layers, to: "/menu-stock?mode=production", match: (location) => location.pathname === "/menu-stock" && location.search.includes("mode=production"), tabs: [item("/menu-stock?mode=production", "menuStock")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/finance", tabs: [item("/finance", "finance"), item("/user-info", "userInfo"), item("/settings", "settings")] },
   ],
   admin: [
     { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/rider-dashboard", "riderDash")] },
-    { name: "Stock", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
+    { name: "Inventory", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit")] },
     { name: "Production", icon: Layers, to: "/menu-stock?mode=production", match: (location) => location.pathname === "/menu-stock" && location.search.includes("mode=production"), tabs: [item("/menu-stock?mode=production", "menuStock")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
   barteam: [
     { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/rider-dashboard", "riderDash")] },
-    { name: "Stock", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
+    { name: "Inventory", icon: Boxes, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock", "menuStock"), item("/rider-stock", "riderStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit")] },
     { name: "Production", icon: Layers, to: "/menu-stock?mode=production", match: (location) => location.pathname === "/menu-stock" && location.search.includes("mode=production"), tabs: [item("/menu-stock?mode=production", "menuStock")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
