@@ -256,7 +256,7 @@ function ConsentLinks({ consent, setDocument }) {
       >
         Syarat & Ketentuan
       </button>{" "}
-      {consent.terms && <Check className="inline w-3 h-3 text-emerald-600" />} dan{" "}
+      {consent.terms && <Check className="inline w-4 h-4 text-emerald-600" />} dan{" "}
       <button
         data-testid="open-privacy-link"
         type="button"
@@ -265,7 +265,7 @@ function ConsentLinks({ consent, setDocument }) {
       >
         Kebijakan Privasi
       </button>{" "}
-      {consent.privacy && <Check className="inline w-3 h-3 text-emerald-600" />}.
+      {consent.privacy && <Check className="inline w-4 h-4 text-emerald-600" />}.
     </p>
   );
 }

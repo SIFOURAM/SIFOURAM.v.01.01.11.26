@@ -157,6 +157,13 @@ def make_identify_token(user_id: str) -> str:
     )
 
 
+def request_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 def public_user(u: dict) -> dict:
     return {k: v for k, v in u.items() if k not in ("_id", "password_hash", "pin_hash")}
 
@@ -427,6 +434,7 @@ class SettingsIn(BaseModel):
     language: Optional[str] = None
     notifications: Optional[bool] = None
     gps_mode: Optional[str] = None
+    motivation_preference: Optional[str] = None
 
 
 # ---------- Seeding ----------
@@ -523,6 +531,8 @@ async def delete_file(path: str, u=Depends(SUPER)):
 # ---------- Auth ----------
 @api.post("/auth/identify")
 async def identify_account(body: IdentifyIn):
+    if not body.terms_accepted or not body.privacy_accepted:
+        raise HTTPException(400, "Syarat & Ketentuan serta Kebijakan Privasi harus disetujui.")
     ident = body.identifier.strip().lower()
     phone = re.sub(r"\D", "", ident)
     u = await db.users.find_one(
@@ -541,8 +551,6 @@ async def identify_account(body: IdentifyIn):
             "Email atau username tidak ditemukan, atau akun tidak aktif. "
             "Segera hubungi Tim Bar atau Owner.",
         )
-    if not body.terms_accepted or not body.privacy_accepted:
-        raise HTTPException(400, "Syarat & Ketentuan serta Kebijakan Privasi harus disetujui.")
     consent = {
         "terms_version": TERMS_VERSION,
         "privacy_version": PRIVACY_VERSION,
@@ -567,7 +575,7 @@ async def login(body: LoginIn, request: Request):
             401,
             "PIN belum didaftarkan, atau akun tidak aktif. Segera hubungi Tim Bar atau Owner.",
         )
-    key = f"{request.client.host}:{u['id']}"
+    key = f"{request_ip(request)}:{u['id']}"
     att = await db.login_attempts.find_one({"identifier": key})
     if att and att.get("count", 0) >= 5 and datetime.fromisoformat(att["last"]) > datetime.now(timezone.utc) - timedelta(minutes=15):
         raise HTTPException(429, "Too many attempts. Try again in 15 minutes.")
@@ -637,16 +645,21 @@ async def put_settings(body: SettingsIn, u=Depends(ANY)):
 
 @api.get("/users")
 async def list_users(role: Optional[str] = None, u=Depends(ANY)):
-    q = {"role": role} if role else {}
-    if u["role"] == "rider":
-        q = {"role": "rider"}
-    users = await db.users.find(q, {"_id": 0, "password_hash": 0, "pin_hash": 0}).to_list(200)
+    if u["role"] == "owner":
+        q = {"role": role} if role else {}
+        return await db.users.find(q, {"_id": 0, "password_hash": 0, "pin_hash": 0}).to_list(200)
     if u["role"] == "rider" and role == "owner":
         users = await db.users.find(
             {"role": "owner"},
             {"_id": 0, "id": 1, "name": 1, "whatsapp": 1, "role": 1},
         ).to_list(10)
-    return users
+        return users
+    if u["role"] in {"admin", "barteam"} and role == "rider":
+        return await db.users.find(
+            {"role": "rider", "active": True},
+            {"_id": 0, "id": 1, "name": 1, "role": 1, "photo": 1, "placement": 1},
+        ).to_list(200)
+    raise HTTPException(403, "Daftar pengguna hanya tersedia untuk Owner")
 
 
 @api.post("/users")
@@ -1760,7 +1773,7 @@ async def attendance_on_duty(u=Depends(ANY)):
 
 
 @api.get("/gps/active")
-async def gps_active(date: str, u=Depends(ANY)):
+async def gps_active(date: str, u=Depends(SUPER)):
     atts = await db.attendance.find({"date": date, "checkout_at": None}, NOID).to_list(100)
     ids = [a["rider_id"] for a in atts]
     pts = await db.gps.find({"rider_id": {"$in": ids}}, NOID).to_list(100)

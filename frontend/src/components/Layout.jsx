@@ -6,6 +6,7 @@ import { useT } from "../lib/i18n";
 import { api } from "../lib/api";
 import { initials } from "../lib/helpers";
 import GpsGate from "./GpsGate";
+import RiderMotivation from "./RiderMotivation";
 import { getAppearance } from "../lib/appearance";
 
 function playTriTone() {
@@ -148,6 +149,7 @@ export default function Layout() {
           </div>
         </header>
         <main className={`flex-1 max-w-[1400px] w-full mx-auto min-w-0 ${forceMobile ? "p-4 pb-28" : "p-4 pb-28 lg:p-8 lg:pb-8"}`}><Outlet /></main>
+        <RiderMotivation user={user} />
 
         {moreOpen && <div className="lg:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setMoreOpen(false)} />}
         <nav className={`${forceMobile ? "" : "lg:hidden"} fixed bottom-0 inset-x-0 z-50 bg-background/90 backdrop-blur-xl border-t border-border/70`} data-testid="bottom-nav">

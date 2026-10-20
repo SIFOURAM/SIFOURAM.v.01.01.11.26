@@ -18,6 +18,10 @@ async def reset():
         {"username": "baa"},
         {"$set": {"name": "Baazulfikar", "role": "owner", "active": True}},
     )
+    owner = await db.users.find_one({"username": "baa"}, {"_id": 0, "id": 1})
+    if owner:
+        await db.attendance.delete_many({"rider_id": {"$ne": owner["id"]}})
+        await db.gps.delete_many({"rider_id": {"$ne": owner["id"]}})
     for collection in [
         "coach_chats",
         "expenses",

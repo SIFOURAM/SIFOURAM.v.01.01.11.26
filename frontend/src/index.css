@@ -179,7 +179,8 @@ body.vm-mobile #root { max-width: 430px; }
 .auth-gold-button:disabled { cursor: not-allowed; opacity: 0.42; }
 
 .pin-box {
-  width: min(13vw, 3rem);
+  width: calc((100% - 2.5rem) / 6);
+  min-width: 0;
   height: min(15vw, 3.5rem);
   border: 1px solid hsl(var(--border));
   border-radius: 0.5rem;

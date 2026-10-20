@@ -54,6 +54,9 @@ export default function Settings() {
           <Row icon={Bell} title={t("notifications")}><Toggle testId="notifications-toggle" on={s.notifications !== false} onChange={(v) => save({ notifications: v })} /></Row>
           {user.role === "rider" && <Row icon={MapPin} title={t("gps")} sub={t("whileUsing")}>
             <select data-testid="gps-mode-select" className="field w-40 h-9" value={s.gps_mode || "while_using"} onChange={(e) => save({ gps_mode: e.target.value })}><option value="while_using">{t("whileUsing")}</option><option value="off">Off</option></select></Row>}
+          {user.role === "rider" && <Row icon={Bell} title="Motivasi kerja" sub="Ditampilkan setelah absen dan tiap tiga jam saat aplikasi terbuka">
+            <select data-testid="motivation-preference-select" className="field w-40 h-9 text-xs" value={s.motivation_preference || "general"} onChange={(e) => save({ motivation_preference: e.target.value })}><option value="general">Motivasi umum</option><option value="muslim">Motivasi Muslim</option></select>
+          </Row>}
         </Bento>
 
         <Bento className="fade-up" testId="settings-text">

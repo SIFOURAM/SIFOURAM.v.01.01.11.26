@@ -82,3 +82,27 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - V2: AI demand forecasting, Bluetooth thermal printing, WA auto-broadcast marketing
 - Customers/loyalty page UI (data already stored)
 - Push notifications
+
+## Final Revision (2026-10) — in progress pending Supabase credentials
+- Logo utama diganti memakai aset SI FOUR AM pada login, PIN, dan navigasi. Light mode memakai teks
+  hitam; dark mode memakai teks putih. Kontrol warna dan skala teks dihapus; bahasa kini dropdown.
+- Role lama dimigrasikan ke Owner/Admin/Bar Team/Rider. Seed dan database aktif hanya menyisakan
+  Owner `baa` / Baazulfikar. Owner dapat membuat, mengubah role, serta mengaktifkan/nonaktifkan akun.
+- Autentikasi diganti menjadi identifikasi (email/username/WhatsApp) lalu PIN enam angka. Persetujuan
+  Syarat & Ketentuan dan Kebijakan Privasi wajib dibaca sampai akhir dan dicatat bersama versinya.
+- Reset yang disetujui telah menghapus chat AI, data finansial operasional, transaksi stok, stok rider,
+  GPS/absen orphan; stok menu dan bahan disetel nol. Master menu/bahan tetap ada.
+- Dashboard Owner menampilkan lima rider teratas dan donut produk; GPS hanya dikirim saat rider absen.
+  Dashboard rider memiliki filter minggu lalu dan kartu rank Herald/Warriors/Masters/Divine/Immortal.
+- Rider menerima notifikasi motivasi setelah status tugas aktif dan setiap tiga jam saat aplikasi terbuka.
+  Preferensi Umum/Muslim tersedia di Pengaturan; kutipan Muslim menggunakan referensi Al-Qur'an,
+  sedangkan kutipan umum memakai sumber pidato Steve Jobs yang dapat ditelusuri.
+- Halaman Laporan Owner baru (`/reports`) memakai transaksi aktual untuk kartu ringkasan, grafik,
+  tabel produk, filter pembayaran/tipe order, Excel, PDF A4, dan cetak PDF.
+- Supabase: `supabase/001_initial_schema.sql`, `.env.example`, dan `SUPABASE_SETUP.md` telah dibuat.
+  CUTOVER DATABASE BELUM DILAKUKAN karena Transaction Pooler URI belum diberikan pengguna.
+
+## Testing (2026-10)
+- Iteration 9: 20/20 backend checks pass, browser login and reports passed, desktop/mobile overflow
+  checks passed. Follow-up fixes applied for permission scope, CORS, print flow, mobile PIN sizing,
+  reports loading/error state, and orphan GPS/attendance cleanup.

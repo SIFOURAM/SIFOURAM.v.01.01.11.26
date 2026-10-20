@@ -1,16 +1,22 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
 
 // Riders must grant location permission before using the app
 export default function GpsGate({ role, children }) {
   const [ok, setOk] = useState(role !== "rider" ? true : null);
-  const ask = () => navigator.geolocation.getCurrentPosition(() => setOk(true), () => setOk(false), { timeout: 10000 });
+  const ask = useCallback(() => {
+    navigator.geolocation.getCurrentPosition(
+      () => setOk(true),
+      () => setOk(false),
+      { timeout: 10000 },
+    );
+  }, []);
   useEffect(() => {
     if (role !== "rider") return;
     if (!navigator.geolocation) return setOk(false);
     if (navigator.permissions?.query) navigator.permissions.query({ name: "geolocation" }).then((p) => { if (p.state === "granted") setOk(true); else ask(); p.onchange = () => setOk(p.state === "granted"); }).catch(ask);
     else ask();
-  }, []);
+  }, [ask, role]);
   if (ok) return children;
   return (
     <div className="min-h-screen flex items-center justify-center p-6" data-testid="gps-gate">

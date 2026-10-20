@@ -4,7 +4,7 @@ import { Bar, BarChart, Cell, Line, LineChart, Pie, PieChart, ResponsiveContaine
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { api } from "../lib/api";
+import { api, errMsg } from "../lib/api";
 import { fmtRp } from "../lib/helpers";
 import { Bento, DateFilter, Empty, PageHeader, Select, Stat } from "../components/common";
 
@@ -17,12 +17,20 @@ export default function Reports() {
   const [orderType, setOrderType] = useState("all");
   const [view, setView] = useState("sales");
   const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!range) return;
+    setLoading(true);
+    setError("");
     api.get("/reports/sales", { params: { ...range, payment_method: method, order_type: orderType } })
       .then((response) => setReport(response.data))
-      .catch(() => setReport(null));
+      .catch((requestError) => {
+        setReport(null);
+        setError(errMsg(requestError));
+      })
+      .finally(() => setLoading(false));
   }, [range, method, orderType]);
 
   const title = view === "sales" ? "Laporan Penjualan" : "Performa Produk";
@@ -56,7 +64,7 @@ export default function Reports() {
     );
     XLSX.writeFile(workbook, `SIFOURAM_${view}_${range.start}_${range.end}.xlsx`);
   };
-  const exportPdf = () => {
+  const buildPdf = () => {
     if (!report) return;
     const doc = new jsPDF({ orientation: "landscape", format: "a4" });
     doc.setFontSize(15);
@@ -83,25 +91,36 @@ export default function Reports() {
       headStyles: { fillColor: [255, 215, 0], textColor: [0, 0, 0] },
       theme: "grid",
     });
-    doc.save(`SIFOURAM_${view}_${range.start}_${range.end}.pdf`);
+    return doc;
+  };
+  const exportPdf = () => {
+    const doc = buildPdf();
+    if (doc) doc.save(`SIFOURAM_${view}_${range.start}_${range.end}.pdf`);
+  };
+  const printPdf = () => {
+    const doc = buildPdf();
+    if (doc) window.open(doc.output("bloburl"), "_blank", "noopener,noreferrer");
   };
 
   return (
     <div data-testid="reports-page">
+      <h1 data-testid="reports-title" className="font-heading text-2xl font-bold mb-4">{title}</h1>
       <PageHeader>
         <div className="flex gap-1 border border-border p-1 rounded-lg">
           <button data-testid="report-sales-tab" onClick={() => setView("sales")} className={`h-8 px-3 text-xs font-bold rounded ${view === "sales" ? "bg-primary text-white" : ""}`}>Penjualan</button>
           <button data-testid="report-products-tab" onClick={() => setView("products")} className={`h-8 px-3 text-xs font-bold rounded ${view === "products" ? "bg-primary text-white" : ""}`}>Produk</button>
         </div>
-        <Select data-testid="report-payment-filter" className="w-32 h-9 text-xs" value={method} onChange={setMethod} options={[{ value: "all", label: "Semua bayar" }, { value: "cash", label: "Cash" }, { value: "qris", label: "QRIS" }]} />
-        <Select data-testid="report-type-filter" className="w-32 h-9 text-xs" value={orderType} onChange={setOrderType} options={[{ value: "all", label: "Semua order" }, { value: "regular", label: "Reguler" }, { value: "bundling", label: "Bundling" }]} />
+        <Select testId="report-payment-filter" className="w-32 h-9 text-xs" value={method} onChange={setMethod} options={[{ value: "all", label: "Semua bayar" }, { value: "cash", label: "Cash" }, { value: "qris", label: "QRIS" }]} />
+        <Select testId="report-type-filter" className="w-32 h-9 text-xs" value={orderType} onChange={setOrderType} options={[{ value: "all", label: "Semua order" }, { value: "regular", label: "Reguler" }, { value: "bundling", label: "Bundling" }]} />
         <DateFilter onChange={setRange} />
         {report && <div className="flex gap-1">
           <button data-testid="report-excel-button" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button>
           <button data-testid="report-pdf-button" onClick={exportPdf} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button>
-          <button data-testid="report-print-button" onClick={exportPdf} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button>
+          <button data-testid="report-print-button" onClick={printPdf} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button>
         </div>}
       </PageHeader>
+      {loading && <p data-testid="reports-loading" className="text-sm text-muted-foreground py-8">Memuat laporan...</p>}
+      {error && <p data-testid="reports-error" className="text-sm text-red-500 py-8">Gagal memuat laporan: {error}</p>}
       {report && <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Stat testId="report-transactions" label="Total transaksi" value={report.transactions} />
         <Stat testId="report-revenue" gold label="Total revenue" value={fmtRp(report.revenue)} />
