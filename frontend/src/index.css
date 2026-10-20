@@ -273,6 +273,7 @@ body.app-bold, body.app-bold p, body.app-bold span, body.app-bold a, body.app-bo
 .report-switcher-active { border-bottom-color: #FF6B00; color: #FF6B00; }
 
 @media (max-width: 639px) {
+  .category-tab-bar-more { display: none; }
   .category-tab-list { padding: 0 0.5rem; }
   .category-tab { padding-inline: 0.75rem; }
 }

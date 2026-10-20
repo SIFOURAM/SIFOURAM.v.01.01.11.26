@@ -112,7 +112,7 @@ function CategoryTabs({ category, t }) {
   const location = useLocation();
   const currentPath = `${location.pathname}${location.search}`;
   return (
-    <nav data-testid="category-tabs" className="category-tab-bar" aria-label={`Tab ${category.name}`}>
+    <nav data-testid="category-tabs" className={`category-tab-bar ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
       <div
         role="tablist"
         aria-orientation="horizontal"

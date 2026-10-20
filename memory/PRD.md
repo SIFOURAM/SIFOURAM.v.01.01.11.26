@@ -125,4 +125,5 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Stock awal Rider sekarang memerlukan verifikasi Rider sebelum stock dapat dipakai POS. Tampilan Pengambilan Rider dan endpoint verifikasi sudah dibuat.
 - Tab kategori sekarang mendukung swipe mobile, scrollbar horizontal tersembunyi, keyboard focus, serta roda mouse/trackpad untuk menggeser tab ke kanan atau kiri.
 - Ikon POS pada bottom navigation diperbesar sekitar 30%, ditempatkan dalam tombol bulat berlatar orange, dan memakai ikon hitam agar jelas terlihat.
+- Pada mobile, bar tab tepat di bawah header disembunyikan saat kategori Lainnya aktif karena seluruh navigasi Lainnya telah tersedia melalui panel bottom navigation yang muncul ke atas.
 - Remaining: Dashboard POS, tab Stock Awal/Sisa dengan filter penuh, Purchase Order + notifikasi, akun pembayaran Owner, serta perubahan keranjang POS sesuai referensi.
