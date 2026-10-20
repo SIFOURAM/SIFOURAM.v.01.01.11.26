@@ -61,15 +61,15 @@ const item = (to, key) => ({ to, key, icon: I[key] });
 
 export const NAV = {
   owner: {
-    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/pos", "pos"), item("/inventory", "inventory")],
+    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
     more: [item("/finance", "finance")],
   },
   admin: {
-    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/pos", "pos"), item("/inventory", "inventory")],
+    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
     more: [item("/settings", "settings")],
   },
   barteam: {
-    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/pos", "pos"), item("/inventory", "inventory")],
+    main: [item("/", "dashboard"), item("/inventory", "inventory"), item("/pos", "pos"), item("/menu-stock?mode=production", "menuStock")],
     more: [item("/settings", "settings")],
   },
   rider: {
