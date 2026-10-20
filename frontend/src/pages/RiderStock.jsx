@@ -37,8 +37,12 @@ export default function RiderStock() {
 
   useEffect(() => {
     if (user.role === "rider") return;
-    api.get("/users", { params: { role: "rider" } }).then((r) => setRiders(r.data));
-    api.get("/menus").then((r) => setMenus(r.data));
+    api.get("/users", { params: { role: "rider" } })
+      .then((response) => setRiders(response.data))
+      .catch((error) => toast.error(errMsg(error)));
+    api.get("/menus")
+      .then((response) => setMenus(response.data))
+      .catch((error) => toast.error(errMsg(error)));
   }, [user.role]);
   useEffect(() => {
     if (user.role === "rider") return;
@@ -67,6 +71,22 @@ export default function RiderStock() {
     } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
   };
 
+  const forecast = async () => {
+    try {
+      const { data } = await api.get("/forecast", { params: { rider_id: riderId, date } });
+      const nextItems = {};
+      data.items.forEach((item) => { nextItems[item.menu_id] = item.suggested; });
+      setItems(nextItems);
+      setFc(data);
+      const basis = data.basis === "default"
+        ? (lang === "id" ? "belum ada riwayat, pakai default" : "no history, defaults")
+        : `${data.days_of_history} ${lang === "id" ? "hari riwayat" : "days history"}`;
+      toast.success(`🤖 ${data.total} cups · ${basis}${data.factor > 1 ? " · +20% weekend/libur" : ""}`);
+    } catch (error) {
+      toast.error(errMsg(error));
+    }
+  };
+
   return (
     <div data-testid="rider-stock-page">
       <PageHeader eyebrow="Stock" title="Stock Awal" />
@@ -78,7 +98,7 @@ export default function RiderStock() {
             <Field label={t("date")}><input data-testid="rider-stock-date-input" type="date" className="field" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           </div>
           <div className="flex items-center justify-between mb-2"><p className="eyebrow">{t("menu")}</p>
-            <button data-testid="forecast-button" disabled={!riderId} onClick={async () => { const { data } = await api.get("/forecast", { params: { rider_id: riderId, date } }); const nx = {}; data.items.forEach((i) => { nx[i.menu_id] = i.suggested; }); setItems(nx); setFc(data); toast.success(`🤖 ${data.total} cups · ${data.basis === "default" ? (lang === "id" ? "belum ada riwayat, pakai default" : "no history, defaults") : `${data.days_of_history} ${lang === "id" ? "hari riwayat" : "days history"}`}${data.factor > 1 ? " · +20% weekend/libur" : ""}`); }} className="btn-ghost h-8 px-3 text-xs"><Sparkles className="w-3 h-3 text-primary" />{lang === "id" ? "Prediksi AI" : "AI Forecast"}</button></div>
+            <button data-testid="forecast-button" disabled={!riderId} onClick={forecast} className="btn-ghost h-8 px-3 text-xs"><Sparkles className="w-3 h-3 text-primary" />{lang === "id" ? "Prediksi AI" : "AI Forecast"}</button></div>
           {fc && <p className="text-[11px] text-muted-foreground mb-2" data-testid="forecast-info">{lang === "id" ? "Saran berdasarkan rata-rata hari yang sama (60%) + 14 hari terakhir (40%), buffer 10%" : "Suggestion = same weekday avg (60%) + last 14 days (40%), +10% buffer"}{fc.holiday ? " · 🎉 libur nasional" : fc.weekend ? " · weekend" : ""}</p>}
           <table className="table-x"><thead><tr><th>#</th><th>{t("menu")}</th>{fc && <th className="hide-xs">AI</th>}<th className="text-right">{t("qty")}</th></tr></thead>
             <tbody>{menus.map((m) => (
@@ -94,7 +114,7 @@ export default function RiderStock() {
             <p className="text-[11px] text-muted-foreground mt-2 text-center">{photo ? "✓" : "!"} {t("photoRequired")} · WhatsApp</p>
           </Bento>
           <Bento className="fade-up" testId="rider-stock-history">
-            <p className="eyebrow mb-3">{t("history")}</p>
+            <p className="eyebrow mb-3">Riwayat Stock</p>
             {history.slice(0, 8).map((h) => <div key={h.id} className="flex items-center gap-3 py-2 border-b border-border/50 text-sm">
               {h.photo ? <img src={h.photo} alt="" className="w-10 h-10 rounded-lg object-cover" /> : <div className="w-10 h-10 rounded-lg bg-muted" />}
               <span className="flex-1">{fmtDate(h.date)} <span className="text-xs text-muted-foreground">{h.time || ""} · {h.pic_name || h.created_by}</span></span><span className="num font-bold">{h.total} cups</span></div>)}

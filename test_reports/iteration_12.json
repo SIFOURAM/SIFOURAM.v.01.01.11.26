@@ -1,0 +1,30 @@
+{
+  "summary": "Checked the RiderStock.jsx hook fixes. Production build (CI=false yarn build) printed 'Compiled successfully.' with no ESLint warnings or errors, and the dev server shows 'Compiled successfully!'. The code fixes are correct: RiderPickup load is wrapped in useCallback([user.id]) with useEffect([load]), and the stock effect deps are [riderId, date, user.role]. Backend: 7 of 7 pytest cases pass, all with no data written. Owner GET /api/rider-stock/history returns 200 with a list. Owner GET /api/rider-stock for an unknown rider returns 200 with null. Owner POST /api/rider-stock/{id}/verify returns 403 ('Pengambilan hanya dapat diverifikasi Rider'). Verify and history with no token return 401/403. POST rider-stock with an unknown rider returns 404. Only the Owner baa exists. Code check: POST /rider-stock is limited to owner/admin/barteam, verify is Rider-only and owner-matched, and POS stock (pos_stock) only uses items once verified_at is set, so the workflow is kept. UI: the login page loads. The Owner dashboard loads at /. /rider-stock loads as Owner with no page errors or console errors. All of these render: Stock Awal form, PIC auto-filled as Baazulfikar, rider select, date input, Prediksi AI forecast button (disabled with no rider), save button (disabled), history card and total. The Rider pickup view is correctly not shown to the Owner.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "RiderStock forecast button", "issue": "The onClick awaits api.get('/forecast') with no try/catch. If the API fails, the promise rejection is unhandled and no error toast is shown.", "selector": "[data-testid='forecast-button']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Stock Awal", "issues": ["The history card label uses t('history'), which renders 'Riwayat Penjualan' (sales history), but it lists stock records. Consider 'Riwayat Stock'.", "The date field uses the native browser type=date picker instead of the shadcn calendar (minor, consistent with the rest of the app)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter12_rider_stock_auth.py", "/app/test_reports/pytest/pytest_iter12.xml"],
+  "action_items": [
+    "Optional: wrap the forecast onClick in try/catch with toast.error(errMsg(e)).",
+    "Optional: relabel the Stock Awal history card to stock history."
+  ],
+  "critical_code_review_comments": [
+    "The initial useEffect in RiderStock calls /users and /menus with no .catch, so failures are silently unhandled.",
+    "Bundle main.js is 632 kB gzipped. Consider code-splitting routes with React.lazy.",
+    "server.py is about 1968 lines and should be split into routers."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter12_rider_stock_auth.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% (build clean, login/dashboard/RiderStock smoke pass)"},
+  "test_credentials": "Owner baa / PIN 130994 via identify -> login (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. No users, stock or transactions were created. The POST rider-stock test used a nonexistent rider and returned 404.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The Rider verify happy path was not exercised end-to-end because creating Rider accounts is forbidden by the user. Verified by code review only: pos_stock uses rider_stock items only when verified_at is set. Running yarn build regenerated /app/frontend/build. Playwright login: fetch the token via API and set localStorage 'si4am_token'."
+}

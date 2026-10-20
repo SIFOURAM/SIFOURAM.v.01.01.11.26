@@ -140,4 +140,6 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Bottom navigation kembali menampilkan label untuk seluruh kategori kecuali POS, yang dipertahankan sebagai tombol ikon orange tanpa teks.
 - Inventory diposisikan kembali setelah POS dan sebelum Lainnya pada bottom navigation. Header mobile menampilkan role akun aktif di bawah judul SI FOUR AM.
 - Label Indonesia untuk Dasbor Utama diperbarui menjadi Dashboard pada navigasi bawah dan seluruh penggunaan terjemahan terkait.
+- Bug-fix RiderStock: dependensi hook diperbaiki memakai `useCallback`, pemanggilan API stock/menus menangani error, prediksi stok menangani kegagalan API dengan toast, dan label riwayat diperbaiki menjadi Riwayat Stock.
+- Iteration 12: 7/7 backend checks lulus, build frontend tanpa lint warning/error, serta Owner login/dashboard/Stock Awal smoke test lulus. Follow-up error handling prediksi telah diterapkan dan build ulang bersih.
 - Remaining: Dashboard POS, tab Stock Awal/Sisa dengan filter penuh, Purchase Order + notifikasi, akun pembayaran Owner, serta perubahan keranjang POS sesuai referensi.
