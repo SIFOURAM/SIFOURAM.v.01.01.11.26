@@ -66,7 +66,7 @@ export default function Inventory() {
       <PageHeader eyebrow="Bar Team" title={t("inventory")}>
         <div className="mr-auto flex flex-wrap items-center gap-2">
           <button data-testid="wa-stock-button" onClick={() => { pdf("Stock Report", ["Material", "Category", "Stock", "Packs", "Pack size", "Pack price", "Stock value", "Status"], stockRows()); openWA(stockText()); }} className="btn-wa h-10"><MessageCircle className="w-4 h-4" />{t("stockReport")}</button>
-          <button data-testid="wa-order-button" onClick={() => { pdf("Order Items", ["Material", "Current stock", "Order qty", "Pack price", "Total"], orderRows()); openWA(orderText()); }} className="btn-wa h-10"><FileDown className="w-4 h-4" />{t("orderItems")}</button>
+          <button data-testid="wa-order-button" onClick={() => { pdf("Order Items", ["Material", "Current stock", "Order qty", "Pack price", "Total"], orderRows()); openWA(orderText()); }} className="btn-wa h-10"><FileDown className="w-4 h-4" />PO</button>
         </div>
       </PageHeader>
 

@@ -128,4 +128,5 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Pada mobile, bar tab tepat di bawah header disembunyikan saat kategori Lainnya aktif karena seluruh navigasi Lainnya telah tersedia melalui panel bottom navigation yang muncul ke atas.
 - Kategori Stock dinamai ulang menjadi Inventory dan ikon Inventory dipindahkan ke posisi setelah POS serta sebelum Lainnya pada bottom navigation Owner, Admin, dan Bar Team.
 - Tombol Laporan Stok dan Pesan Barang pada halaman Inventaris kini berada dalam satu grup di sisi kiri, dengan urutan Laporan Stok lalu Pesan Barang.
+- Logo pada header mobile diperbesar sekitar 30%, dan tombol Pesan Barang di Inventaris kini memakai label PO.
 - Remaining: Dashboard POS, tab Stock Awal/Sisa dengan filter penuh, Purchase Order + notifikasi, akun pembayaran Owner, serta perubahan keranjang POS sesuai referensi.
