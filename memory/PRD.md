@@ -124,4 +124,5 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - POS sekarang dibatasi untuk Owner dan Rider; loading menggunakan logo SI FOUR AM beranimasi.
 - Stock awal Rider sekarang memerlukan verifikasi Rider sebelum stock dapat dipakai POS. Tampilan Pengambilan Rider dan endpoint verifikasi sudah dibuat.
 - Tab kategori sekarang mendukung swipe mobile, scrollbar horizontal tersembunyi, keyboard focus, serta roda mouse/trackpad untuk menggeser tab ke kanan atau kiri.
+- Ikon POS pada bottom navigation diperbesar sekitar 30%, ditempatkan dalam tombol bulat berlatar orange, dan memakai ikon hitam agar jelas terlihat.
 - Remaining: Dashboard POS, tab Stock Awal/Sisa dengan filter penuh, Purchase Order + notifikasi, akun pembayaran Owner, serta perubahan keranjang POS sesuai referensi.
