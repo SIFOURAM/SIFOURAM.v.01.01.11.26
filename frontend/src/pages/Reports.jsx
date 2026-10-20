@@ -116,21 +116,25 @@ export default function Reports() {
   return (
     <div data-testid="reports-page">
       <PageHeader>
-        <Select
-          testId="report-view-dropdown"
-          className="w-full sm:w-48 h-9 text-xs"
-          value={view}
-          onChange={setView}
-          options={REPORT_TABS.map(([value, label]) => ({ value, label }))}
-        />
-        <Select testId="report-payment-filter" className="w-32 h-9 text-xs" value={method} onChange={setMethod} options={[{ value: "all", label: "Semua bayar" }, { value: "cash", label: "Cash" }, { value: "qris", label: "QRIS" }]} />
-        <Select testId="report-type-filter" className="w-32 h-9 text-xs" value={orderType} onChange={setOrderType} options={[{ value: "all", label: "Semua order" }, { value: "regular", label: "Reguler" }, { value: "bundling", label: "Bundling" }]} />
-        <DateFilter onChange={setRange} />
-        {report && <div className="flex gap-1">
-          <button data-testid="report-excel-button" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button>
-          <button data-testid="report-pdf-button" onClick={exportPdf} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button>
-          <button data-testid="report-print-button" onClick={printPdf} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button>
-        </div>}
+        <div className="w-full flex flex-col gap-3">
+          <Select
+            testId="report-view-dropdown"
+            className="w-full sm:w-48 h-9 text-xs"
+            value={view}
+            onChange={setView}
+            options={REPORT_TABS.map(([value, label]) => ({ value, label }))}
+          />
+          <div className="flex flex-wrap items-start justify-end gap-2">
+            <Select testId="report-payment-filter" className="w-32 h-9 text-xs" value={method} onChange={setMethod} options={[{ value: "all", label: "Semua bayar" }, { value: "cash", label: "Cash" }, { value: "qris", label: "QRIS" }]} />
+            <Select testId="report-type-filter" className="w-32 h-9 text-xs" value={orderType} onChange={setOrderType} options={[{ value: "all", label: "Semua order" }, { value: "regular", label: "Reguler" }, { value: "bundling", label: "Bundling" }]} />
+            <DateFilter onChange={setRange} />
+            {report && <div className="flex gap-1">
+              <button data-testid="report-excel-button" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button>
+              <button data-testid="report-pdf-button" onClick={exportPdf} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button>
+              <button data-testid="report-print-button" onClick={printPdf} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button>
+            </div>}
+          </div>
+        </div>
       </PageHeader>
       {loading && <p data-testid="reports-loading" className="text-sm text-muted-foreground py-8">Memuat laporan...</p>}
       {error && <p data-testid="reports-error" className="text-sm text-red-500 py-8">Gagal memuat laporan: {error}</p>}

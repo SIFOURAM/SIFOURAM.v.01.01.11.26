@@ -132,4 +132,5 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Bar tab kategori tepat di bawah header telah diganti menjadi dropdown halaman agar daftar pilihan tetap ringkas di setiap ukuran layar.
 - Komponen filter periode global kini memakai lebar penuh yang sejajar dengan grid tanggal mulai dan tanggal akhir di bawahnya.
 - Halaman Laporan menghapus judul besar dan mengganti deretan tombol jenis laporan dengan satu dropdown pemilih laporan.
+- Dropdown jenis laporan dipisahkan ke baris paling atas; filter pembayaran, tipe order, periode, serta ekspor berada di baris bawahnya.
 - Remaining: Dashboard POS, tab Stock Awal/Sisa dengan filter penuh, Purchase Order + notifikasi, akun pembayaran Owner, serta perubahan keranjang POS sesuai referensi.
