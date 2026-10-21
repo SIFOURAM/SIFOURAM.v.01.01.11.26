@@ -117,11 +117,6 @@ function CategoryTabs({ categories, category, t }) {
     <nav data-testid="category-tabs" className={`category-tab-bar ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
       <div className="flex items-center gap-2 min-w-0">
         <span data-testid="category-current-label" className="font-heading font-bold text-primary">{category.name}</span>
-        <select data-testid="category-dropdown" value={category.to} onChange={(event) => navigate(event.target.value)} className="category-dropdown">
-          {categories.map((entry) => <option key={entry.name} value={entry.to}>{entry.name}</option>)}
-        </select>
-        <span className="text-muted-foreground">›</span>
-        <span data-testid="tab-current-label" className="text-sm font-semibold truncate">{t(activeTab.key)}</span>
         <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => navigate(event.target.value)} className="category-dropdown">
           {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{t(tab.key)}</option>)}
         </select>
@@ -180,7 +175,7 @@ export default function Layout() {
       {user.photo ? <img src={user.photo} alt="" className="w-full h-full object-cover" /> : initials(user.name)}
     </button>
   );
-  const ThemeBtn = ({ id }) => <button data-testid={id} onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-2 rounded-lg hover:bg-muted">{theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>;
+  const ThemeBtn = ({ id }) => <button data-testid={id} onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className={`p-2 rounded-lg hover:bg-muted ${theme === "dark" ? "text-white" : "text-foreground"}`}>{theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>;
 
   return (
     <GpsGate role={user.role}>
