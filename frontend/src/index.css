@@ -65,7 +65,7 @@
 }
 
 @layer components {
-  .bento { @apply rounded-2xl border border-border/70 bg-card p-5 sm:p-6 relative overflow-hidden transition-shadow duration-300; }
+  .bento { @apply rounded-2xl border border-border/70 bg-card p-4 sm:p-[1.2rem] relative overflow-hidden transition-shadow duration-300; }
   .bento:hover { box-shadow: 0 8px 30px -12px rgba(255, 107, 0, 0.18); }
   .gold { position: relative; border-color: transparent !important; background-clip: padding-box; }
   .gold::before {
@@ -102,7 +102,7 @@
     .table-x th { font-size: 9px; letter-spacing: 0.04em; padding: 0.5rem 0.15rem; }
     .table-x td { padding: 0.4rem 0.15rem; }
     .table-x td p { font-size: 11px; }
-    .bento { padding: 0.8rem; }
+    .bento { padding: 0.64rem; }
   }
   @media (max-width: 360px) { .table-x { font-size: 10px; } .qty { width: 1.9rem; height: 2rem; } .table-x td p { font-size: 10px; } }
   .num { @apply font-mono tabular-nums; }
