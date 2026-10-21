@@ -42,7 +42,7 @@ function NotifBell() {
       <button data-testid="notif-bell" onClick={() => { setOpen(!open); if (unread) api.post("/notifications/read").then(load); }} className="p-2 rounded-lg hover:bg-muted relative"><Bell className="w-4 h-4" />{unread > 0 && <span data-testid="notif-count" className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">{unread}</span>}</button>
       {open && <>
         <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-        <div data-testid="notif-list" className="fixed left-0 right-0 mx-auto top-20 w-[92vw] max-w-sm max-h-[70vh] overflow-y-auto bento gold p-3 z-50 fade-up">
+        <div data-testid="notif-list" className="fixed left-0 right-0 mx-auto top-20 w-[92vw] max-w-sm max-h-[70vh] overflow-y-auto bg-card text-foreground border border-border rounded-xl shadow-2xl p-3 z-50 fade-up">
           <div className="flex items-center justify-between mb-2">
             <p className="font-heading font-bold text-sm">Notifikasi</p>
             {list.length > 0 && <button data-testid="notif-clear-all" onClick={clearAll} className="text-[11px] font-bold text-primary hover:underline">Semua Terbaca</button>}

@@ -463,6 +463,10 @@ class PaymentAccountIn(BaseModel):
     qris_photo: Optional[str] = None
 
 
+class PaymentAccountUpdateIn(PaymentAccountIn):
+    pass
+
+
 class GpsIn(BaseModel):
     lat: float
     lng: float
@@ -867,6 +871,28 @@ async def create_payment_account(body: PaymentAccountIn, u=Depends(SUPER)):
     await db.payment_accounts.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+
+@api.put("/payment-accounts/{account_id}")
+async def update_payment_account(account_id: str, body: PaymentAccountUpdateIn, u=Depends(SUPER)):
+    current = await db.payment_accounts.find_one({"id": account_id}, NOID)
+    if not current:
+        raise HTTPException(404, "Akun pembayaran tidak ditemukan")
+    if body.qris_photo and (not body.qris_photo.startswith("data:image/") or len(body.qris_photo) > 3_000_000):
+        raise HTTPException(400, "Gambar QRIS harus berupa foto maksimal 2 MB")
+    update = body.model_dump()
+    if body.qris_photo and body.qris_photo != current.get("qris_photo"):
+        update["qris_photo"] = await store_photo(body.qris_photo, "payment_accounts", u["id"])
+    await db.payment_accounts.update_one({"id": account_id}, {"$set": update})
+    return await db.payment_accounts.find_one({"id": account_id}, NOID)
+
+
+@api.delete("/payment-accounts/{account_id}")
+async def delete_payment_account(account_id: str, u=Depends(SUPER)):
+    result = await db.payment_accounts.delete_one({"id": account_id})
+    if not result.deleted_count:
+        raise HTTPException(404, "Akun pembayaran tidak ditemukan")
+    return {"ok": True}
 
 
 @api.put("/materials/{mid}")
@@ -1606,7 +1632,7 @@ async def clear_notifications(u=Depends(ANY)):
     query = {"$or": [{"for_user": u["id"]}]}
     if u["role"] in {"owner", "admin"}:
         query["$or"].append({"for_role": u["role"]})
-    await db.notifications.delete_many(query)
+    await db.notifications.update_many({**query, "read": False}, {"$set": {"read": True}})
     return {"ok": True}
 
 

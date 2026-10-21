@@ -10,6 +10,7 @@ export default function PurchaseOrders() {
   const [materials, setMaterials] = useState([]);
   const [orders, setOrders] = useState([]);
   const [form, setForm] = useState({ material_id: "", qty: "", note: "" });
+  const [decisionNote, setDecisionNote] = useState({});
   const canDecide = ["owner", "admin"].includes(user.role);
   const load = async () => {
     try {
@@ -37,7 +38,9 @@ export default function PurchaseOrders() {
   };
   const decide = async (order, decision) => {
     try {
-      await api.post(`/purchase-orders/${order.id}/${decision}`, { note: "" });
+      await api.post(`/purchase-orders/${order.id}/${decision}`, {
+        note: decisionNote[order.id] || "",
+      });
       toast.success(decision === "approve" ? "PO disetujui." : "PO ditolak.");
       load();
     } catch (error) {
@@ -105,12 +108,25 @@ export default function PurchaseOrders() {
                 <span data-testid={`purchase-order-status-${order.id}`} className={`h-fit px-2 py-1 rounded text-xs font-bold uppercase ${order.status === "approved" ? "bg-emerald-500/15 text-emerald-600" : order.status === "rejected" ? "bg-red-500/15 text-red-600" : "bg-amber-500/15 text-amber-600"}`}>{order.status === "approved" ? "disetujui" : order.status === "rejected" ? "ditolak" : "menunggu"}</span>
               </div>
               {canDecide && order.status === "pending" && (
-                <div className="flex gap-2 mt-4">
-                  <button data-testid={`purchase-order-approve-${order.id}`} onClick={() => decide(order, "approve")} className="btn-primary text-xs"><Check className="w-4 h-4" />Setujui</button>
-                  <button data-testid={`purchase-order-reject-${order.id}`} onClick={() => decide(order, "reject")} className="btn-ghost text-xs"><X className="w-4 h-4" />Tolak</button>
+                <div className="mt-4 space-y-2">
+                  <input
+                    data-testid={`purchase-order-decision-note-${order.id}`}
+                    className="field text-xs"
+                    placeholder="Catatan keputusan (opsional)"
+                    value={decisionNote[order.id] || ""}
+                    onChange={(event) => setDecisionNote({
+                      ...decisionNote,
+                      [order.id]: event.target.value,
+                    })}
+                  />
+                  <div className="flex gap-2">
+                    <button data-testid={`purchase-order-approve-${order.id}`} onClick={() => decide(order, "approve")} className="btn-primary text-xs"><Check className="w-4 h-4" />Setujui</button>
+                    <button data-testid={`purchase-order-reject-${order.id}`} onClick={() => decide(order, "reject")} className="btn-ghost text-xs"><X className="w-4 h-4" />Tolak</button>
+                  </div>
                 </div>
               )}
               {order.approved_by && <p className="text-xs text-muted-foreground mt-3">Diputuskan oleh {order.approved_by}</p>}
+              {order.decision_note && <p data-testid={`purchase-order-decision-${order.id}`} className="text-xs mt-2 border-l-2 border-primary pl-2">{order.decision_note}</p>}
             </Bento>
           ))}
           {!orders.length && <Empty text="Belum ada Purchase Order." />}

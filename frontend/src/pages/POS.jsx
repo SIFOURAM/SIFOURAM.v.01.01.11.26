@@ -332,7 +332,7 @@ export default function POS() {
                 {pay === "cash" && <input data-testid="cash-received-input" type="number" className="field num" placeholder={t("cashReceived")} value={cash} onChange={(e) => setCash(e.target.value)} />}
                 {pay === "qris" && qrisAccounts.map((account) => (
                   <div key={account.id} data-testid={`pos-qris-${account.id}`} className="sm:col-span-2 flex items-center gap-3 rounded-lg border border-primary/30 p-3">
-                    <img src={account.qris_photo} alt={`QRIS ${account.name}`} className="w-20 h-20 object-contain bg-white rounded" />
+                    <button data-testid={`pos-qris-open-${account.id}`} onClick={() => setQrisPreview(account)} className="shrink-0"><img src={account.qris_photo} alt={`QRIS ${account.name}`} className="w-36 h-36 object-contain bg-white rounded" /></button>
                     <div><p className="font-semibold text-sm">{account.name}</p><p className="text-xs text-muted-foreground">Scan QRIS untuk pembayaran</p></div>
                   </div>
                 ))}
@@ -424,6 +424,7 @@ export default function POS() {
           <Attendance rider={rider} riders={riders} riderId={riderId} setRiderId={setRiderId} isRider={isRider} />
         </DialogContent>
       </Dialog>
+      <Dialog open={!!qrisPreview} onOpenChange={() => setQrisPreview(null)}><DialogContent data-testid="pos-qris-preview" className="max-w-sm"><DialogHeader><DialogTitle>QRIS · {qrisPreview?.name}</DialogTitle></DialogHeader>{qrisPreview && <img src={qrisPreview.qris_photo} alt={`QRIS ${qrisPreview.name}`} className="w-full aspect-square object-contain bg-white rounded-lg p-3" />}</DialogContent></Dialog>
     </div>
   );
 }
