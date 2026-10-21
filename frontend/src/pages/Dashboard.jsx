@@ -33,9 +33,9 @@ export default function Dashboard() {
       {d && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Stat gold label={t("cupsSold")} value={d.cups} sub={`${d.transactions} POS transactions`} icon={Coffee} testId="stat-cups" />
+          <Stat label={t("expenses")} value={fmtRp(d.expenses)} sub={`Invoices: ${fmtRp(d.invoice_income)}`} icon={TrendingDown} testId="stat-expenses" />
           <Stat label={t("cashRevenue")} value={fmtRp(d.cash)} icon={Banknote} testId="stat-cash" />
           <Stat label={t("qrisRevenue")} value={fmtRp(d.qris)} icon={QrCode} testId="stat-qris" />
-          <Stat label={t("expenses")} value={fmtRp(d.expenses)} sub={`Invoices: ${fmtRp(d.invoice_income)}`} icon={TrendingDown} testId="stat-expenses" />
 
           <Bento className="col-span-2 lg:col-span-2 fade-up" testId="chart-rider-sales">
             <p className="eyebrow mb-4">5 Penjualan Rider Tertinggi</p>
