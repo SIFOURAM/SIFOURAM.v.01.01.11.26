@@ -48,7 +48,15 @@ export function DateFilter({ onChange, showCustom = true, riderPeriods = false, 
   const { t } = useT();
   const [preset, setPreset] = useState(initialPreset);
   const [custom, setCustom] = useState(rangeFor(initialPreset));
-  useEffect(() => { onChange(rangeFor(preset, custom), preset); }, [preset, custom]); // eslint-disable-line
+  useEffect(() => {
+    if (preset !== "custom") {
+      const next = rangeFor(preset);
+      if (custom.start !== next.start || custom.end !== next.end) setCustom(next);
+      onChange(next, preset);
+      return;
+    }
+    onChange(custom, preset);
+  }, [preset, custom]); // eslint-disable-line
   const presets = riderPeriods
     ? ["today", "yesterday", "week", "prevweek", "month"]
     : ["today", "yesterday", "week", "month", "prevmonth"];

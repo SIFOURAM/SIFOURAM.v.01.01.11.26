@@ -1214,11 +1214,14 @@ async def rider_stock_remaining(
     stocks = await db.rider_stock.find(query, NOID).sort([("date", -1), ("rider_name", 1)]).to_list(500)
     rows = []
     for stock in stocks:
-        current = await pos_stock(stock["rider_id"], date)
+        current = await pos_stock(stock["rider_id"], stock["date"])
         rows.append({
             "stock_id": stock["id"],
             "rider_id": stock["rider_id"],
             "rider_name": stock["rider_name"],
+            "date": stock["date"],
+            "pic_name": stock.get("pic_name"),
+            "photo": stock.get("photo"),
             "verified_at": stock.get("verified_at"),
             "pending": not bool(stock.get("verified_at")),
             "verified_by_name": stock.get("verified_by_name"),

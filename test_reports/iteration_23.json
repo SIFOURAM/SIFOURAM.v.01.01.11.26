@@ -1,0 +1,45 @@
+{
+  "summary": "Tested Stock Rider audit, Pengambilan and Sisa, backend and UI, with 2 temporary QA riders (stock on today and yesterday, one rider verified, sales inserted). Two-step auth works in the UI after the backend restart: identify, then 6 PIN digits, then redirect to / with the token stored and no page errors. Owner Stock Rider passes: the rider select, all 6 periods (Hari Ini/Kemarin/Minggu Ini/Minggu Kemarin/Bulan Ini/Manual) and the manual from-to inputs scope the history correctly (today=1, yesterday=1, week=2, custom=2). The image proof and the detail dialog (rider, PIC, products, qty, total, verified badge) work. Owner Pengambilan renders the same list and opens the detail. Rider scoping passes: history is forced to self, GET other rider stock returns 403, verifying another rider's stock returns 404, owner verify returns 403 and a non-image verify returns 400. The Rider UI verify flow works: button disabled until a photo is added, then toast, then the verified badge, and POS has_stock=true. No horizontal overflow at 390px on rider/pickup/remaining. CRITICAL BUG: the Sisa range endpoint is wrong when called with start/end. Backend pytest: 12 of 14 passed.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/rider-stock/remaining?start&end", "issue": "Line 1217 calls pos_stock(stock['rider_id'], date), but date is None in range mode. Every item comes back initial=0/sold=0/remaining=0, remaining_total=0, sold_total=0 and difference_total=initial_total. Reproduced: expected (15,3,12,0), got (15,0,0,15). Fix: pos_stock(stock['rider_id'], stock['date']). Single-date mode is correct (15,3,12,0).", "priority": "CRITICAL"},
+      {"endpoint": "GET /api/rider-stock/remaining", "issue": "Rows have no 'date' field. The UI renders fmtDate(row.date), so every row shows today's date: a yesterday row was displayed as 21 Oct. Add 'date': stock['date'] (plus pic_name/photo if wanted).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/rider-stock/remaining", "issue": "Calls pos_stock once per stock, and each call runs menus_full + a sales scan + eod + deposits queries. N+1 queries for month ranges (up to 500 rows)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Sisa page rows", "issue": "Shows Awal 0/Terjual 0/Sisa 0 for every item in range mode, and the same (today) date on every row. Caused by the backend bugs above.", "selector": "[data-testid^=remaining-row-]", "priority": "HIGH"},
+      {"component": "DateFilter (common.jsx)", "issue": "The manual from/to inputs do not follow the selected preset. With 'Minggu Ini' selected they still show today→today, so the displayed range is misleading. Editing one date then builds a custom range from the stale other value. Sync custom with rangeFor(preset) when the preset changes.", "selector": "[data-testid=filter-custom-start]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Stock Rider/Pengambilan history load", "issue": "The api.get('/rider-stock/history') and /rider-stock calls in the useEffect have no .catch, so errors fail silently with no toast.", "affected_selectors": ["[data-testid=stock-rider-audit-page]"]}
+    ],
+    "design_issues": [
+      {"screen": "Stock Rider / Sisa filters", "issues": ["Uses native <input type=date> (browser default picker) instead of the shadcn Calendar", "The detail dialog does not show the Rider's verification photo, verified_by_name or the verification time, although the backend stores them", "Owner 'Pengambilan' is identical to 'Stock Rider' (same component and empty text). Consider showing the verification status per card (pending/verified) to make this tab distinct"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter23_rider_stock_audit.py", "/app/backend/tests/qa_iter23_fixture.py", "/app/test_reports/pytest/iter23.xml"],
+  "action_items": [
+    "CRITICAL: server.py rider_stock_remaining: use pos_stock(stock['rider_id'], stock['date']) instead of `date`",
+    "HIGH: add 'date' (and pic_name) to each /rider-stock/remaining row",
+    "MEDIUM: DateFilter: update the custom start/end inputs when the preset changes",
+    "LOW: add .catch/toast to the history fetches in RiderStock.jsx; show verification photo/verifier in stock-audit-detail-dialog"
+  ],
+  "critical_code_review_comments": [
+    "rider_stock_remaining difference_total is computed as initial - sold - remaining, which is identically 0 for verified stock because remaining = initial - sold. The 'Selisih' column is meaningless unless a physical/returned count is recorded at EOD. Clarify the business intent.",
+    "For unverified stock, remaining_total = total but item-level remaining = 0 (initial is {} when unverified). Totals and items are inconsistent on the Sisa card.",
+    "RiderStock.jsx is a single file with long inline JSX lines (93/95). Hard to maintain; split the audit/remaining views into components.",
+    "daily_summaries (server.py:1857) uses s['rider_name'] without .get, so it 500s if any sale lacks rider_name. This was triggered by QA-inserted sales here, not by real data. Defensive .get recommended."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter23_rider_stock_audit.py", "/app/backend/tests/qa_iter23_fixture.py"],
+  "success_rate": {"backend": "86% (12/14)", "frontend": "85% - stock rider/pickup/rider verify/mobile pass; Sisa range values wrong"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md). Temporary riders qa23_rider_a/b PIN 246813 were created and deleted.",
+  "seed_data_creation": "qa_iter23_fixture.py setup/cleanup: 2 riders, 4 rider_stock docs, 2 sales. All cleaned up and menu stock values restored.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `python3 tests/qa_iter23_fixture.py setup` then pytest test_iter23_rider_stock_audit.py, then `cleanup`. The fixture state is in /tmp/qa_iter23_state.json. Rider UI needs geolocation granted (context.grant_permissions + set_geolocation, then click 'Izinkan Lokasi') plus sessionStorage si4am_pos='1'. Owner UI login: set localStorage si4am_token and si4am_legal_2026-06-01='accepted'. Two-step UI login: login-identifier-input, login-continue-button, pin-digit-0..5, pin-continue-button. Server date is 2026-10-21.",
+  "rca of the issue": "Sisa range: rider_stock_remaining reuses the request param `date` (None in range mode) when calling pos_stock. db.rider_stock.find_one({date: None}) returns nothing, so initial={} and sales match none, giving all zeros. Repro: create and verify stock for a rider on D, add a sale, then GET /api/rider-stock/remaining?start=D&end=D: sold_total=0. With ?date=D, sold_total is correct."
+}
