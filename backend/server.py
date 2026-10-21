@@ -488,6 +488,7 @@ class PaymentAccountIn(BaseModel):
     account_holder: str
     active: bool = True
     qris_photo: Optional[str] = None
+    rider_id: Optional[str] = None
 
 
 class PaymentAccountUpdateIn(PaymentAccountIn):
@@ -881,9 +882,14 @@ async def list_payment_accounts(u=Depends(SUPER)):
 
 
 @api.get("/payment-accounts/public")
-async def list_public_payment_accounts(u=Depends(ANY)):
+async def list_public_payment_accounts(rider_id: Optional[str] = None, u=Depends(ANY)):
+    if u["role"] == "rider":
+        rider_id = u["id"]
+    query = {"active": True, "qris_photo": {"$nin": [None, ""]}}
+    if rider_id:
+        query["rider_id"] = rider_id
     return await db.payment_accounts.find(
-        {"active": True, "qris_photo": {"$nin": [None, ""]}},
+        query,
         {"_id": 0, "id": 1, "name": 1, "bank_name": 1, "qris_photo": 1},
     ).to_list(20)
 
@@ -892,6 +898,10 @@ async def list_public_payment_accounts(u=Depends(ANY)):
 async def create_payment_account(body: PaymentAccountIn, u=Depends(SUPER)):
     if body.qris_photo and (not body.qris_photo.startswith("data:image/") or len(body.qris_photo) > 3_000_000):
         raise HTTPException(400, "Gambar QRIS harus berupa foto maksimal 2 MB")
+    if body.rider_id:
+        rider = await db.users.find_one({"id": body.rider_id, "role": "rider", "active": {"$ne": False}}, NOID)
+        if not rider:
+            raise HTTPException(404, "Rider untuk QRIS tidak ditemukan")
     doc = {**body.model_dump(), "id": uid(), "created_by": u["id"], "created_at": now_iso()}
     if body.qris_photo:
         doc["qris_photo"] = await store_photo(body.qris_photo, "payment_accounts", u["id"])

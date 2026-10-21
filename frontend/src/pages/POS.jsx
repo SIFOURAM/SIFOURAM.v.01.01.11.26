@@ -128,10 +128,10 @@ export default function POS() {
   const loadStock = () => riderId && api.get("/pos/stock", { params: { rider_id: riderId, date: today() } }).then((r) => setStock(r.data));
   useEffect(() => { loadStock(); }, [riderId]); // eslint-disable-line
   useEffect(() => {
-    api.get("/payment-accounts/public")
+    api.get("/payment-accounts/public", { params: riderId ? { rider_id: riderId } : {} })
       .then((response) => setQrisAccounts(response.data))
       .catch(() => setQrisAccounts([]));
-  }, []);
+  }, [riderId]);
   useEffect(() => {
     const p = cust.phone.replace(/\D/g, "");
     if (p.length >= 5 && !cust.name) api.get("/customers/lookup", { params: { phone: p } }).then((r) => { const c = r.data.customers[0]; if (c?.name) setCust((x) => ({ ...x, name: c.name })); });
