@@ -28,6 +28,7 @@ import Reports from "./pages/Reports";
 const S = ["owner"];
 const SB = ["owner", "admin", "barteam"];
 const ALL = ["owner", "admin", "barteam", "rider"];
+const REPORT_ACCESS = ["owner", "admin"];
 const POS_ACCESS = ["owner", "rider"];
 
 function Guard({ allow, children }) {
@@ -38,7 +39,7 @@ function Guard({ allow, children }) {
 
 function Home() {
   const { user } = useAuth();
-  if (user.role !== "owner") return <Navigate to={HOME[user.role]} replace />;
+  if (!["owner", "admin"].includes(user.role)) return <Navigate to={HOME[user.role]} replace />;
   return <Dashboard />;
 }
 
@@ -59,7 +60,7 @@ function Shell() {
         <Route path="/rider-dashboard" element={<Guard allow={ALL}><RiderDashboard /></Guard>} />
         <Route path="/handover" element={<Guard allow={S}><Handover /></Guard>} />
         <Route path="/finance" element={<Guard allow={S}><Finance /></Guard>} />
-        <Route path="/reports" element={<Guard allow={S}><Reports /></Guard>} />
+        <Route path="/reports" element={<Guard allow={REPORT_ACCESS}><Reports /></Guard>} />
         <Route path="/salary" element={<Guard allow={SB}><Salary /></Guard>} />
         <Route path="/customers" element={<Guard allow={SB}><Customers /></Guard>} />
         <Route path="/user-info" element={<Guard allow={S}><UserInfo /></Guard>} />

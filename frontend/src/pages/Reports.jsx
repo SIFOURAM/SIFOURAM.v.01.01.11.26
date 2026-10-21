@@ -234,8 +234,6 @@ function OperationsReport({ kind, setView }) {
 
   return (
     <div data-testid={`operations-report-${kind}`}>
-      <h1 className="font-heading text-2xl font-bold mb-1">{labels[kind]}</h1>
-      <p className="text-sm text-muted-foreground mb-4">Data operasional aktual sesuai periode yang dipilih.</p>
       <PageHeader>
         <Select
           testId="operations-report-dropdown"

@@ -201,6 +201,7 @@ def roles(*allowed):
 
 STAFF = roles("owner", "admin", "barteam")
 SUPER = roles("owner")
+REPORTS = roles("owner", "admin")
 ANY = get_user
 
 
@@ -1616,7 +1617,7 @@ async def sales_report(
     end: str,
     payment_method: Optional[str] = None,
     order_type: Optional[str] = None,
-    u=Depends(SUPER),
+    u=Depends(REPORTS),
 ):
     query: Dict[str, Any] = {"date": {"$gte": start, "$lte": end}}
     if payment_method and payment_method != "all":
@@ -1678,7 +1679,7 @@ async def sales_report(
 
 
 @api.get("/reports/operations")
-async def operations_report(kind: str, start: str, end: str, u=Depends(SUPER)):
+async def operations_report(kind: str, start: str, end: str, u=Depends(REPORTS)):
     date_query = {"date": {"$gte": start, "$lte": end}}
     if kind == "wastage":
         rows = await db.menu_stock_tx.find({**date_query, "type": "wastage"}, NOID).to_list(2000)
