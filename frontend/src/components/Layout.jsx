@@ -180,7 +180,7 @@ export default function Layout() {
   const linkCls = (isActive) => `flex items-center gap-3 px-4 h-11 rounded-xl text-sm font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`;
 
   const Avatar = ({ size = "w-9 h-9" }) => (
-    <button data-testid="nav-profile-button" onClick={() => nav("/profile")} className={`${size} rounded-full border-2 border-black overflow-hidden bg-primary text-black font-bold text-sm flex items-center justify-center shrink-0`}>
+    <button data-testid="nav-profile-button" onClick={() => nav("/profile")} className={`${size} rounded-full border-2 overflow-hidden bg-primary font-bold text-sm flex items-center justify-center shrink-0 ${theme === "dark" ? "border-white text-white" : "border-black text-black"}`}>
       {user.photo ? <img src={user.photo} alt="" className="w-full h-full object-cover" /> : initials(user.name)}
     </button>
   );
@@ -212,7 +212,7 @@ export default function Layout() {
 
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="flex items-center justify-between px-4 lg:px-8 h-16 sticky top-0 bg-primary text-black z-40" data-testid="top-header">
-          <div className="flex items-center gap-2 lg:hidden"><img src="/assets/si-four-am-logo.png" alt="SI FOUR AM" className="w-10 h-10 object-contain" /><div><span className="font-heading font-bold">SI FOUR AM</span><p data-testid="mobile-login-role" className="text-[0.6rem] font-semibold text-black/70 leading-none">{roleLabel}</p></div></div>
+          <div className="flex items-center gap-2 lg:hidden"><img src="/assets/si-four-am-logo.png" alt="SI FOUR AM" className="w-10 h-10 object-contain" /><div><span className={`font-heading font-bold ${theme === "dark" ? "text-white" : "text-black"}`}>SI FOUR AM</span><p data-testid="mobile-login-role" className="text-[0.6rem] font-semibold text-black/70 leading-none">{roleLabel}</p></div></div>
           <div className="hidden lg:block"><p className="eyebrow text-black/70">{roleLabel}</p></div>
           <div className="flex items-center gap-2">
             <NotifBell />
@@ -230,7 +230,7 @@ export default function Layout() {
             {main.map((i) => (
               <NavLink key={i.to} to={i.to} end={i.to === "/"} data-testid={`bottomnav-${i.key}`}
                 className={({ isActive }) => `flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${i.key === "pos" ? "text-black" : theme === "dark" ? "text-white" : isActive ? "text-primary" : "text-muted-foreground"}`}>
-                <span className={i.key === "pos" ? "flex w-10 h-10 -mt-3 items-center justify-center rounded-full bg-primary shadow-md" : "flex items-center justify-center"}>
+                <span className={i.key === "pos" ? "flex w-10 h-10 -mt-3 items-center justify-center rounded-full bg-primary shadow-md" : `flex items-center justify-center ${theme === "dark" ? "text-white" : ""}`}>
                   <i.icon className={i.key === "pos" ? "w-5 h-5" : "w-[0.95rem] h-[0.95rem]"} />
                 </span>
                 {i.key !== "pos" && <span className={`truncate max-w-full ${theme === "dark" ? "text-white" : ""}`}>{t(i.key)}</span>}
