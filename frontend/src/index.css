@@ -84,9 +84,9 @@
   .table-x td { @apply py-2.5 px-2 border-b border-border/50; }
   .hide-sm { @apply hidden md:table-cell; }
   .hide-xs { @apply hidden sm:table-cell; }
-  .qty { @apply h-9 rounded-lg border border-input bg-background text-xs outline-none focus:ring-2 focus:ring-primary/40 num; width: 2.2rem; padding: 0; text-align: center; appearance: none; -webkit-appearance: none; }
-  @media (min-width: 640px) { .qty { width: 3.4rem; padding: 0 0.4rem; font-size: 0.875rem; appearance: auto; -webkit-appearance: auto; text-align: left; } }
-  @media (min-width: 1024px) { .qty { width: 4.2rem; } }
+  .qty { @apply h-[29px] rounded-lg border border-input bg-background text-xs outline-none focus:ring-2 focus:ring-primary/40 num; width: 1.76rem; padding: 0; text-align: center; appearance: none; -webkit-appearance: none; }
+  @media (min-width: 640px) { .qty { width: 2.72rem; padding: 0 0.32rem; font-size: 0.75rem; appearance: auto; -webkit-appearance: auto; text-align: left; } }
+  @media (min-width: 1024px) { .qty { width: 3.36rem; } }
   @media (max-width: 639px) {
     select.field, .category-dropdown {
       min-width: 0;
