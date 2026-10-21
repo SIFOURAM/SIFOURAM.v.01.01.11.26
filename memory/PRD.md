@@ -165,3 +165,13 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Remaining P1: complete Stock Awal/Sisa filters and photo-proof Pengambilan workflow; then build
   Production Purchase Order approval/notification flow. P2 remains Broadcast WhatsApp, Owner
   payment accounts, AI stock prediction, and Bluetooth receipt printing.
+
+## Stock P1 Completion (2026-10)
+- Pengambilan Rider now requires a Rider acceptance photo before verification. The API validates
+  image payloads, stores verification metadata/photo, scopes POS stock to its owning Rider, and
+  re-locks POS whenever Owner revises a verified stock handoff.
+- Stock Sisa is available for Owner/Admin/Bar Team and Rider, showing initial, sold, and remaining
+  quantities. Pending handoffs are clearly marked and retain internally consistent totals.
+- Iteration 19 stock verification test suite now passes 13/13 after follow-up fixes; production
+  build succeeds. QA stock, sales, Rider accounts, and test files were cleaned back to baseline.
+- Next P1: Production Purchase Order request, Owner/Admin approval, and approval notifications.

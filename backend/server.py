@@ -948,9 +948,11 @@ async def save_rider_stock(body: RiderStockIn, u=Depends(STAFF)):
     doc = {"id": prev["id"] if prev else uid(), "rider_id": rider["id"], "rider_name": rider["name"], "pic_id": u["id"], "pic_name": u["name"], "date": body.date,
            "time": now_wib(), "items": body.items, "detail": {menus[k]["name"]: v for k, v in body.items.items() if k in menus}, "total": total, "photo": photo,
            "motivation": "🔥 Keep up the sales! 🚀☕", "created_by": u["name"], "updated_at": now_iso()}
-    if not prev:
+    if not prev or prev.get("verified_at"):
         doc["verified_at"] = None
         doc["verified_by"] = None
+        doc["verified_by_name"] = None
+        doc["verification_photo"] = None
     await db.rider_stock.update_one({"rider_id": body.rider_id, "date": body.date}, {"$set": doc}, upsert=True)
     await gs_sync("rider_stock", doc, body.photo, f"stock_{rider['name']}_{body.date}.jpg")
     return doc
@@ -963,6 +965,8 @@ async def verify_rider_stock(stock_id: str, body: RiderStockVerifyIn, u=Depends(
     stock = await db.rider_stock.find_one({"id": stock_id}, NOID)
     if not stock or stock["rider_id"] != u["id"]:
         raise HTTPException(404, "Stock awal tidak ditemukan")
+    if not body.photo.startswith("data:image/") or len(body.photo) > 3_000_000:
+        raise HTTPException(400, "Foto verifikasi harus berupa gambar maksimal 2 MB")
     if not stock.get("verified_at"):
         verification_photo = await store_photo(body.photo, "rider_stock_verification", u["id"])
         await db.rider_stock.update_one(
@@ -1011,6 +1015,8 @@ async def pos_stock(rider_id: str, date: str):
 
 @api.get("/pos/stock")
 async def get_pos_stock(rider_id: str, date: str, u=Depends(ANY)):
+    if u["role"] == "rider" and rider_id != u["id"]:
+        raise HTTPException(403, "Rider hanya dapat melihat stock POS miliknya")
     return await pos_stock(rider_id, date)
 
 
@@ -1028,9 +1034,12 @@ async def rider_stock_remaining(date: str, rider_id: Optional[str] = None, u=Dep
             "rider_id": stock["rider_id"],
             "rider_name": stock["rider_name"],
             "verified_at": stock.get("verified_at"),
+            "pending": not bool(stock.get("verified_at")),
+            "verified_by_name": stock.get("verified_by_name"),
+            "verification_photo": stock.get("verification_photo"),
             "items": current["items"],
             "initial_total": stock.get("total", 0),
-            "remaining_total": sum(item["remaining"] for item in current["items"]),
+            "remaining_total": stock.get("total", 0) if not stock.get("verified_at") else sum(item["remaining"] for item in current["items"]),
             "sold_total": sum(item["sold"] for item in current["items"]),
         })
     return rows

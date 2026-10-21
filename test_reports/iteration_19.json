@@ -1,0 +1,54 @@
+{
+  "summary": "Iter19: Tested the Rider stock handoff/acceptance photo flow. Backend: 13 pytest cases, 10 pass and 3 fail. UI: tested Rider pickup on mobile, Owner Sisa page on desktop and mobile, and saving Stock Awal from the Owner UI. Working: Owner creates stock with photo and it starts pending; POS has_stock is false and sales return 400 until verified; verify with no body or {} returns 422; another Rider gets 404 and Owner gets 403 on verify; a valid verify stores verified_at, verified_by, verified_by_name and verification_photo, and has_stock becomes true; re-verify is idempotent; remaining initial/sold/remaining matches POS after a sale; Rider is limited to its own remaining and history data. In the UI the dialog shows the handoff photo, pickup-verify-button stays disabled until a photo is chosen, the success toast appears and pickup-verified-status shows. The Owner remaining page has the date and rider controls, data rows and the empty state, with no horizontal overflow and no app console errors. All QA data was cleaned (users=1, rider_stock/sales/attendance/eod/gps/deposits/customers=0, files back to the 10 baseline, menu stock snapshot restored to all 0).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/rider-stock/{id}/verify", "issue": "Verify accepts {photo: \"\"} and {photo: \"hello\"} with 200 and marks the stock verified. RiderStockVerifyIn.photo is a plain str and store_photo returns non-data strings unchanged, so the acceptance photo can be bypassed. Validate that photo is a non-empty data:image/...;base64 string with a size limit, else return 400/422.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/rider-stock/remaining", "issue": "For pending (unverified) stock, initial_total comes from stock.total (e.g. 4) but remaining_total/items come from pos_stock, which gives 0 when unverified. The row reads 'Awal 4 · Terjual 0 · Sisa 0'. Return a pending flag and compute initial_total from the same source, or label it 'Menunggu verifikasi'."},
+      {"endpoint": "GET /api/pos/stock", "issue": "No role scoping: a Rider can read another Rider's POS stock (200). Add the same rider_id == u.id check used by /rider-stock."},
+      {"endpoint": "POST /api/rider-stock (edit after verify)", "issue": "Owner can change items of an already verified stock (and without a new photo, since the old one is reused). verified_at is kept, so POS stock changes without the Rider accepting again. Consider resetting verification or blocking edits after verification."},
+      {"endpoint": "POST /api/rider-stock", "issue": "Menu production stock is decremented with no lower bound. Master stock 0 became -3/-5 (UI shows 'Stok -3'). Validate available stock or allow negatives on purpose."},
+      {"endpoint": "store_photo / object storage", "issue": "Backend log: 'Storage init failed: 401 Unauthorized'. Handoff and verification photos fall back to inline base64 stored in Mongo (verification_photo saved as data:image/jpeg;base64...). This works, but the documents grow large."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Rider 'Sisa' tab (/rider-stock?view=remaining)", "issue": "The Rider nav (Layout.jsx line 105) has a Sisa tab, but RiderStock returns <RiderPickup/> for every rider view. Riders never see remaining stock, and the 'Stock Rider'/'Pengambilan'/'Sisa' tabs all show the same pickup page.", "selector": "[data-testid=rider-stock-remaining-page]", "priority": "MEDIUM"},
+      {"component": "Pickup detail dialog (mobile 390x844)", "issue": "The dialog is 886px tall with no max-height or overflow-y-auto. After a photo is picked its top is at -21px, so the title and close X are clipped and it cannot scroll. The verify button only just fits (bottom 841/844). With more menus it would be unreachable. Add max-h-[90vh] overflow-y-auto.", "selector": "[data-testid=pickup-detail-dialog]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Owner monitoring of acceptance", "issue": "No Owner screen shows verification status, verified_by_name or verification_photo. Stock Awal history and the Sisa rows don't mark pending vs verified, so the acceptance photo the user asked for is stored but never visible.", "affected_selectors": ["[data-testid=rider-stock-history]", "[data-testid^=remaining-row-]"]},
+      {"flow": "Owner tabs 'Stock Rider' / 'Pengambilan'", "issue": "view=rider and view=pickup render the same Stock Awal form for Owner/Admin. There is no distinct view.", "affected_selectors": ["[data-testid=rider-stock-page]"]}
+    ],
+    "design_issues": [
+      {"screen": "Owner Sisa page", "issues": ["PageHeader has no title/eyebrow, so there is no 'Sisa Stock' heading", "Uses the native browser date picker (input type=date) instead of the shadcn calendar"]},
+      {"screen": "Stock Awal form", "issues": ["The per-menu 'Stok N' label is not refreshed after save (menus not reloaded)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter19_rider_stock_verify.py", "/app/backend/tests/qa_iter19_fixture.py", "/app/test_reports/pytest/pytest_iter19.xml"],
+  "action_items": [
+    "HIGH: Validate RiderStockVerifyIn.photo (non-empty data:image base64, size limit). Today an empty or arbitrary string verifies the stock.",
+    "Show verification status, verified_by_name, verified_at and the verification photo to Owner (history + Sisa rows) and mark pending rows.",
+    "Make the /rider-stock/remaining pending row consistent (initial_total vs remaining) or add a pending flag.",
+    "Implement the Rider remaining view (or remove the Rider Sisa tab); RiderStock currently ignores view for riders.",
+    "Make the pickup dialog scrollable on mobile (max-h + overflow-y-auto).",
+    "Scope GET /api/pos/stock for riders to their own rider_id.",
+    "Decide the policy for editing verified stock (reset verification) and for negative menu production stock."
+  ],
+  "critical_code_review_comments": [
+    "verify_rider_stock: body.photo is not validated; store_photo passes through non data: strings.",
+    "save_rider_stock: re-save after verification keeps verified_at, and the photo falls back to the previous one, so edits need no new proof.",
+    "rider_stock_remaining: N+1 pos_stock calls (each runs menus_full plus a sales scan). Fine for small data but worth batching.",
+    "RiderStock.jsx: no catch on the rider-stock/history GETs in the owner effect (unhandled promise on error).",
+    "server.py is 2120 lines; split the routers (stock, pos, auth)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter19_rider_stock_verify.py", "/app/backend/tests/qa_iter19_fixture.py"],
+  "success_rate": {"backend": "77% (10/13)", "frontend": "85%"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md). Temp riders were created via API and deleted.",
+  "seed_data_creation": "None left behind. Temp riders, stock, sales and files were created and deleted; menu stock was restored.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Rider pages need geolocation permission granted in Playwright (GPS gate). Inject the token through localStorage key si4am_token. POS requires a PIN pad unlock. Run the pytest file, then the fixture: python tests/qa_iter19_fixture.py setup <YYYY-MM-DD> creates a rider with unverified stock and prints tokens; 'cleanup' removes everything. The browser date is UTC and the container date is the same. Baseline DB: users=1, files=10, all menus stock 0.",
+  "rca of the issue": "Verify bypass: RiderStockVerifyIn(photo: str) accepts any string, and store_photo() returns the input unchanged when it does not start with 'data:', so verification_photo='' or 'hello' is saved and verified_at is set. Repro: POST /api/rider-stock/{id}/verify with {\"photo\":\"\"} as the owning Rider gives 200, then has_stock=true. Mitigation: add a pydantic validator or explicit check with a regex for ^data:image/(png|jpe?g|webp);base64, and a length limit."
+}
