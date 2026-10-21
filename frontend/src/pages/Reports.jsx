@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { FileDown, FileSpreadsheet, Printer } from "lucide-react";
 import { Bar, BarChart, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import jsPDF from "jspdf";
@@ -24,10 +25,13 @@ export default function Reports() {
   const [method, setMethod] = useState("all");
   const [orderType, setOrderType] = useState("all");
   const [serviceType, setServiceType] = useState("all");
-  const [view, setView] = useState("sales");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [view, setView] = useState(searchParams.get("view") || "sales");
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => { setView(searchParams.get("view") || "sales"); }, [searchParams]);
+  const selectView = (nextView) => { setView(nextView); setSearchParams({ view: nextView }); };
 
   useEffect(() => {
     if (!range || !["sales", "products"].includes(view)) return;
@@ -45,7 +49,7 @@ export default function Reports() {
   const title = view === "sales" ? "Laporan Penjualan" : "Performa Produk";
   const productRows = useMemo(() => report?.products || [], [report]);
   if (!["sales", "products"].includes(view)) {
-    return <OperationsReport kind={view} setView={setView} />;
+    return <OperationsReport kind={view} setView={selectView} />;
   }
   const exportExcel = () => {
     if (!report) return;
@@ -122,7 +126,7 @@ export default function Reports() {
             testId="report-view-dropdown"
             className="w-full sm:w-48 h-9 text-xs"
             value={view}
-            onChange={setView}
+            onChange={selectView}
             options={REPORT_TABS.map(([value, label]) => ({ value, label }))}
           />
           <div className="flex flex-wrap items-start justify-end gap-2">
