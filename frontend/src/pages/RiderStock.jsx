@@ -6,7 +6,7 @@ import { api, errMsg } from "../lib/api";
 import { today, shareReceipt, fmtDate } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { useAuth } from "../context/AuthContext";
-import { PageHeader, Bento, Field, Select, QtySelect, PhotoCapture, Empty } from "../components/common";
+import { PageHeader, Bento, Field, Select, QtySelect, PhotoCapture, Empty, DateFilter } from "../components/common";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
 function RiderPickup({ user, view }) {
@@ -56,10 +56,12 @@ export default function RiderStock() {
   const [menus, setMenus] = useState([]);
   const [riderId, setRiderId] = useState("");
   const [date, setDate] = useState(today());
+  const [range, setRange] = useState({ start: today(), end: today() });
   const [items, setItems] = useState({});
   const [photo, setPhoto] = useState(null);
   const [history, setHistory] = useState([]);
   const [remainingRows, setRemainingRows] = useState([]);
+  const [selectedStock, setSelectedStock] = useState(null);
   const view = searchParams.get("view") || "initial";
 
   useEffect(() => {
@@ -75,20 +77,22 @@ export default function RiderStock() {
     if (user.role === "rider") return;
     if (!riderId) return;
     api.get("/rider-stock", { params: { rider_id: riderId, date } }).then((r) => { setItems(r.data?.items || {}); setPhoto(r.data?.photo || null); });
-    api.get("/rider-stock/history", { params: { rider_id: riderId, start: "2000-01-01", end: "2100-01-01" } }).then((r) => setHistory(r.data));
-  }, [riderId, date, user.role]);
+    api.get("/rider-stock/history", { params: { rider_id: riderId, ...range } }).then((r) => setHistory(r.data));
+  }, [riderId, date, range, user.role]);
 
   useEffect(() => {
     if (view !== "remaining") return;
-    const params = { date, ...(riderId ? { rider_id: riderId } : {}) };
+    const params = { ...range, ...(riderId ? { rider_id: riderId } : {}) };
     api.get("/rider-stock/remaining", { params })
       .then((response) => setRemainingRows(response.data))
       .catch((error) => toast.error(errMsg(error)));
-  }, [date, riderId, view]);
+  }, [range, riderId, view]);
 
   if (user.role === "rider") return <RiderPickup user={user} view={view} />;
 
-  if (view === "remaining") return <div data-testid="rider-stock-remaining-page"><PageHeader /><div className="grid sm:grid-cols-2 gap-3 mb-5"><Field label={t("date")}><input data-testid="remaining-date-input" type="date" className="field" value={date} onChange={(event) => setDate(event.target.value)} /></Field><Field label={t("selectRider")}><Select testId="remaining-rider-select" value={riderId} onChange={setRiderId} placeholder="Semua Rider" options={riders.map((item) => ({ value: item.id, label: item.name }))} /></Field></div>{remainingRows.map((row) => <Bento key={row.stock_id} testId={`remaining-row-${row.stock_id}`} className="mb-3"><div className="flex justify-between gap-3"><div><p className="font-heading font-bold">{row.rider_name}</p><p className="text-xs text-muted-foreground">Awal {row.initial_total} · Terjual {row.sold_total}</p></div><p className="num font-bold text-primary">Sisa {row.remaining_total}</p></div><div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">{row.items.map((item) => <div key={item.menu_id} className="bg-muted p-2 rounded-lg"><p className="truncate">{item.name}</p><p className="num font-bold">{item.remaining} sisa</p></div>)}</div></Bento>)}{!remainingRows.length && <Empty text="Belum ada stock Rider pada tanggal ini." />}</div>;
+  if (view === "remaining") return <div data-testid="rider-stock-remaining-page"><PageHeader eyebrow="Stock" title="Sisa" /><Bento className="mb-5"><DateFilter onChange={setRange} riderPeriods initialPreset="today" /><Field label={t("selectRider")} className="mt-3"><Select testId="remaining-rider-select" value={riderId} onChange={setRiderId} placeholder="Semua Rider" options={riders.map((item) => ({ value: item.id, label: item.name }))} /></Field></Bento>{remainingRows.map((row) => <Bento key={row.stock_id} testId={`remaining-row-${row.stock_id}`} className="mb-3"><div className="flex justify-between gap-3"><div><p className="font-heading font-bold">{row.rider_name}</p><p className="text-xs text-muted-foreground">{fmtDate(row.date)} · Awal {row.initial_total} · Terjual {row.sold_total}</p></div><p className="num font-bold text-primary">Sisa {row.remaining_total}</p></div><div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">{row.items.map((item) => <div key={item.menu_id} className="bg-muted p-2 rounded-lg"><p className="truncate">{item.name}</p><p className="num">Awal {item.initial}</p><p className="num">Terjual {item.sold}</p><p className="num">Sisa {item.remaining}</p><p className="num text-primary">Selisih {item.initial - item.sold - item.remaining}</p></div>)}</div></Bento>)}{!remainingRows.length && <Empty text="Belum ada stock Rider pada periode ini." />}</div>;
+
+  if (view === "rider" || view === "pickup") return <div data-testid="stock-rider-audit-page"><PageHeader eyebrow="Stock" title={view === "pickup" ? "Pengambilan" : "Stock Rider"} /><Bento className="mb-5"><div className="grid sm:grid-cols-2 gap-3"><Field label={t("selectRider")}><Select testId="stock-audit-rider-select" value={riderId} onChange={setRiderId} placeholder="Pilih Rider" options={riders.map((item) => ({ value: item.id, label: item.name }))} /></Field><div><p className="eyebrow mb-2">Filter periode</p><DateFilter onChange={setRange} riderPeriods initialPreset="today" /></div></div></Bento>{history.map((stock) => <Bento key={stock.id} className="mb-3" testId={`stock-audit-${stock.id}`}><button data-testid={`stock-audit-open-${stock.id}`} onClick={() => setSelectedStock(stock)} className="w-full text-left"><div className="flex gap-3 items-center"><img src={stock.photo} alt="Bukti stock awal" className="w-14 h-14 rounded-lg object-cover bg-muted" /><div className="flex-1"><p className="font-heading font-bold">{stock.rider_name}</p><p className="text-xs text-muted-foreground">{fmtDate(stock.date)} · PIC {stock.pic_name}</p><p className="num text-sm font-bold">Total Stock Awal {stock.total}</p></div><span className="text-xs text-primary">Detail</span></div></button></Bento>)}{!history.length && <Empty text="Pilih Rider dan periode untuk melihat stock awal." />}{selectedStock && <Dialog open onOpenChange={() => setSelectedStock(null)}><DialogContent data-testid="stock-audit-detail-dialog" className="max-h-[85vh] overflow-y-auto"><DialogHeader><DialogTitle>Detail Stock Awal</DialogTitle></DialogHeader><p className="text-sm">Rider: <b>{selectedStock.rider_name}</b> · PIC: <b>{selectedStock.pic_name}</b></p><p className="num font-bold">Total Stock Awal: {selectedStock.total}</p><div className="space-y-2">{Object.entries(selectedStock.detail || selectedStock.items).map(([name, qty]) => <div key={name} className="flex justify-between text-sm"><span>{name}</span><b>{qty}</b></div>)}</div>{selectedStock.photo && <img src={selectedStock.photo} alt="Bukti foto stock awal" className="w-full rounded-lg" />}{selectedStock.verified_at && <p className="text-emerald-600 text-sm font-bold">✓ Diverifikasi Rider</p>}</DialogContent></Dialog>}</div>;
 
   const total = Object.values(items).reduce((a, b) => a + b, 0);
   const rider = riders.find((r) => r.id === riderId);

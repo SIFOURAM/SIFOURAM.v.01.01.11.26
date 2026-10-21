@@ -1197,11 +1197,21 @@ async def get_pos_stock(rider_id: str, date: str, u=Depends(ANY)):
 
 
 @api.get("/rider-stock/remaining")
-async def rider_stock_remaining(date: str, rider_id: Optional[str] = None, u=Depends(ANY)):
+async def rider_stock_remaining(
+    date: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    rider_id: Optional[str] = None,
+    u=Depends(ANY),
+):
     if u["role"] == "rider":
         rider_id = u["id"]
-    query = {"date": date, **({"rider_id": rider_id} if rider_id else {})}
-    stocks = await db.rider_stock.find(query, NOID).sort("rider_name", 1).to_list(200)
+    if not date and not (start and end):
+        raise HTTPException(400, "Pilih tanggal atau rentang tanggal")
+    query = {"date": date} if date else {"date": {"$gte": start, "$lte": end}}
+    if rider_id:
+        query["rider_id"] = rider_id
+    stocks = await db.rider_stock.find(query, NOID).sort([("date", -1), ("rider_name", 1)]).to_list(500)
     rows = []
     for stock in stocks:
         current = await pos_stock(stock["rider_id"], date)
@@ -1217,6 +1227,7 @@ async def rider_stock_remaining(date: str, rider_id: Optional[str] = None, u=Dep
             "initial_total": stock.get("total", 0),
             "remaining_total": stock.get("total", 0) if not stock.get("verified_at") else sum(item["remaining"] for item in current["items"]),
             "sold_total": sum(item["sold"] for item in current["items"]),
+            "difference_total": stock.get("total", 0) - sum(item["sold"] for item in current["items"]) - (stock.get("total", 0) if not stock.get("verified_at") else sum(item["remaining"] for item in current["items"])),
         })
     return rows
 
