@@ -32,7 +32,7 @@ export const Field = ({ label, children, className = "" }) => (
 );
 
 export const Select = ({ value, onChange, options, testId, className = "", placeholder }) => (
-  <select data-testid={testId} value={value ?? ""} onChange={(e) => onChange(e.target.value)} className={`field ${className}`}>
+  <select data-testid={testId} value={value ?? ""} onChange={(e) => onChange(e.target.value)} className={`field min-w-0 ${className}`}>
     {placeholder && <option value="">{placeholder}</option>}
     {options.map((o) => (typeof o === "object" ? <option key={o.value} value={o.value}>{o.label}</option> : <option key={o} value={o}>{o}</option>))}
   </select>
@@ -61,7 +61,7 @@ export function DateFilter({ onChange, showCustom = true, riderPeriods = false, 
     ? ["today", "yesterday", "week", "prevweek", "month"]
     : ["today", "yesterday", "week", "month", "prevmonth"];
   return (
-    <div className="flex flex-col gap-2 w-full sm:max-w-md" data-testid="date-filter">
+    <div className="flex flex-col gap-2 w-full min-w-0 sm:max-w-md" data-testid="date-filter">
       <select data-testid="filter-preset-select" value={preset} onChange={(e) => setPreset(e.target.value)} className="field h-9 w-full text-xs font-semibold">
         {presets.filter((p) => p !== "custom").map((p) => <option key={p} value={p}>{t(p)}</option>)}
         <option value="custom">{t("custom")}</option>
