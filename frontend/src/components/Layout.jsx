@@ -212,7 +212,7 @@ export default function Layout() {
 
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="flex items-center justify-between px-4 lg:px-8 h-16 sticky top-0 bg-primary text-black z-40" data-testid="top-header">
-          <div className="flex items-center gap-2 lg:hidden"><img src="/assets/si-four-am-logo.png" alt="SI FOUR AM" className="w-10 h-10 object-contain" /><div><span className={`font-heading font-bold ${theme === "dark" ? "text-white" : "text-black"}`}>SI FOUR AM</span><p data-testid="mobile-login-role" className="text-[0.6rem] font-semibold text-black/70 leading-none">{roleLabel}</p></div></div>
+          <div className="flex items-center gap-2 lg:hidden"><button data-testid="mobile-logo-home-button" onClick={() => nav(user.role === "rider" ? "/rider-dashboard" : user.role === "owner" ? "/finance" : "/deposit")} className="shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/70"><img src="/assets/si-four-am-logo.png" alt="SI FOUR AM" className="w-10 h-10 object-contain" /></button><div><span className={`font-heading font-bold ${theme === "dark" ? "text-white" : "text-black"}`}>SI FOUR AM</span><p data-testid="mobile-login-role" className={`text-[0.6rem] font-semibold leading-none ${theme === "dark" ? "text-white" : "text-black/70"}`}>{roleLabel}</p></div></div>
           <div className="hidden lg:block"><p className="eyebrow text-black/70">{roleLabel}</p></div>
           <div className="flex items-center gap-2">
             <NotifBell />
