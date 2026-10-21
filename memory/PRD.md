@@ -202,3 +202,11 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Fixed rank filters to persist while data reloads, fixed Sunday ISO-style Monday-to-Sunday ranges,
   added full minimum–maximum rank ranges, rider query focus, and localized rank labels.
 - Verification: rank API boundary/commission suite 11/11 passed; frontend production build passed.
+
+## Weekly Reset, EOD Session, and Book Period (2026-10)
+- Rider rank data is scoped to Monday–Sunday and a timezone-aware Monday 00:00 WIB cron records each
+  weekly reset. The cron endpoint is idempotent and verified with a successful authenticated call.
+- Removed the ten-minute idle logout. A three-hour idle timer begins only after daily EOD closing; any
+  activity after closing renews that three-hour timer.
+- Company book period remains 16th through 15th through the shared period helper. QRIS preview state
+  is restored in POS to prevent the reported runtime error.

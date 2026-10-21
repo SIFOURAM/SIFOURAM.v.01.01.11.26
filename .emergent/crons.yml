@@ -1,0 +1,9 @@
+crons:
+  - name: weekly-rank-reset
+    description: "Marks the weekly Rider rank reset at Monday 00:00 WIB"
+    cron: "0 0 * * 1"
+    timezone: "Asia/Jakarta"
+    endpoint: "{{BASE_URL}}/api/cron/weekly-rank-reset"
+    method: POST
+    enabled: true
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.

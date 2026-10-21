@@ -12,3 +12,5 @@
    returns `{ "ok": true }`; four- or five-digit values return HTTP 400 without unlocking POS.
 10. Submit five incorrect six-digit PIN values to `/api/auth/verify-pin` from the same session/IP;
     the next request must return HTTP 429 for 15 minutes. A successful PIN clears the lock record.
+11. Confirm normal inactivity no longer logs the user out after ten minutes. After `POST /api/sales/eod/close`,
+    verify the browser records `si4am_eod_closed`; only three hours of no activity after that point logs out.

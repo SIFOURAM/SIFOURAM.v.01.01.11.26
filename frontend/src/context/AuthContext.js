@@ -15,11 +15,11 @@ export function AuthProvider({ children }) {
   }, [theme]);
 
   useEffect(() => {
-    const lastActivity = Number(localStorage.getItem("si4am_last_activity") || 0);
-    if (lastActivity && Date.now() - lastActivity >= 10 * 60 * 1000) {
+    const closedAt = Number(localStorage.getItem("si4am_eod_closed") || 0);
+    if (closedAt && Date.now() - closedAt >= 3 * 60 * 60 * 1000) {
       localStorage.removeItem("si4am_token");
       sessionStorage.removeItem("si4am_token");
-      localStorage.removeItem("si4am_last_activity");
+      localStorage.removeItem("si4am_eod_closed");
       setUser(false);
       return;
     }
@@ -42,13 +42,12 @@ export function AuthProvider({ children }) {
       remember,
     });
     (remember ? localStorage : sessionStorage).setItem("si4am_token", data.token);
-    localStorage.setItem("si4am_last_activity", String(Date.now()));
     setUser(data.user);
     return data.user;
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("si4am_token"); sessionStorage.removeItem("si4am_token"); localStorage.removeItem("si4am_last_activity"); sessionStorage.removeItem("si4am_pos");
+    localStorage.removeItem("si4am_token"); sessionStorage.removeItem("si4am_token"); localStorage.removeItem("si4am_eod_closed"); sessionStorage.removeItem("si4am_pos");
     setUser(false); setPosUnlocked(false);
   }, []);
 
@@ -56,15 +55,19 @@ export function AuthProvider({ children }) {
     if (!user) return undefined;
     const resetTimer = () => {
       window.clearTimeout(inactivityTimer.current);
-      localStorage.setItem("si4am_last_activity", String(Date.now()));
-      inactivityTimer.current = window.setTimeout(logout, 10 * 60 * 1000);
+      const closedAt = Number(localStorage.getItem("si4am_eod_closed") || 0);
+      if (!closedAt) return;
+      localStorage.setItem("si4am_eod_closed", String(Date.now()));
+      inactivityTimer.current = window.setTimeout(logout, 3 * 60 * 60 * 1000);
     };
     const events = ["pointerdown", "keydown", "touchstart", "scroll", "mousemove", "wheel"];
     events.forEach((event) => window.addEventListener(event, resetTimer, { passive: true }));
+    window.addEventListener("si4am-eod-closed", resetTimer);
     resetTimer();
     return () => {
       window.clearTimeout(inactivityTimer.current);
       events.forEach((event) => window.removeEventListener(event, resetTimer));
+      window.removeEventListener("si4am-eod-closed", resetTimer);
     };
   }, [user, logout]);
   const unlockPos = () => { sessionStorage.setItem("si4am_pos", "1"); setPosUnlocked(true); };
