@@ -133,9 +133,9 @@ export default function RiderStock() {
       <PageHeader eyebrow="Stock" title="Stock Awal" />
       <div className="grid lg:grid-cols-3 gap-6">
         <Bento gold className="lg:col-span-2 fade-up" testId="rider-stock-form">
-          <div className="grid grid-cols-2 gap-1.5 mb-5">
-            <Field label={`${t("pic")} (auto)`}><input data-testid="rider-stock-pic" className="field h-[22px] bg-muted/50 px-1 text-[11px]" value={user.name} readOnly /></Field>
-            <Field label={t("selectRider")}><Select testId="rider-stock-rider-select" className="h-[22px] px-1 text-[11px]" value={riderId} onChange={setRiderId} placeholder="—" options={riders.map((r) => ({ value: r.id, label: r.name }))} /></Field>
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-end gap-1.5 mb-5">
+            <Field label={`${t("pic")} (auto)`} className="min-w-0"><input data-testid="rider-stock-pic" className="field h-[22px] bg-muted/50 px-1 text-[11px]" value={user.name} readOnly /></Field>
+            <Field label={t("selectRider")} className="min-w-0"><Select testId="rider-stock-rider-select" className="h-[22px] px-1 text-[11px]" value={riderId} onChange={setRiderId} placeholder="—" options={riders.map((r) => ({ value: r.id, label: r.name }))} /></Field>
           </div>
           <div className="flex items-end justify-between gap-2 mb-2">
             <div className="flex w-[calc(50%-0.1875rem)] min-w-0 flex-col gap-0.5">
