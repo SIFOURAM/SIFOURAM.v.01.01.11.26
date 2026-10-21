@@ -81,17 +81,17 @@ export const HOME = { owner: "/", admin: "/", barteam: "/menu-stock", rider: "/p
 
 export const CATEGORIES = {
   owner: [
-    { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/reports", "reports"), item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
+    { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), { ...item("/reports", "reports"), subtabs: [{ to: "/reports?view=finance", label: "Keuangan" }, { to: "/reports?view=sales", label: "Penjualan" }, { to: "/reports?view=products", label: "Produk" }, { to: "/reports?view=wastage", label: "Wastage" }, { to: "/reports?view=inventory", label: "Persediaan" }, { to: "/reports?view=purchase", label: "Pembelian" }, { to: "/reports?view=opname", label: "Opname" }] }, item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
     { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos-dashboard", tabs: [item("/pos-dashboard", "posDashboard"), item("/pos", "pos"), item("/deposit", "deposit"), item("/invoice", "invoice"), item("/customers", "customers"), item("/handover", "handover")] },
-    { name: "Production", icon: Layers, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock?mode=production", "menuStock"), item("/purchase-orders", "purchaseOrders")] },
+    { name: "Production", icon: Layers, to: "/inventory", tabs: [{ ...item("/inventory", "inventory"), subtabs: [{ to: "/inventory?tab=stock", label: "Stok" }, { to: "/inventory?tab=recipes", label: "Resep" }, { to: "/inventory?tab=wastage", label: "Wastage" }, { to: "/inventory?tab=history", label: "History" }] }, item("/menu-stock?mode=production", "menuStock"), item("/purchase-orders", "purchaseOrders")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/finance", tabs: [item("/finance", "finance"), item("/user-info", "userInfo"), item("/broadcast", "broadcast"), item("/payment-accounts", "paymentAccounts"), item("/settings", "settings")] },
   ],
   admin: [
-    { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/reports", "reports"), item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
+    { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), { ...item("/reports", "reports"), subtabs: [{ to: "/reports?view=finance", label: "Keuangan" }, { to: "/reports?view=sales", label: "Penjualan" }, { to: "/reports?view=products", label: "Produk" }, { to: "/reports?view=wastage", label: "Wastage" }, { to: "/reports?view=inventory", label: "Persediaan" }, { to: "/reports?view=purchase", label: "Pembelian" }, { to: "/reports?view=opname", label: "Opname" }] }, item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
     { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos-dashboard", tabs: [item("/pos-dashboard", "posDashboard"), item("/deposit", "deposit")] },
-    { name: "Production", icon: Layers, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock?mode=production", "menuStock"), item("/purchase-orders", "purchaseOrders")] },
+    { name: "Production", icon: Layers, to: "/inventory", tabs: [{ ...item("/inventory", "inventory"), subtabs: [{ to: "/inventory?tab=stock", label: "Stok" }, { to: "/inventory?tab=recipes", label: "Resep" }, { to: "/inventory?tab=wastage", label: "Wastage" }, { to: "/inventory?tab=history", label: "History" }] }, item("/menu-stock?mode=production", "menuStock"), item("/purchase-orders", "purchaseOrders")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
   barteam: [
@@ -108,24 +108,25 @@ export const CATEGORIES = {
   ],
 };
 
-function CategoryTabs({ category, t }) {
+function CategoryTabs({ categories, category, t }) {
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = `${location.pathname}${location.search}`;
+  const activeTab = category.tabs.find((tab) => tab.to === currentPath) || category.tabs.find((tab) => location.pathname === tab.to.split("?")[0]) || category.tabs[0];
   return (
     <nav data-testid="category-tabs" className={`category-tab-bar ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
-      <label className="category-dropdown-wrap">
-        <span data-testid="category-current-label" className="category-dropdown-label">{category.name}</span>
-        <select
-          key={category.name}
-          data-testid="category-tabs-dropdown"
-          value={currentPath}
-          onChange={(event) => navigate(event.target.value)}
-          className="category-dropdown"
-        >
+      <div className="flex items-center gap-2 min-w-0">
+        <span data-testid="category-current-label" className="font-heading font-bold text-primary">{category.name}</span>
+        <select data-testid="category-dropdown" value={category.to} onChange={(event) => navigate(event.target.value)} className="category-dropdown">
+          {categories.map((entry) => <option key={entry.name} value={entry.to}>{entry.name}</option>)}
+        </select>
+        <span className="text-muted-foreground">›</span>
+        <span data-testid="tab-current-label" className="text-sm font-semibold truncate">{t(activeTab.key)}</span>
+        <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => navigate(event.target.value)} className="category-dropdown">
           {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{t(tab.key)}</option>)}
         </select>
-      </label>
+        {activeTab.subtabs?.length > 0 && <><span className="text-muted-foreground">›</span><select data-testid="category-subtabs-dropdown" value={currentPath} onChange={(event) => navigate(event.target.value)} className="category-dropdown">{activeTab.subtabs.map((tab) => <option key={tab.to} value={tab.to}>{tab.label}</option>)}</select></>}
+      </div>
     </nav>
   );
 }
@@ -216,7 +217,7 @@ export default function Layout() {
             <Avatar />
           </div>
         </header>
-        {activeCategory && <CategoryTabs category={activeCategory} t={t} />}
+        {activeCategory && <CategoryTabs categories={categories} category={activeCategory} t={t} />}
         <main className="flex-1 max-w-[1400px] w-full mx-auto min-w-0 p-4 pb-28 lg:p-8 lg:pb-8"><Outlet /></main>
         <RiderMotivation user={user} />
 
