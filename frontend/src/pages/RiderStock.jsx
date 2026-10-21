@@ -140,13 +140,13 @@ export default function RiderStock() {
           <div className="flex items-end justify-between gap-2 mb-2">
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="text-[10px] font-semibold text-primary">Pilih Tanggal</span>
-              <input data-testid="rider-stock-date-input" type="date" aria-label={t("date")} className="field h-[22px] w-auto min-w-0 px-1 text-[11px]" value={date} onChange={(e) => setDate(e.target.value)} />
+              <input data-testid="rider-stock-date-input" type="date" aria-label={t("date")} className="field h-[22px] w-[calc(50%-0.1875rem)] min-w-0 px-1 text-[11px]" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <button data-testid="forecast-button" disabled={!riderId} onClick={forecast} className="btn-ghost h-8 px-3 text-xs"><Sparkles className="w-3 h-3 text-primary" />{lang === "id" ? "Prediksi AI" : "AI Forecast"}</button></div>
           {fc && <p className="text-[11px] text-muted-foreground mb-2" data-testid="forecast-info">{lang === "id" ? "Saran berdasarkan rata-rata hari yang sama (60%) + 14 hari terakhir (40%), buffer 10%" : "Suggestion = same weekday avg (60%) + last 14 days (40%), +10% buffer"}{fc.holiday ? " · 🎉 libur nasional" : fc.weekend ? " · weekend" : ""}</p>}
           <table className="table-x text-xs [&_th]:py-[5px] [&_td]:py-[5px]"><thead><tr><th>#</th><th>{t("menu")}</th>{fc && <th className="hide-xs">AI</th>}<th className="text-right">{t("qty")}</th></tr></thead>
             <tbody>{menus.map((m) => (
-              <tr key={m.id}><td className="num text-muted-foreground">{m.order}</td><td className="font-semibold">{m.name}<span className="block text-[10px] text-muted-foreground">{t("stock")} {m.stock}</span></td>{fc && <td className="num text-xs text-primary hide-xs">{fc.items.find((i) => i.menu_id === m.id)?.suggested}</td>}
+              <tr key={m.id}><td className="num text-muted-foreground">{m.order}</td><td><div className="flex items-center justify-between gap-2"><span className="font-semibold">{m.name}</span><span className="shrink-0 text-[10px] text-muted-foreground">{t("stock")} {m.stock}</span></div></td>{fc && <td className="num text-xs text-primary hide-xs">{fc.items.find((i) => i.menu_id === m.id)?.suggested}</td>}
                 <td className="text-right"><QtySelect testId={`rider-stock-qty-${m.id}`} max={m.max_stock} value={items[m.id] || 0} onChange={(v) => setItems({ ...items, [m.id]: v })} /></td></tr>))}</tbody>
             <tfoot><tr><td /><td className="font-bold">{t("total")}</td>{fc && <td className="hide-xs" />}<td data-testid="rider-stock-total" className="text-right font-bold num text-xl text-primary">{total}</td></tr></tfoot></table>
         </Bento>
