@@ -72,20 +72,22 @@ function DocumentModal({ type, onClose, onAgree }) {
 export default function Login() {
   const { identify, login } = useAuth();
   const { lang, setLang } = useT();
-  const [identifier, setIdentifier] = useState("");
+  const [identifier, setIdentifier] = useState(() => localStorage.getItem("si4am_remembered_identifier") || "");
   const [stage, setStage] = useState("identity");
   const [account, setAccount] = useState(null);
   const [digits, setDigits] = useState(Array(6).fill(""));
+  const [deviceConsent, setDeviceConsent] = useState(() => localStorage.getItem("si4am_legal_2026-06-01") === "accepted");
   const [consent, setConsent] = useState({ terms: false, privacy: false });
   const [document, setDocument] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [revealed, setRevealed] = useState(Array(6).fill(false));
   const pinRefs = useRef([]);
 
   const handleIdentify = async (event) => {
     event.preventDefault();
     setBusy(true);
     try {
-      const data = await identify(identifier, consent.terms, consent.privacy);
+      const data = await identify(identifier, deviceConsent || consent.terms, deviceConsent || consent.privacy);
       setAccount(data);
       setStage("pin");
       setTimeout(() => pinRefs.current[0]?.focus(), 100);
@@ -103,7 +105,8 @@ export default function Login() {
     setBusy(true);
     try {
       const user = await login(account.account_token, pin, true);
-      toast.success(`Selamat datang, ${user.name}`);
+      localStorage.setItem("si4am_remembered_identifier", identifier.trim());
+      toast.success(`Selamat datang, ${user.name}`, { className: "welcome-toast" });
     } catch (error) {
       toast.error(errMsg(error));
       setDigits(Array(6).fill(""));
@@ -127,6 +130,14 @@ export default function Login() {
     const next = [...digits];
     next[index] = clean;
     setDigits(next);
+    if (clean) {
+      const visible = Array(6).fill(false);
+      visible[index] = true;
+      setRevealed(visible);
+      window.setTimeout(() => {
+        setRevealed((current) => current.map((value, itemIndex) => itemIndex === index ? false : value));
+      }, 1000);
+    }
     if (clean && index < 5) pinRefs.current[index + 1]?.focus();
   };
 
@@ -175,10 +186,10 @@ export default function Login() {
                 required
               />
             </label>
-            <ConsentLinks consent={consent} setDocument={setDocument} />
+            {!deviceConsent && <ConsentLinks consent={consent} setDocument={setDocument} />}
             <button
               data-testid="login-continue-button"
-              disabled={busy || !consent.terms || !consent.privacy || !identifier.trim()}
+              disabled={busy || (!deviceConsent && (!consent.terms || !consent.privacy)) || !identifier.trim()}
               className="auth-gold-button w-full"
             >
               {busy ? "Memeriksa..." : "Lanjut"}
@@ -193,7 +204,7 @@ export default function Login() {
                     key={index}
                     ref={(element) => { pinRefs.current[index] = element; }}
                     data-testid={`pin-digit-${index}`}
-                    type="tel"
+                    type={revealed[index] ? "tel" : "password"}
                     inputMode="numeric"
                     autoComplete={index === 0 ? "one-time-code" : "off"}
                     maxLength={6}
@@ -207,7 +218,6 @@ export default function Login() {
               </div>
               <p className="text-xs text-muted-foreground mt-3">Akun: {account?.user?.name}</p>
             </div>
-            <ConsentLinks consent={consent} setDocument={setDocument} />
             <button
               data-testid="pin-continue-button"
               disabled={busy || digits.join("").length !== 6}
@@ -235,7 +245,12 @@ export default function Login() {
           type={document}
           onClose={() => setDocument(null)}
           onAgree={(type) => {
-            setConsent({ ...consent, [type]: true });
+            const nextConsent = { ...consent, [type]: true };
+            setConsent(nextConsent);
+            if (nextConsent.terms && nextConsent.privacy) {
+              localStorage.setItem("si4am_legal_2026-06-01", "accepted");
+              setDeviceConsent(true);
+            }
             setDocument(null);
           }}
         />

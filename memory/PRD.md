@@ -142,5 +142,6 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Label Indonesia untuk Dasbor Utama diperbarui menjadi Dashboard pada navigasi bawah dan seluruh penggunaan terjemahan terkait.
 - Bug-fix RiderStock: dependensi hook diperbaiki memakai `useCallback`, pemanggilan API stock/menus menangani error, prediksi stok menangani kegagalan API dengan toast, dan label riwayat diperbaiki menjadi Riwayat Stock.
 - Pemilih jenis laporan pada laporan operasional (Waste, Persediaan, Pembelian, Opname) kini menggunakan dropdown, bukan deretan tombol.
+- Login perangkat: identifier terakhir diingat secara lokal, persetujuan legal hanya ditampilkan sekali per perangkat, digit PIN tampil satu detik lalu tersamarkan, persetujuan dihapus dari halaman PIN, dan sesi otomatis logout setelah 10 menit tanpa aktivitas.
 - Iteration 12: 7/7 backend checks lulus, build frontend tanpa lint warning/error, serta Owner login/dashboard/Stock Awal smoke test lulus. Follow-up error handling prediksi telah diterapkan dan build ulang bersih.
 - Remaining: Dashboard POS, tab Stock Awal/Sisa dengan filter penuh, Purchase Order + notifikasi, akun pembayaran Owner, serta perubahan keranjang POS sesuai referensi.
