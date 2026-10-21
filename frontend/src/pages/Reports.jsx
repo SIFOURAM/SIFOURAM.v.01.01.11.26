@@ -193,7 +193,7 @@ function OperationsReport({ kind, setView }) {
   const labels = {
     wastage: "Laporan Waste",
     inventory: "Nilai Persediaan",
-    purchases: "Laporan Pembelian",
+    purchases: "Pembelian",
     opname: "Laporan Stok Opname",
   };
   useEffect(() => {
@@ -241,7 +241,7 @@ function OperationsReport({ kind, setView }) {
 
   return (
     <div data-testid={`operations-report-${kind}`}>
-      <PageHeader>
+      <PageHeader title={labels[kind]}>
         <Select
           testId="operations-report-dropdown"
           className="w-full sm:w-48 h-9 text-xs"
