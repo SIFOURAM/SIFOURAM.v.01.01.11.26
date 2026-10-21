@@ -117,7 +117,7 @@ function CategoryTabs({ category, t }) {
     <nav data-testid="category-tabs" className={`category-tab-bar ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
       <div className="mx-auto flex w-full max-w-[1400px] flex-nowrap items-center gap-1 min-w-0 px-4 lg:px-8">
         <span data-testid="category-current-label" className="flex h-7 items-center font-heading font-bold leading-none text-primary">{category.name}</span>
-        <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => navigate(event.target.value)} className={`category-dropdown h-[26px] px-2 text-xs text-primary font-semibold ${activeTab.subtabs?.length ? "max-w-[5.7rem]" : "max-w-[9.5rem]"}`}>
+        <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => navigate(event.target.value)} className={`category-dropdown h-[23px] px-2 text-[11px] text-primary font-semibold ${activeTab.subtabs?.length ? "max-w-[5.7rem]" : "max-w-[9.5rem]"}`}>
           {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{t(tab.key)}</option>)}
         </select>
         {activeTab.subtabs?.length > 0 && (
@@ -125,7 +125,7 @@ function CategoryTabs({ category, t }) {
             data-testid="category-subtabs-dropdown"
             value={currentPath}
             onChange={(event) => navigate(event.target.value)}
-            className="category-dropdown h-[26px] max-w-[7.6rem] px-2 text-xs text-primary font-semibold sm:max-w-[9.5rem]"
+            className="category-dropdown h-[23px] max-w-[7.6rem] px-2 text-[11px] text-primary font-semibold sm:max-w-[9.5rem]"
           >
             {activeTab.subtabs.map((tab) => <option key={tab.to} value={tab.to}>{tab.label}</option>)}
           </select>
