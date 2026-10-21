@@ -6,7 +6,7 @@ import { compressImage, rangeFor, screenshotEl, shareReceipt, printBluetooth } f
 import { useT } from "../lib/i18n";
 
 export const PageHeader = ({ children }) => (
-  children ? <div className="flex flex-wrap gap-2 items-center justify-end mb-5 fade-up">{children}</div> : null
+  children ? <div className="flex flex-wrap gap-2 items-center justify-start mb-5 fade-up">{children}</div> : null
 );
 
 export const Bento = ({ className = "", gold, children, testId, style }) => (

@@ -123,18 +123,18 @@ export default function Reports() {
       <PageHeader title={title}>
         <div className="w-full flex flex-col gap-3">
           <div className="w-full space-y-2">
+            {report && <div className="flex gap-1" data-testid="report-export-actions">
+              <button data-testid="report-excel-button" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button>
+              <button data-testid="report-pdf-button" onClick={exportPdf} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button>
+              <button data-testid="report-print-button" onClick={printPdf} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button>
+            </div>}
             <div className="grid grid-cols-3 gap-1.5">
               <Select testId="report-payment-filter" className="h-8 min-w-0 px-1.5 text-[11px]" value={method} onChange={setMethod} options={[{ value: "all", label: "Bayar" }, { value: "cash", label: "Cash" }, { value: "qris", label: "QRIS" }]} />
               <Select testId="report-type-filter" className="h-8 min-w-0 px-1.5 text-[11px]" value={orderType} onChange={setOrderType} options={[{ value: "all", label: "Order" }, { value: "regular", label: "Reguler" }, { value: "bundling", label: "Bundling" }]} />
               <Select testId="report-service-filter" className="h-8 min-w-0 px-1.5 text-[11px]" value={serviceType} onChange={setServiceType} options={[{ value: "all", label: "Layanan" }, { value: "dine_in", label: "Dine In" }, { value: "takeaway", label: "Takeaway" }, { value: "online", label: "Online" }]} />
             </div>
-            <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex flex-wrap items-start gap-2">
               <DateFilter onChange={setRange} />
-              {report && <div className="flex gap-1">
-              <button data-testid="report-excel-button" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button>
-              <button data-testid="report-pdf-button" onClick={exportPdf} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button>
-              <button data-testid="report-print-button" onClick={printPdf} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button>
-              </div>}
             </div>
           </div>
         </div>
