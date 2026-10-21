@@ -61,7 +61,7 @@ export function DateFilter({ onChange, showCustom = true, riderPeriods = false, 
     ? ["today", "yesterday", "week", "prevweek", "month"]
     : ["today", "yesterday", "week", "month", "prevmonth"];
   return (
-    <div className="flex flex-col gap-2 w-full min-w-0 sm:max-w-md" data-testid="date-filter">
+    <div className="flex flex-col gap-2 w-full min-w-0 sm:max-w-[18rem]" data-testid="date-filter">
       <select data-testid="filter-preset-select" value={preset} onChange={(e) => setPreset(e.target.value)} className="field h-[22px] w-full text-[11px] font-semibold">
         {presets.filter((p) => p !== "custom").map((p) => <option key={p} value={p}>{t(p)}</option>)}
         <option value="custom">{t("custom")}</option>
