@@ -23,15 +23,16 @@ export function AuthProvider({ children }) {
   }, [theme]);
 
   useEffect(() => {
-    const closedAt = Number(localStorage.getItem("si4am_eod_closed") || 0);
-    if (closedAt && Date.now() - closedAt >= 3 * 60 * 60 * 1000) {
-      localStorage.removeItem("si4am_token");
-      sessionStorage.removeItem("si4am_token");
-      localStorage.removeItem("si4am_eod_closed");
-      setUser(false);
-      return;
-    }
     api.get("/auth/me").then((r) => {
+      const closedAt = Number(localStorage.getItem("si4am_eod_closed") || 0);
+      if (r.data.role === "rider" && closedAt && Date.now() - closedAt >= 3 * 60 * 60 * 1000) {
+        localStorage.removeItem("si4am_token");
+        sessionStorage.removeItem("si4am_token");
+        localStorage.removeItem("si4am_eod_closed");
+        setUser(false);
+        return;
+      }
+      if (r.data.role !== "rider") localStorage.removeItem("si4am_eod_closed");
       if (r.data.role !== "rider" && localStorage.getItem("si4am_session_wib_date") !== wibDate()) {
         localStorage.removeItem("si4am_token");
         sessionStorage.removeItem("si4am_token");

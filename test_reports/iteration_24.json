@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only regression of the session policy (AuthContext.js plus POS closeEod), tested with the Playwright clock mock (page.clock.install/fast_forward, WIB times) and temporary rider/barteam/admin accounts. PASS: there is no 10-minute or generic inactivity logout (Owner idle 45 min stays logged in, Rider idle 6h crossing midnight stays logged in). Owner, Admin and Bar Team stay logged in at 23:58/23:59:30 with activity and are logged out at 00:00 WIB. A non-Rider reload with a stale si4am_session_wib_date is logged out, a reload on the same WIB date stays in, and 01:00 WIB (the previous UTC day) stays in. Rider: after the si4am-eod-closed signal, activity every 35 min and a second signal do not extend the timer. The Rider is still in at +2h59m, out at +3h01m, and the si4am_eod_closed key is cleared. A Rider reload with EOD 3h30m earlier is logged out. A Rider reload with EOD 2h earlier is logged out at the exact remaining 1h. The Rider ignores a stale session date. The two-step UI login (baa/130994) works, sets si4am_session_wib_date to today's WIB date and survives a reload. ONE BUG: the si4am_eod_closed check is not limited to Riders.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AuthContext.js mount check (lines 25-33) + POS.jsx closeEod (line 201)", "issue": "Owner/Admin can open POS and close EOD for a rider. closeEod always writes localStorage si4am_eod_closed on the current device, whatever the role. The mount check applies the 3h rule BEFORE knowing the role. Result: an Owner who closes EOD for a rider at 10:00 is logged out on any reload after 13:00, which breaks the 'non-Rider logs out only at 00:00 WIB' policy. Reproduced: owner + si4am_eod_closed 4h old, reload => logged out. Also reproduced: owner dispatches the signal, +3h01, reload => OUT (the live timer correctly ignores it).", "selector": "[data-testid=eod-close-button]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/qa_iter24_session_fixture.py"],
+  "action_items": [
+    "HIGH: In POS.jsx closeEod, set si4am_eod_closed and dispatch si4am-eod-closed only when user.role === 'rider'. In AuthContext, move the closedAt 3h check inside the /auth/me .then and apply it only when r.data.role === 'rider' (non-riders should just remove a stray key)",
+    "LOW: Add a visibilitychange/focus re-check (WIB date for non-riders, closedAt+3h for riders), so a laptop or phone that sleeps past 00:00 or past the 3h deadline logs out immediately on resume instead of depending on setTimeout drift",
+    "LOW: Store si4am_eod_closed together with the rider user id ({id, ts}), so a different rider who logs in on the same device does not inherit the previous rider's 3h timer"
+  ],
+  "critical_code_review_comments": [
+    "The ref is still named inactivityTimer, but it is now a fixed-deadline timer. Rename it for clarity",
+    "Existing non-rider sessions created before this deploy have no si4am_session_wib_date and are logged out once on the next load (verified). Acceptable, but expected",
+    "The policy is client-side only. The JWT is still valid for 'days' on the backend, so the token is usable via the API after the client logout. Consider server-side enforcement if this is a security requirement"
+  ],
+  "updated_files": ["/app/backend/tests/qa_iter24_session_fixture.py"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "95% (21/22 scenarios pass; owner-with-EOD-key reload fails)"},
+  "test_credentials": "Owner baa / PIN 130994. Temporary qa24_rider/qa24_bar/qa24_admin PIN 246813 were created and deleted.",
+  "seed_data_creation": "qa_iter24_session_fixture.py setup/cleanup. 3 temporary users, all deleted.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use a new browser context per scenario with add_init_script (guarded by a sessionStorage flag) to seed si4am_token, si4am_legal_2026-06-01=accepted, si4am_session_wib_date and si4am_eod_closed. Then page.clock.install(time=WIB datetime) before goto, and use clock.fast_forward (run_for over hours timed out the tool). Logged-out check: si4am_token missing or [data-testid=login-identifier-input] present.",
+  "rca of the issue": "AuthContext's initial effect checks si4am_eod_closed for every role before /auth/me resolves. POS closeEod writes that key for any role, including owner/admin closing on behalf of a rider. Repro: log in as owner, open POS, select a rider, click eod-close-button, wait more than 3h (or edit the key), reload: redirected to login. Fix: make both the write and the check rider-only."
+}
