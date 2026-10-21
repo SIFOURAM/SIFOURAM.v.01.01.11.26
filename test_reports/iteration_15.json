@@ -1,0 +1,19 @@
+{
+  "summary": "Second retest of the iteration_14 findings. Everything passes. (1) The CI=true production build passes and has 0 warnings or errors. (2) Owner baa login was done through the UI (identifier, then PIN 130994). In the welcome toast, the [data-description] text is 'Baazulfikar' with a computed color of rgb(255, 107, 0) and font-weight 800. (3) Source check of Layout.jsx: CATEGORIES.admin has no /pos target. Its POS category goes to /deposit, and Guard SB allows admin. CATEGORIES.barteam has no Dashboard '/' entry and no /pos target. Its POS category goes to /deposit (SB includes barteam). All its other targets (/rider-stock, /menu-stock, /settings) are allowed for barteam. (4) Owner login and reports work: 10/10 backend regression tests passed, the Owner dashboard and the /reports page load with no error elements, and the Owner sidebar categories are unchanged.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_iter13_login_reports_access.py", "/app/test_reports/pytest/pytest_iter15.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Throttling the mousemove activity writes to localStorage is still worth doing (carried over from iteration_14 and not blocking).",
+    "Logout is still client-side only and there is no server-side JWT revocation (carried over and not blocking)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "To log in through the UI: set localStorage 'si4am_legal_2026-06-01'='accepted', fill login-identifier-input with 'baa', click login-continue-button, fill pin-digit-0 with '130994', then click pin-continue-button. Admin and Bar Team navigation was verified from source only, because only the Owner account exists.",
+  "rca of the issue": "The iteration_14 toast specificity conflict is fixed by the new high-specificity !important rule in index.css."
+}
