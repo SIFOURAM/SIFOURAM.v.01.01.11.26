@@ -19,7 +19,7 @@ export const Stat = ({ label, value, sub, icon: Icon, gold, testId, className = 
       <p className="eyebrow">{label}</p>
       {Icon && <Icon className="w-4 h-4 text-primary" />}
     </div>
-    <p className="mt-3 text-2xl sm:text-3xl font-bold font-heading num tracking-tight">{value}</p>
+    <p className="mt-3 min-w-0 break-words text-[clamp(0.75rem,4vw,1.5rem)] sm:text-3xl font-bold font-heading leading-tight num tracking-tight">{value}</p>
     {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
   </Bento>
 );
