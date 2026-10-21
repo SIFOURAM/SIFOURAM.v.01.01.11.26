@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -54,12 +54,42 @@ function RankDialog({ data, onClose }) {
 export function TierProgress({ s, count = 1 }) {
   const { t } = useT();
   const nt = s.next_tier;
+  const isTopRank = !nt && s.tier !== "Team" && s.tier !== "None";
+  const progress = nt
+    ? Math.min(100, (s.gross / (nt.threshold * count)) * 100)
+    : isTopRank
+      ? 100
+      : 0;
+
   return (
     <div data-testid="tier-progress">
-      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap"><span className="flex items-center gap-2 text-sm font-semibold"><Trophy className="w-4 h-4 text-primary" />{s.tier === "None" ? "—" : s.tier}<span className="text-xs text-muted-foreground">({Math.round(s.incentive_pct * 100)}%)</span></span>
-        {nt && <span className="text-xs text-muted-foreground">{t("nextTier")}: <b className="text-foreground">{nt.name}</b> · {fmtRp(nt.threshold * count)}</span>}</div>
-      <div className="h-3 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-primary to-[#F97316] transition-all duration-700" style={{ width: `${Math.min(100, nt ? (s.gross / (nt.threshold * count)) * 100 : 100)}%` }} /></div>
-      {nt && <p className="text-xs text-muted-foreground mt-2">{fmtRp(Math.max(0, nt.threshold * count - s.gross))} → {nt.name}{nt.min_days ? ` · min ${nt.min_days} ${t("attendance").toLowerCase()}` : ""}</p>}
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+        <span className="flex items-center gap-2 text-sm font-semibold">
+          <Trophy className="w-4 h-4 text-primary" />
+          {s.tier === "None" ? "—" : s.tier}
+          <span className="text-xs text-muted-foreground">
+            ({Math.round(s.incentive_pct * 100)}%)
+          </span>
+        </span>
+        {nt && (
+          <span className="text-xs text-muted-foreground">
+            {t("nextTier")}: <b className="text-foreground">{nt.name}</b> ·
+            {fmtRp(nt.threshold * count)}
+          </span>
+        )}
+      </div>
+      <div className="h-3 rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-primary to-[#F97316]"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      {nt && (
+        <p className="text-xs text-muted-foreground mt-2">
+          {fmtRp(Math.max(0, nt.threshold * count - s.gross))} → {nt.name}
+          {nt.min_days ? ` · min ${nt.min_days} ${t("attendance").toLowerCase()}` : ""}
+        </p>
+      )}
     </div>
   );
 }
@@ -129,25 +159,62 @@ export default function RiderDashboard() {
   const [wd, setWd] = useState(null);
   const [rank, setRank] = useState(null);
   const [showRank, setShowRank] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const tableRef = useRef();
+  const lastLoadKey = useRef("");
 
-  useEffect(() => { if (!isRider) api.get("/users", { params: { role: "rider" } }).then((r) => setRiders(r.data)); }, [isRider]);
-  const load = () => {
+  useEffect(() => {
+    if (!isRider) {
+      api.get("/users", { params: { role: "rider" } })
+        .then((response) => setRiders(response.data))
+        .catch((error) => {
+          setRiders([]);
+          toast.error(errMsg(error));
+        });
+    }
+  }, [isRider]);
+
+  const load = useCallback(async (force = false) => {
     if (!range) return;
+    const loadKey = `${range.start}:${range.end}:${riderId}`;
+    if (!force && lastLoadKey.current === loadKey) return;
+
+    lastLoadKey.current = loadKey;
+    setLoading(true);
+    setLoadError("");
     const p = { ...range, ...(riderId !== "all" ? { rider_id: riderId } : {}) };
-    api.get("/dashboard/summary", { params: p }).then((r) => setSum(r.data));
-    api.get("/salary", { params: p }).then((r) => setSal(r.data));
-    api.get("/rider-stock/history", { params: p }).then((r) => setStockHist(r.data));
-    api.get("/sales", { params: p }).then((r) => setSales(r.data));
-    api.get("/deposits", { params: p }).then((r) => setDeps(r.data));
-    if (riderId !== "all") api.get("/rider-rank", { params: p }).then((r) => setRank(r.data));
-    else setRank(null);
-  };
-  useEffect(() => { load(); }, [range, riderId]); // eslint-disable-line
+    try {
+      const responses = await Promise.all([
+        api.get("/dashboard/summary", { params: p }),
+        api.get("/salary", { params: p }),
+        api.get("/rider-stock/history", { params: p }),
+        api.get("/sales", { params: p }),
+        api.get("/deposits", { params: p }),
+        riderId !== "all" ? api.get("/rider-rank", { params: p }) : Promise.resolve(null),
+      ]);
+      setSum(responses[0].data);
+      setSal(responses[1].data);
+      setStockHist(responses[2].data);
+      setSales(responses[3].data);
+      setDeps(responses[4].data);
+      setRank(responses[5]?.data || null);
+    } catch (error) {
+      setLoadError(errMsg(error));
+      toast.error(`Dashboard Rider gagal dimuat: ${errMsg(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [range, riderId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const rider = isRider ? user : riders.find((r) => r.id === riderId);
   const agg = sal && (riderId !== "all" ? sal.riders[0] : (() => {
-    const n = sal.riders.length || 1; const S = (k) => sal.riders.reduce((s, r) => s + (r[k] || 0), 0);
+    const n = sal.riders.length;
+    const S = (k) => sal.riders.reduce((s, r) => s + (r[k] || 0), 0);
     const nearest = sal.riders.map((r) => r.next_tier).filter(Boolean).sort((a, b) => a.threshold - b.threshold)[0];
     return { gross: S("gross"), cups: S("cups"), attendance_days: S("attendance_days"), allowance: S("allowance"), allowance_available: S("allowance_available"), incentive: S("incentive"), incentive_available: S("incentive_available"), total_income: S("total_income"), tier: "Team", incentive_pct: 0, next_tier: nearest, count: n };
   })());
@@ -165,7 +232,24 @@ export default function RiderDashboard() {
       <PageHeader eyebrow={isRider ? (lang === "id" ? "Performa saya" : "My performance") : "Riders"} title={t("riderDash")}>
         {!isRider && <Select testId="rider-dash-select" value={riderId} onChange={setRiderId} className="w-44" options={[{ value: "all", label: t("allRiders") }, ...riders.map((r) => ({ value: r.id, label: r.name }))]} />}
       </PageHeader>
-      {sum && agg && (
+      {loading && (
+        <div data-testid="rider-dashboard-loading" className="py-14 text-center text-sm text-muted-foreground">
+          Memuat dashboard rider…
+        </div>
+      )}
+      {loadError && !loading && (
+        <div data-testid="rider-dashboard-error" role="alert" className="py-14 text-center">
+          <p className="text-sm text-destructive">Dashboard Rider gagal dimuat: {loadError}</p>
+          <button
+            data-testid="rider-dashboard-retry-button"
+            onClick={() => load(true)}
+            className="btn-primary mt-4"
+          >
+            Coba lagi
+          </button>
+        </div>
+      )}
+      {!loading && !loadError && sum && agg && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Bento gold className="col-span-2 lg:col-span-1 fade-up flex flex-col items-center text-center" testId="rider-profile-card">
             <div className="w-20 h-20 rounded-full border-2 border-black overflow-hidden bg-primary text-black font-bold text-2xl flex items-center justify-center mb-3">{rider?.photo ? <img src={rider.photo} alt="" className="w-full h-full object-cover" /> : rider ? initials(rider.name) : "ALL"}</div>
@@ -185,7 +269,18 @@ export default function RiderDashboard() {
 
           {rank && <RankCard data={rank} onOpen={() => setShowRank(true)} />}
 
-          <Bento className="col-span-2 lg:col-span-4 fade-up" testId="tier-card"><p className="eyebrow mb-4">{t("nextTier")}{riderId === "all" ? ` (× ${agg.count} riders)` : ""}</p><TierProgress s={agg} count={riderId === "all" ? agg.count : 1} /></Bento>
+          <Bento className="col-span-2 lg:col-span-4 fade-up" testId="tier-card">
+            <p className="eyebrow mb-4">
+              {t("nextTier")}{riderId === "all" ? ` (× ${agg.count} riders)` : ""}
+            </p>
+            {riderId === "all" && !agg.count ? (
+              <div data-testid="rider-tier-empty">
+                <Empty text="Belum ada rider aktif untuk ditampilkan." />
+              </div>
+            ) : (
+              <TierProgress s={agg} count={riderId === "all" ? agg.count : 1} />
+            )}
+          </Bento>
 
           <Bento className="col-span-2 fade-up" testId="chart-daily">
             <p className="eyebrow mb-4">{t("dailySales")} (Cash + QRIS)</p>
@@ -211,7 +306,7 @@ export default function RiderDashboard() {
           </Bento>
         </div>
       )}
-      {wd && single && <WithdrawDialog type={wd} s={agg} range={range} onClose={() => setWd(null)} onDone={load} />}
+      {wd && single && <WithdrawDialog type={wd} s={agg} range={range} onClose={() => setWd(null)} onDone={() => load(true)} />}
       {showRank && rank && <RankDialog data={rank} onClose={() => setShowRank(false)} />}
     </div>
   );

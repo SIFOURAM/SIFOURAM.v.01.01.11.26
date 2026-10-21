@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Minus, Plus, Trash2, LogIn, LogOut, ReceiptText, History, Lock, CalendarCheck } from "lucide-react";
+import { Minus, Plus, Trash2, LogIn, LogOut, ReceiptText, History, Lock, CalendarCheck, Split } from "lucide-react";
 import { api, errMsg } from "../lib/api";
 import { fmtRp, today, fmtTime, waNumber } from "../lib/helpers";
 import { useT } from "../lib/i18n";
@@ -10,6 +10,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 import CoachChat from "../components/CoachChat";
 
 const BUNDLES = { 1: { cups: 4, price: 45000 }, 2: { cups: 10, price: 110000 } };
+const ORDER_TYPES = [
+  { value: "dine_in", label: "Dine In" },
+  { value: "takeaway", label: "Takeaway" },
+  { value: "online", label: "Online" },
+];
+const TABLE_OPTIONS = Array.from({ length: 20 }, (_, index) => ({
+  value: String(index + 1),
+  label: `Meja ${index + 1}`,
+}));
 
 function PinGate() {
   const { unlockPos } = useAuth();
@@ -43,6 +52,7 @@ function Attendance({ rider, riders, riderId, setRiderId, isRider }) {
   useEffect(() => { load(); }, [riderId]); // eslint-disable-line
   const act = async (kind) => {
     if (!photo) return toast.error(t("photoRequired"));
+    if (pin.length !== 6) return toast.error("Masukkan PIN Rider 6 angka.");
     setBusy(true);
     let pos = {};
     try { const p = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000 })); pos = { lat: p.coords.latitude, lng: p.coords.longitude }; } catch { }
@@ -62,8 +72,8 @@ function Attendance({ rider, riders, riderId, setRiderId, isRider }) {
       {(!att || !att.checkout_at) && riderId && (
         <div className="space-y-3">
           <PhotoCapture value={photo} onChange={setPhoto} testId="attendance-photo" />
-          <input data-testid="attendance-pin-input" type="password" inputMode="numeric" className="field" placeholder="PIN Rider" value={pin} onChange={(e) => setPin(e.target.value)} />
-          {!att ? <button data-testid="checkin-button" disabled={busy} onClick={() => act("checkin")} className="btn-primary w-full"><LogIn className="w-4 h-4" />{t("checkIn")}</button>
+          <input data-testid="attendance-pin-input" type="password" inputMode="numeric" maxLength="6" className="field" placeholder="PIN Rider (6 angka)" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} />
+          {!att ? <button data-testid="checkin-button" disabled={busy || pin.length !== 6 || !photo} onClick={() => act("checkin")} className="btn-primary w-full"><LogIn className="w-4 h-4" />{t("checkIn")}</button>
             : <button data-testid="checkout-button" disabled={busy} onClick={() => act("checkout")} className="btn-ghost w-full"><LogOut className="w-4 h-4" />{t("checkOut")}</button>}
         </div>)}
     </Bento>
@@ -99,6 +109,9 @@ export default function POS() {
   const [cust, setCust] = useState({ name: "", phone: "" });
   const [pay, setPay] = useState("cash");
   const [cash, setCash] = useState("");
+  const [splitCash, setSplitCash] = useState("");
+  const [orderType, setOrderType] = useState("takeaway");
+  const [tableNumber, setTableNumber] = useState("");
   const [receipt, setReceipt] = useState(null);
   const [eod, setEod] = useState(null);
   const [hist, setHist] = useState(null);
@@ -121,6 +134,9 @@ export default function POS() {
   const total = lines.reduce((s, l) => s + l.sub, 0) + bcart.reduce((s, b) => s + BUNDLES[b.bundle].price, 0);
   const cups = Object.values(need).reduce((a, x) => a + x, 0);
   const change = pay === "cash" ? Math.max(0, Number(cash || 0) - total) : 0;
+  const splitCashAmount = Number(splitCash || 0);
+  const splitQrisAmount = Math.max(0, total - splitCashAmount);
+  const splitValid = splitCashAmount > 0 && splitCashAmount < total;
 
   const add = (i, d = 1) => {
     const q = (cart[i.menu_id] || 0) + d;
@@ -133,12 +149,43 @@ export default function POS() {
   };
   const checkout = async () => {
     if ((!lines.length && !bcart.length) || busy) return;
+    if (locked) return toast.error("Pembayaran tidak dapat dilakukan sebelum stok awal terverifikasi.");
+    if (orderType === "dine_in" && !tableNumber) return toast.error("Pilih nomor meja terlebih dahulu.");
     if (pay === "cash" && Number(cash) < total) return toast.error(t("cashReceived") + " < " + t("total"));
+    if (pay === "split" && !splitValid) return toast.error("Nominal tunai split harus lebih dari Rp 0 dan kurang dari total.");
     setBusy(true);
     try {
       const items = [...lines.map((l) => ({ menu_id: l.menu_id, qty: l.qty })), ...bcart.map((b) => ({ bundle: b.bundle, qty: 1, components: b.components }))];
-      const { data } = await api.post("/sales", { rider_id: riderId, date: today(), customer_name: cust.name, customer_phone: cust.phone, items, payment_method: pay, cash_received: Number(cash || total), client_id: clientId });
-      setReceipt(data); setCart({}); setBcart([]); setCash(""); setCust({ name: "", phone: "" }); setClientId(crypto.randomUUID()); loadStock(); toast.success(data.receipt_no);
+      const paymentParts = pay === "split"
+        ? [
+          { method: "cash", amount: splitCashAmount },
+          { method: "qris", amount: splitQrisAmount },
+        ]
+        : [];
+      const { data } = await api.post("/sales", {
+        rider_id: riderId,
+        date: today(),
+        customer_name: cust.name,
+        customer_phone: cust.phone,
+        items,
+        payment_method: pay === "split" ? "cash" : pay,
+        payment_parts: paymentParts,
+        cash_received: pay === "cash" ? Number(cash || 0) : splitCashAmount,
+        order_type: orderType,
+        table_number: orderType === "dine_in" ? tableNumber : "",
+        client_id: clientId,
+      });
+      setReceipt(data);
+      setCart({});
+      setBcart([]);
+      setCash("");
+      setSplitCash("");
+      setCust({ name: "", phone: "" });
+      setOrderType("takeaway");
+      setTableNumber("");
+      setClientId(crypto.randomUUID());
+      loadStock();
+      toast.success(data.receipt_no);
     } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
   };
   const openEod = () => api.get("/sales/eod", { params: { rider_id: riderId, date: today() } }).then((r) => setEod(r.data));
@@ -149,8 +196,17 @@ export default function POS() {
   if (!posUnlocked) return <PinGate />;
   const rider = isRider ? user : riders.find((r) => r.id === riderId);
   const L = lang === "id";
+  const receiptOrder = receipt && [
+    receipt.order_type === "dine_in" ? "Dine In" : receipt.order_type === "online" ? "Online" : "Takeaway",
+    receipt.table_number ? `Meja ${receipt.table_number}` : null,
+  ].filter(Boolean).join(" · ");
+  const receiptPaymentText = receipt && (receipt.payment_parts || []).map((part) => (
+    `${part.method.toUpperCase()}: ${fmtRp(part.amount)}`
+  )).join("\n");
   const receiptText = receipt && `*SI FOUR AM — ${L ? "STRUK" : "RECEIPT"}*\n🧾 ${receipt.receipt_no}\n📅 ${receipt.date} ${receipt.time || ""}\n👤 ${receipt.customer_name || t("customer")}\n🛵 ${receipt.rider_name}\n----------------------------------\n` +
-    receipt.items.map((i) => `${i.name} x${i.qty} = ${fmtRp(i.subtotal)}` + (i.component_names ? `\n   (${Object.entries(i.component_names).map(([n, q]) => `${n} ${q}`).join(", ")})` : "")).join("\n") + `\n----------------------------------\n💰 Total: ${fmtRp(receipt.total)}\n${receipt.payment_method === "cash" ? `💵 Cash: ${fmtRp(receipt.cash_received)}\n🔁 ${t("change")}: ${fmtRp(receipt.change)}` : "💳 QRIS"}\n\n${t("thankYou")} ☕`;
+    `${receiptOrder ? `🍽️ ${receiptOrder}\n` : ""}` +
+    receipt.items.map((i) => `${i.name} x${i.qty} = ${fmtRp(i.subtotal)}` + (i.component_names ? `\n   (${Object.entries(i.component_names).map(([n, q]) => `${n} ${q}`).join(", ")})` : "")).join("\n") +
+    `\n----------------------------------\n💰 Total: ${fmtRp(receipt.total)}\n${receiptPaymentText || receipt.payment_method.toUpperCase()}${receipt.change ? `\n🔁 ${t("change")}: ${fmtRp(receipt.change)}` : ""}\n\n${t("thankYou")} ☕`;
   const eodText = eod && `*SI FOUR AM — ${L ? "TUTUP HARIAN" : "END OF DAY"}*\n🛵 ${rider?.name}\n📅 ${eod.date}\n----------------------------------\n` +
     eod.rows.map((r) => `${r.name}: awal ${r.initial} | sisa ${r.remaining} | cash ${r.cash_qty} | qris ${r.qris_qty}`).join("\n") +
     `\n----------------------------------\n☕ ${t("totalSold")}: ${eod.total_cups} cups\n💰 Cash: ${fmtRp(eod.total_cash)}\n💳 QRIS: ${fmtRp(eod.total_qris)}\n🚀 Total: ${fmtRp(eod.total)}`;
@@ -172,7 +228,7 @@ export default function POS() {
         <div className="space-y-6">
           {riderId && !stock.has_stock && <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-500 flex gap-2" data-testid="no-stock-warning"><Lock className="w-4 h-4 shrink-0" />{t("noStock")}</div>}
           {riderId && stock.has_stock && (stock.closed || stock.deposited) && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-500 flex gap-2" data-testid="pos-locked"><Lock className="w-4 h-4 shrink-0" />{stock.deposited ? t("depositDone") : t("eodDone")}</div>}
-          {riderId && stock.has_stock && <>
+          {riderId && <>
             <Bento gold className="fade-up py-4" testId="daily-target">
               {(() => { const sold = stock.items.reduce((s, i) => s + i.sold, 0); const tgt = 50; const pct = Math.min(100, Math.round((sold / tgt) * 100)); const lvl = sold >= 50 ? "🏆" : sold >= 31 ? "🚀" : "💪";
                 return <><div className="flex justify-between items-end mb-2"><div><p className="eyebrow">{L ? "Target Harian" : "Daily Target"} {lvl}</p><p className="text-2xl font-bold num font-heading">{sold} <span className="text-sm text-muted-foreground">/ {tgt} {t("cups")}</span></p></div><p className="text-xs text-muted-foreground text-right">{sold < 31 ? `${31 - sold} → 🚀` : sold < 50 ? `${50 - sold} → 🏆` : (L ? "Target tercapai!" : "Target smashed!")}</p></div>
@@ -202,17 +258,85 @@ export default function POS() {
                 <span className="flex-1"><b className="text-primary">BUNDLING {b.bundle}</b><span className="block text-[10px] text-muted-foreground">{Object.entries(b.components).map(([m, q]) => `${stock.items.find((x) => x.menu_id === m)?.name} ×${q}`).join(", ")}</span></span>
                 <button onClick={() => setBcart(bcart.filter((_, j) => j !== i))} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center mr-2"><Trash2 className="w-3 h-3" /></button><span className="num w-24 text-right">{fmtRp(BUNDLES[b.bundle].price)}</span></div>)}
               {!lines.length && !bcart.length && <Empty text={t("tapProducts")} />}
+              <div className="mt-4">
+                <p className="eyebrow mb-2">Tipe pesanan</p>
+                <div className="grid grid-cols-3 gap-2" data-testid="order-type-selector">
+                  {ORDER_TYPES.map((type) => (
+                    <button
+                      key={type.value}
+                      data-testid={`order-type-${type.value}`}
+                      onClick={() => {
+                        setOrderType(type.value);
+                        if (type.value !== "dine_in") setTableNumber("");
+                      }}
+                      className={`h-10 rounded-lg text-xs font-bold ${
+                        orderType === type.value ? "bg-primary text-white" : "bg-muted"
+                      }`}
+                    >
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
+                {orderType === "dine_in" && (
+                  <div className="mt-3">
+                    <Field label="Pilih Meja">
+                      <Select
+                        testId="pos-table-select"
+                        value={tableNumber}
+                        onChange={setTableNumber}
+                        placeholder="Pilih nomor meja"
+                        options={TABLE_OPTIONS}
+                      />
+                    </Field>
+                  </div>
+                )}
+              </div>
               <div className="grid sm:grid-cols-2 gap-3 mt-4">
                 <input data-testid="customer-phone-input" className="field" placeholder="WhatsApp 08xx" value={cust.phone} onChange={(e) => setCust({ ...cust, phone: e.target.value })} />
                 <input data-testid="customer-name-input" className="field" placeholder={t("customer")} value={cust.name} onChange={(e) => setCust({ ...cust, name: e.target.value })} />
-                <div className="flex gap-2">{["cash", "qris"].map((p) => <button key={p} data-testid={`pay-${p}`} onClick={() => setPay(p)} className={`flex-1 h-10 rounded-full text-xs font-bold uppercase ${pay === p ? "bg-primary text-white" : "bg-muted"}`}>{p}</button>)}</div>
+                <div className="flex gap-2">
+                  {["cash", "qris", "split"].map((p) => (
+                    <button
+                      key={p}
+                      data-testid={`pay-${p}`}
+                      onClick={() => setPay(p)}
+                      className={`flex-1 h-10 rounded-lg text-xs font-bold uppercase ${
+                        pay === p ? "bg-primary text-white" : "bg-muted"
+                      }`}
+                    >
+                      {p === "split" ? <Split className="mx-auto w-4 h-4" /> : p}
+                    </button>
+                  ))}
+                </div>
                 {pay === "cash" && <input data-testid="cash-received-input" type="number" className="field num" placeholder={t("cashReceived")} value={cash} onChange={(e) => setCash(e.target.value)} />}
+                {pay === "split" && (
+                  <div className="grid grid-cols-2 gap-2 sm:col-span-2" data-testid="split-payment-panel">
+                    <input
+                      data-testid="split-cash-input"
+                      type="number"
+                      className="field num"
+                      placeholder="Tunai"
+                      min="1"
+                      max={Math.max(0, total - 1)}
+                      value={splitCash}
+                      onChange={(e) => setSplitCash(e.target.value)}
+                    />
+                    <div data-testid="split-qris-amount" className="field flex items-center num text-muted-foreground">
+                      QRIS: {fmtRp(splitQrisAmount)}
+                    </div>
+                  </div>
+                )}
               </div>
+              {pay === "split" && !splitValid && (
+                <p data-testid="split-payment-hint" className="mt-2 text-xs text-amber-600">
+                  Isi nominal tunai. Sisa total otomatis dibayar QRIS.
+                </p>
+              )}
               <div className="flex items-end justify-between mt-5">
                 <div><p className="eyebrow">{t("total")} · {cups} {t("cups")}</p><p data-testid="cart-total" className="text-3xl font-bold num font-heading">{fmtRp(total)}</p>
                   {pay === "cash" && cash && <p data-testid="cart-change" className="text-sm text-emerald-500 num">{t("change")}: {fmtRp(change)}</p>}</div>
                 <div className="flex gap-2"><button data-testid="cart-clear" onClick={() => { setCart({}); setBcart([]); }} className="btn-ghost h-11 w-11 p-0"><Trash2 className="w-4 h-4" /></button>
-                  <button data-testid="checkout-button" onClick={checkout} disabled={locked || busy || (!lines.length && !bcart.length)} className="btn-primary">{t("checkout")}</button></div>
+                  <button data-testid="checkout-button" onClick={checkout} disabled={locked || busy || (!lines.length && !bcart.length) || (orderType === "dine_in" && !tableNumber) || (pay === "cash" && Number(cash) < total) || (pay === "split" && !splitValid)} className="btn-primary">{t("checkout")}</button></div>
               </div>
             </Bento>
           </>}
@@ -227,7 +351,13 @@ export default function POS() {
           <div className="border-t border-dashed border-gray-300 my-2" />
           {receipt.items.map((i, k) => <div key={k}><RLine l={`${i.name} x${i.qty}`} r={fmtRp(i.subtotal)} />{i.component_names && <p className="text-[10px] text-gray-500 pl-2">{Object.entries(i.component_names).map(([n, q]) => `${n} ×${q}`).join(", ")}</p>}</div>)}
           <div className="border-t border-dashed border-gray-300 my-2" />
-          <RLine bold l="TOTAL" r={fmtRp(receipt.total)} /><RLine l={receipt.payment_method.toUpperCase()} r={fmtRp(receipt.cash_received)} />{receipt.payment_method === "cash" && <RLine l={t("change")} r={fmtRp(receipt.change)} />}
+          <RLine bold l="TOTAL" r={fmtRp(receipt.total)} />
+          {(receipt.payment_parts || []).map((part) => (
+            <RLine key={part.method} l={part.method.toUpperCase()} r={fmtRp(part.amount)} />
+          ))}
+          {!receipt.payment_parts?.length && <RLine l={receipt.payment_method.toUpperCase()} r={fmtRp(receipt.total)} />}
+          {receipt.change > 0 && <RLine l={t("change")} r={fmtRp(receipt.change)} />}
+          <RLine l="Pesanan" r={receiptOrder} />
           {receipt.customer_phone && <p className="text-[10px] text-gray-400 mt-2 text-center">wa.me/{waNumber(receipt.customer_phone)}</p>}
         </>}
       </ReceiptModal>

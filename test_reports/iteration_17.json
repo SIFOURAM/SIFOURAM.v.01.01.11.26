@@ -1,0 +1,44 @@
+{
+  "summary": "Regression check of the /api/salary HTTP 500 fix (math.inf on the top tier) and of /rider-dashboard. Backend: 13 of 13 read-only pytest tests passed. /api/salary returns 200 for 1-day, 1-month and 2-year ranges. The response parses as strict JSON, which rejects Infinity and NaN, and contains riders (list), tiers (5 entries) and rider_count, with rider_count equal to len(riders). The last tier, Immortal, has the integer threshold 999999999999, and the thresholds are in ascending order. The endpoint returns 401/403 without auth, 422 when params are missing, and rider_count 0 for an unknown rider_id. The other endpoints the dashboard loads all return 200: /dashboard/summary, /rider-stock/history, /sales, /deposits and /users?role=rider. Backend logs contain no new 'Out of range float' traceback after the patch reload; the old tracebacks are from before the patch. Frontend: the two-step Owner login (baa / 130994) works. /rider-dashboard renders fully: profile card, period filter, allowance, incentive, cups, tier card, charts, photo evidence, history, PDF and print. There is no 500 and no blank screen. Every /salary call returned 200. The only console errors are the expected pre-login 401s on /api/auth/me. There is no horizontal overflow on desktop (scrollWidth 1920 at 1920) or mobile (scrollWidth 390 at 390, no elements past the viewport). Limitation: the DB has no rider accounts (rider_count=0), so the per-rider branch of /salary (next_tier, progress) and /rider-rank were only reviewed in code, not run against real data. No data was created.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/salary", "issue": "The next_tier logic is shifted by one tier. TIERS thresholds are each rank's upper bound, so a rider with gross < 1.75M gets next_tier 'Herald', which is their current rank, instead of 'Warriors'. A rider with gross >= 4M (Immortal) gets next_tier 'Immortal' with threshold 999999999999, remaining about 1e12 and progress about 0%. The UI would show 'Kategori berikutnya: Immortal · Rp 999.999.999.999'. For the top tier, next_tier should be None."},
+      {"endpoint": "GET /api/salary", "issue": "Two different rank systems are in use. tier_for() returns Platinum/Gold/Silver/Bronze (20/15/10/5%, needs 25 attendance days) and drives the incentive amount. TIERS and /rider-rank use Herald/Warriors/Masters/Divine/Immortal (0/5/7/10/15%). Salary incentive and rider-rank commission will disagree for the same rider."},
+      {"endpoint": "startup / object storage", "issue": "Backend log on every reload: 'Storage init failed: 401 Unauthorized ... objstore/api/v1/storage/init'. Photo uploads that use object storage may fail."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "RiderDashboard load", "issue": "None of the 6 API calls in load() has a .catch. If /salary or /dashboard/summary fails, sal or sum stays null and the whole dashboard body stays hidden, with no error message or toast. This blank-screen behaviour could hide a future 500.", "affected_selectors": ["[data-testid=rider-dashboard]"]}
+    ],
+    "design_issues": [
+      {"screen": "/rider-dashboard (Semua Rider, 0 riders)", "issues": [
+        "The tier card shows '(× 1 RIDERS)' when there are 0 riders (agg.count falls back to 1).",
+        "The tier progress bar renders at 100% (full orange) when next_tier is undefined, which reads as 'target reached' with Rp 0 sales.",
+        "The period filter date inputs use the browser's native date picker rather than the shadcn calendar.",
+        "/api/salary is requested 6 times on one page load (StrictMode, DateFilter onChange and reload). Consider debouncing or guarding these fetches."
+      ]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter17_salary_rider_dashboard.py", "/app/test_reports/pytest/pytest_iter17.xml"],
+  "action_items": [
+    "Fix next_tier in /api/salary: pick the next rank above the current one, and return None at the top tier (Immortal) so the 999999999999 sentinel never reaches the UI.",
+    "Unify tier_for() (Platinum/Gold/...) with TIERS/RIDER_RANKS (Herald..Immortal) so incentive % matches the rank shown.",
+    "Add .catch with toast and error state in the RiderDashboard load() calls.",
+    "Optional: when there are 0 riders, show an empty state in the tier card instead of '× 1' and a full progress bar."
+  ],
+  "critical_code_review_comments": [
+    "server.py TIERS uses 999999999999 as a sentinel in the public 'tiers' response. Prefer threshold null for the last tier and handle it on the client.",
+    "RiderDashboard.jsx has no loading or error states, and the effects fire duplicate fetches."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter17_salary_rider_dashboard.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "There are no rider users in the DB, so the per-rider /salary and /rider-rank paths have not been tested with data. Once a Rider exists, verify next_tier for gross < 1.75M and for gross >= 4M. UI login: set localStorage si4am_legal_2026-06-01=accepted, fill login-identifier-input, click login-continue-button, fill pin-digit-0 with the 6-digit PIN, click pin-continue-button. rider-dash-select is a native <select>.",
+  "rca of the issue": "The original 500 came from math.inf in TIERS: Starlette's json.dumps(allow_nan=False) raised 'Out of range float values are not JSON compliant'. The patch replaces it with the integer 999999999999 and fixes serialization. Remaining risk: that sentinel is exposed as Immortal's next_tier."
+}

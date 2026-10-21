@@ -323,6 +323,11 @@ class SaleItem(BaseModel):
     components: Optional[Dict[str, int]] = None  # menu_id -> cups (for bundles)
 
 
+class SalePaymentPart(BaseModel):
+    method: str
+    amount: float
+
+
 class SaleIn(BaseModel):
     rider_id: str
     date: str
@@ -330,7 +335,10 @@ class SaleIn(BaseModel):
     customer_phone: str = ""
     items: List[SaleItem]
     payment_method: str = "cash"
+    payment_parts: List[SalePaymentPart] = []
     cash_received: float = 0
+    order_type: str = "takeaway"
+    table_number: str = ""
     client_id: Optional[str] = None
 
 
@@ -939,6 +947,19 @@ async def verify_rider_stock(stock_id: str, u=Depends(ANY)):
 
 
 # ---------- POS / Sales ----------
+def sale_payment_breakdown(sale: dict) -> Dict[str, float]:
+    parts = sale.get("payment_parts") or []
+    if parts:
+        return {
+            "cash": sum(float(part.get("amount", 0)) for part in parts if part.get("method") == "cash"),
+            "qris": sum(float(part.get("amount", 0)) for part in parts if part.get("method") == "qris"),
+        }
+    return {
+        "cash": float(sale.get("total", 0)) if sale.get("payment_method") == "cash" else 0,
+        "qris": float(sale.get("total", 0)) if sale.get("payment_method") == "qris" else 0,
+    }
+
+
 async def pos_stock(rider_id: str, date: str):
     rs = await db.rider_stock.find_one({"rider_id": rider_id, "date": date}, NOID)
     initial = rs["items"] if rs and rs.get("verified_at") else {}
@@ -1002,13 +1023,43 @@ async def create_sale(body: SaleIn, u=Depends(ANY)):
     for mid, q in need.items():
         if stock[mid]["remaining"] < q:
             raise HTTPException(400, f"Insufficient stock for {stock[mid]['name']} (remaining {stock[mid]['remaining']})")
+    if body.order_type not in {"dine_in", "takeaway", "online"}:
+        raise HTTPException(400, "Tipe pesanan tidak valid")
+    if body.order_type == "dine_in" and not body.table_number.strip():
+        raise HTTPException(400, "Nomor meja wajib dipilih untuk Dine In")
+
+    allowed_payment_methods = {"cash", "qris"}
+    payment_parts = [
+        {"method": part.method, "amount": round(float(part.amount), 2)}
+        for part in body.payment_parts
+    ]
+    if payment_parts:
+        if any(part["method"] not in allowed_payment_methods or part["amount"] <= 0 for part in payment_parts):
+            raise HTTPException(400, "Rincian pembayaran tidak valid")
+        if abs(sum(part["amount"] for part in payment_parts) - total) > 0.01:
+            raise HTTPException(400, "Total pembayaran harus sama dengan total pesanan")
+        payment_method = "split" if len(payment_parts) > 1 else payment_parts[0]["method"]
+    else:
+        if body.payment_method not in allowed_payment_methods:
+            raise HTTPException(400, "Metode pembayaran tidak valid")
+        payment_method = body.payment_method
+        payment_parts = [{"method": payment_method, "amount": total}]
+
+    cash_part = sum(part["amount"] for part in payment_parts if part["method"] == "cash")
+    if cash_part and body.cash_received < cash_part:
+        raise HTTPException(400, "Nominal tunai kurang dari total pembayaran tunai")
+
     cnt = await db.sales.count_documents({"date": body.date})
     receipt_no = f"S4-{body.date.replace('-', '')}-{cnt + 1:04d}"
     rider = await db.users.find_one({"id": body.rider_id}, NOID)
-    cash_received = body.cash_received if body.payment_method == "cash" else total
+    cash_received = body.cash_received if cash_part else total
     doc = {"id": uid(), "client_id": body.client_id or uid(), "receipt_no": receipt_no, "rider_id": body.rider_id, "rider_name": rider["name"] if rider else "", "date": body.date, "time": now_wib(),
            "customer_name": body.customer_name, "customer_phone": body.customer_phone, "items": items, "total": total, "cups": sum(need.values()),
-           "payment_method": body.payment_method, "cash_received": cash_received, "change": max(0, cash_received - total), "created_at": now_iso()}
+           "payment_method": payment_method, "payment_parts": payment_parts,
+           "cash_received": cash_received, "change": max(0, cash_received - cash_part),
+           "order_type": body.order_type,
+           "table_number": body.table_number.strip() if body.order_type == "dine_in" else "",
+           "created_at": now_iso()}
     await db.sales.insert_one(doc)
     if body.customer_phone or body.customer_name:
         key = {"phone": body.customer_phone} if body.customer_phone else {"name": body.customer_name}
@@ -1036,21 +1087,34 @@ async def eod_summary(rider_id: str, date: str):
     menus = {i["menu_id"]: {**i, "cash_qty": 0, "qris_qty": 0, "cash_amt": 0, "qris_amt": 0} for i in st["items"]}
     bundles = []
     for s in sales:
-        k = "cash" if s["payment_method"] == "cash" else "qris"
+        payments = sale_payment_breakdown(s)
+        cash_ratio = payments["cash"] / s["total"] if s["total"] else 0
+        qris_ratio = payments["qris"] / s["total"] if s["total"] else 0
         for it in s["items"]:
             if it.get("bundle"):
-                bundles.append({"bundle": it["bundle"], "method": k, "qty": it["qty"], "items": it["components"]})
+                subtotal = it["subtotal"]
+                bundles.append({
+                    "bundle": it["bundle"],
+                    "method": s["payment_method"],
+                    "qty": it["qty"],
+                    "items": it["components"],
+                    "cash_amount": subtotal * cash_ratio,
+                    "qris_amount": subtotal * qris_ratio,
+                })
                 for mid, q in it["components"].items():
                     if mid in menus:
-                        menus[mid][f"{k}_qty"] += q
+                        menus[mid]["cash_qty"] += q * cash_ratio
+                        menus[mid]["qris_qty"] += q * qris_ratio
             else:
                 m = menus.get(it["menu_id"])
                 if m:
-                    m[f"{k}_qty"] += it["qty"]
-                    m[f"{k}_amt"] += it["subtotal"]
+                    m["cash_qty"] += it["qty"] * cash_ratio
+                    m["qris_qty"] += it["qty"] * qris_ratio
+                    m["cash_amt"] += it["subtotal"] * cash_ratio
+                    m["qris_amt"] += it["subtotal"] * qris_ratio
     rows = list(menus.values())
-    b_cash = sum(BUNDLES[b["bundle"]]["price"] * b["qty"] for b in bundles if b["method"] == "cash")
-    b_qris = sum(BUNDLES[b["bundle"]]["price"] * b["qty"] for b in bundles if b["method"] == "qris")
+    b_cash = sum(bundle["cash_amount"] for bundle in bundles)
+    b_qris = sum(bundle["qris_amount"] for bundle in bundles)
     return {"rider_id": rider_id, "date": date, "rows": rows, "bundles": bundles, "transactions": len(sales), "closed": st["closed"], "deposited": st["deposited"],
             "total_cups": sum(r["sold"] for r in rows), "total_cash": sum(r["cash_amt"] for r in rows) + b_cash, "total_qris": sum(r["qris_amt"] for r in rows) + b_qris,
             "total": sum(r["cash_amt"] + r["qris_amt"] for r in rows) + b_cash + b_qris}
@@ -1532,31 +1596,14 @@ async def daily_summaries(start: str, end: str, rider_id: Optional[str] = None):
             continue
         r = recs.setdefault(k, {"rider_id": s["rider_id"], "rider_name": s["rider_name"], "date": s["date"], "cups": 0, "cash": 0, "qris": 0, "source": "pos", "menu": {}})
         r["cups"] += s["cups"]
-        r["cash" if s["payment_method"] == "cash" else "qris"] += s["total"]
+        payments = sale_payment_breakdown(s)
+        r["cash"] += payments["cash"]
+        r["qris"] += payments["qris"]
         for it in s["items"]:
             r["menu"][it["name"]] = r["menu"].get(it["name"], 0) + it["qty"]
     return list(recs.values())
 
 
-def tier_for(gross: float, days: int):
-    if gross >= 20000000 and days >= 25:
-        return "Platinum", 0.20
-    if gross >= 10000000 and days >= 25:
-        return "Gold", 0.15
-    if gross >= 5000000 and days >= 25:
-        return "Silver", 0.10
-    if gross >= 1000000:
-        return "Bronze", 0.05
-    return "None", 0.0
-
-
-TIERS = [
-    ("Herald", 1750000, 0.00, 0),
-    ("Warriors", 2520000, 0.05, 0),
-    ("Masters", 3220000, 0.07, 0),
-    ("Divine", 4000000, 0.10, 0),
-    ("Immortal", 999999999999, 0.15, 0),
-]
 RIDER_RANKS = [
     ("Herald", 0, 1750000, 20000, 0.00),
     ("Warriors", 1750000, 2520000, 30000, 0.05),
@@ -1582,6 +1629,12 @@ def rider_rank_for(gross: float) -> dict:
                 } if next_rank else None,
             }
     return {}
+
+
+def tier_for(gross: float, days: int):
+    del days
+    rank = rider_rank_for(gross)
+    return rank.get("name", "Herald"), rank.get("commission_pct", 0.0)
 
 
 @api.get("/rider-rank")
@@ -1620,15 +1673,18 @@ async def sales_report(
     u=Depends(REPORTS),
 ):
     query: Dict[str, Any] = {"date": {"$gte": start, "$lte": end}}
-    if payment_method and payment_method != "all":
-        query["payment_method"] = payment_method
     rows = await db.sales.find(query, NOID).sort([("date", 1), ("time", 1)]).to_list(5000)
     filtered = []
     for sale in rows:
         sale_type = "bundling" if any(item.get("bundle") for item in sale["items"]) else "regular"
         if order_type and order_type != "all" and sale_type != order_type:
             continue
+        payments = sale_payment_breakdown(sale)
+        if payment_method and payment_method != "all" and not payments.get(payment_method, 0):
+            continue
         sale["order_type"] = sale_type
+        sale["report_amount"] = payments.get(payment_method, 0) if payment_method and payment_method != "all" else sale["total"]
+        sale["payment_breakdown"] = payments
         filtered.append(sale)
     by_date: Dict[str, float] = {}
     by_payment: Dict[str, float] = {}
@@ -1636,10 +1692,12 @@ async def sales_report(
     by_hour: Dict[str, dict] = {}
     products: Dict[str, dict] = {}
     for sale in filtered:
-        amount = sale["total"]
+        amount = sale["report_amount"]
+        allocation = amount / sale["total"] if sale["total"] else 0
         by_date[sale["date"]] = by_date.get(sale["date"], 0) + amount
-        method = sale.get("payment_method", "other")
-        by_payment[method] = by_payment.get(method, 0) + amount
+        for method, value in sale["payment_breakdown"].items():
+            if value:
+                by_payment[method] = by_payment.get(method, 0) + value
         kind = sale["order_type"]
         by_type[kind] = by_type.get(kind, 0) + amount
         hour = (sale.get("time") or "00:00")[:2]
@@ -1653,12 +1711,12 @@ async def sales_report(
                 for name, quantity in names.items():
                     item_row = products.setdefault(name, {"name": name, "qty": 0, "revenue": 0})
                     item_row["qty"] += quantity
-                    item_row["revenue"] += item["subtotal"] * quantity / cup_total
+                    item_row["revenue"] += item["subtotal"] * quantity / cup_total * allocation
             else:
                 item_row = products.setdefault(item["name"], {"name": item["name"], "qty": 0, "revenue": 0})
                 item_row["qty"] += item["qty"]
-                item_row["revenue"] += item["subtotal"]
-    total_revenue = sum(sale["total"] for sale in filtered)
+                item_row["revenue"] += item["subtotal"] * allocation
+    total_revenue = sum(sale["report_amount"] for sale in filtered)
     for item in products.values():
         item["revenue"] = round(item["revenue"])
     product_rows = sorted(products.values(), key=lambda item: (-item["revenue"], -item["qty"]))
@@ -1822,19 +1880,41 @@ async def salary(start: str, end: str, rider_id: Optional[str] = None, u=Depends
         sale_days = set(x["date"] for x in mine)
         allowance_days = len(set([a["date"] for a in atts if a["rider_id"] == r["id"]] + list(sale_days)))
         allowance = allowance_days * ALLOWANCE
+        rank = rider_rank_for(gross)
         tier, pct = tier_for(gross, att_days)
         incentive = round(gross * pct)
         aw = sum(w["amount"] for w in wds if w["rider_id"] == r["id"] and w["type"] == "allowance")
         iw = sum(w["amount"] for w in wds if w["rider_id"] == r["id"] and w["type"] == "incentive")
-        nxt = next(((n, th, p, d) for n, th, p, d in TIERS if gross < th), None)
+        next_rank = rank.get("next")
+        next_details = next(
+            (
+                (name, minimum, commission)
+                for name, minimum, _maximum, _attendance, commission in RIDER_RANKS
+                if next_rank and name == next_rank["name"]
+            ),
+            None,
+        )
         out.append({"rider_id": r["id"], "rider_name": r["name"], "photo": r.get("photo"), "joined_at": r.get("joined_at"), "placement": r.get("placement"),
                     "banks": r.get("banks") or ([{"bank_name": r.get("bank_name"), "bank_account": r.get("bank_account"), "bank_holder": r.get("bank_holder")}] if r.get("bank_name") else []),
                     "gross": gross, "cups": cups, "attendance_days": att_days, "sales_days": len(sale_days), "allowance_days": allowance_days,
                     "allowance": allowance, "allowance_withdrawn": aw, "allowance_available": allowance - aw, "tier": tier, "incentive_pct": pct, "incentive": incentive,
                     "incentive_withdrawn": iw, "incentive_available": incentive - iw, "total_income": allowance + incentive,
-                    "next_tier": {"name": nxt[0], "threshold": nxt[1], "pct": nxt[2], "min_days": nxt[3], "remaining": nxt[1] - gross,
-                                  "progress": round(gross / nxt[1] * 100, 1)} if nxt else None})
-    return {"riders": out, "tiers": [{"name": n, "threshold": th, "pct": p, "min_days": d} for n, th, p, d in TIERS], "rider_count": len(out)}
+                    "next_tier": {
+                        "name": next_details[0],
+                        "threshold": next_details[1],
+                        "pct": next_details[2],
+                        "min_days": 0,
+                        "remaining": max(0, next_details[1] - gross),
+                        "progress": round(min(100, gross / next_details[1] * 100), 1),
+                    } if next_details else None})
+    return {
+        "riders": out,
+        "tiers": [
+            {"name": name, "threshold": minimum, "pct": commission, "min_days": 0}
+            for name, minimum, _maximum, _attendance, commission in RIDER_RANKS
+        ],
+        "rider_count": len(out),
+    }
 
 
 @api.get("/finance/summary")
