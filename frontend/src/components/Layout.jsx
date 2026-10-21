@@ -90,14 +90,13 @@ export const CATEGORIES = {
   admin: [
     { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/reports", "reports"), item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
     { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
-    { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit")] },
+    { name: "POS", icon: ShoppingCart, to: "/deposit", tabs: [item("/deposit", "deposit")] },
     { name: "Production", icon: Layers, to: "/menu-stock?mode=production", match: (location) => location.pathname === "/menu-stock" && location.search.includes("mode=production"), tabs: [item("/menu-stock?mode=production", "menuStock")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
   barteam: [
-    { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/rider-dashboard", "riderDash")] },
     { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
-    { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit")] },
+    { name: "POS", icon: ShoppingCart, to: "/deposit", tabs: [item("/deposit", "deposit")] },
     { name: "Production", icon: Layers, to: "/menu-stock?mode=production", match: (location) => location.pathname === "/menu-stock" && location.search.includes("mode=production"), tabs: [item("/menu-stock?mode=production", "menuStock")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],

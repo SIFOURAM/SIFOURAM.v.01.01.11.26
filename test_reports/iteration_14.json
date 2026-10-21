@@ -1,0 +1,31 @@
+{
+  "summary": "Retest of the iteration_13 fixes. Passed: the production build (CI=true) has 0 warnings and 0 errors. 10/10 backend regression tests passed (Owner reports endpoints work). Owner baa login works. The Owner dashboard and /reports load. The 10-minute idle logout works: with a fake clock the token was still there at 9 min, was cleared at 10.5 min, and the login page appeared. Reloading with a stale si4am_last_activity (11 min ago) now shows the login page and clears the token. Reloading with fresh activity still restores the session. After logout the identifier stays prefilled and device consent stays saved. HOME.barteam is now /menu-stock, and no Guard or Home path can loop for any role. NAV.admin.main has no /pos. Still failing: the welcome toast account name is green rgb(0,138,46), not orange.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Login welcome toast", "issue": "The name is now in the toast description (text 'Baazulfikar'), but its computed color is still rgb(0,138,46), which is green. Sonner 2.0.3 has the rule '[data-rich-colors=\"true\"][data-sonner-toast][data-styled=\"true\"] [data-description] { color: inherit }', specificity 0,4,0. It beats '.welcome-toast [data-description]' (0,2,0), so the description inherits the green richColors success color.", "selector": ".welcome-toast [data-description]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Desktop sidebar / category tabs (Admin, Bar Team)", "issues": ["CATEGORIES.admin and CATEGORIES.barteam in Layout.jsx still have a 'POS' category with to:'/pos'. POS_ACCESS is owner and rider only, so clicking it on desktop silently redirects Admin to '/' and Bar Team to '/menu-stock'. It is not a loop. The mobile NAV.admin.main is fixed. The CATEGORIES.barteam Dashboard entry (to:'/') also silently redirects to /menu-stock."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter13_login_reports_access.py", "/app/test_reports/pytest/pytest_iter14.xml"],
+  "action_items": [
+    "Fix the toast color in index.css by raising specificity, e.g. '[data-sonner-toast].welcome-toast[data-rich-colors=\"true\"][data-styled=\"true\"] [data-description] { color: #FF6B00 !important; font-weight: 800; }'. Or pass a richColors:false toast with a custom descriptionClassName.",
+    "Optional: for Admin, make the CATEGORIES POS category point to /deposit (or remove /pos from its tabs). For Bar Team, remove the POS /pos entry and the Dashboard '/' entry. This keeps desktop nav consistent with the Guards."
+  ],
+  "critical_code_review_comments": [
+    "AuthContext: the last-activity check happens only on load and through the in-tab timer. Other tabs keep their own timers, but they share localStorage, so this is acceptable.",
+    "mousemove now resets the timer and writes to localStorage on every mouse move. Consider throttling it (e.g. once every 5-10s).",
+    "Logout is client-side only. There is no server JWT revocation (unchanged from before)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "85%"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. No users or sales were created.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "To skip the consent step, set localStorage key si4am_legal_2026-06-01='accepted'. Filling pin-digit-0 with '130994' fills all six digits. Toast check: getComputedStyle(document.querySelector('.welcome-toast [data-description]')).color should be rgb(255, 107, 0). Stale test: set si4am_last_activity to Date.now()-11min, then reload. This currently passes.",
+  "rca of the issue": "Toast: a CSS specificity conflict with the sonner richColors description rule (inherit)."
+}
