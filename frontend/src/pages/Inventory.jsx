@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { MessageCircle, FileDown, Plus } from "lucide-react";
 import jsPDF from "jspdf";
@@ -13,10 +14,11 @@ const packs = (m) => (m.stock / m.pack_qty).toFixed(2);
 
 export default function Inventory() {
   const { t } = useT();
+  const [searchParams] = useSearchParams();
   const [mats, setMats] = useState([]);
   const [menus, setMenus] = useState([]);
   const [tx, setTx] = useState([]);
-  const [tab, setTab] = useState("stock");
+  const tab = searchParams.get("tab") || "stock";
   const [openRecipe, setOpenRecipe] = useState(null);
   const [form, setForm] = useState({ material_id: "", type: "in", qty: "", note: "", date: today(), item_name: "", supplier: "" });
   const [newMat, setNewMat] = useState(null);
@@ -70,8 +72,6 @@ export default function Inventory() {
           <button data-testid="wa-order-button" onClick={() => { pdf("Order Items", ["Material", "Current stock", "Order qty", "Pack price", "Total"], orderRows()); openWA(orderText()); }} className="btn-wa h-10"><FileDown className="w-4 h-4" />PO</button>
         </div>
       </PageHeader>
-
-      <div className="flex gap-2 mb-6">{["stock", "recipes", "wastage", "history"].map((k) => <button key={k} data-testid={`inv-tab-${k}`} onClick={() => setTab(k)} className={`h-9 px-4 rounded-full text-xs font-semibold capitalize ${tab === k ? "bg-primary text-white" : "bg-muted"}`}>{k}</button>)}</div>
 
       {tab === "stock" && (
         <div className="grid lg:grid-cols-3 gap-6">
