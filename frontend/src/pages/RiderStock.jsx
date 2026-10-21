@@ -137,8 +137,11 @@ export default function RiderStock() {
             <Field label={`${t("pic")} (auto)`}><input data-testid="rider-stock-pic" className="field h-[22px] bg-muted/50 px-1 text-[11px]" value={user.name} readOnly /></Field>
             <Field label={t("selectRider")}><Select testId="rider-stock-rider-select" className="h-[22px] px-1 text-[11px]" value={riderId} onChange={setRiderId} placeholder="—" options={riders.map((r) => ({ value: r.id, label: r.name }))} /></Field>
           </div>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <input data-testid="rider-stock-date-input" type="date" aria-label={t("date")} className="field h-[22px] w-auto min-w-0 px-1 text-[11px]" value={date} onChange={(e) => setDate(e.target.value)} />
+          <div className="flex items-end justify-between gap-2 mb-2">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[10px] font-semibold text-primary">Pilih Tanggal</span>
+              <input data-testid="rider-stock-date-input" type="date" aria-label={t("date")} className="field h-[22px] w-auto min-w-0 px-1 text-[11px]" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
             <button data-testid="forecast-button" disabled={!riderId} onClick={forecast} className="btn-ghost h-8 px-3 text-xs"><Sparkles className="w-3 h-3 text-primary" />{lang === "id" ? "Prediksi AI" : "AI Forecast"}</button></div>
           {fc && <p className="text-[11px] text-muted-foreground mb-2" data-testid="forecast-info">{lang === "id" ? "Saran berdasarkan rata-rata hari yang sama (60%) + 14 hari terakhir (40%), buffer 10%" : "Suggestion = same weekday avg (60%) + last 14 days (40%), +10% buffer"}{fc.holiday ? " · 🎉 libur nasional" : fc.weekend ? " · weekend" : ""}</p>}
           <table className="table-x text-xs [&_th]:py-1.5 [&_td]:py-1.5"><thead><tr><th>#</th><th>{t("menu")}</th>{fc && <th className="hide-xs">AI</th>}<th className="text-right">{t("qty")}</th></tr></thead>
