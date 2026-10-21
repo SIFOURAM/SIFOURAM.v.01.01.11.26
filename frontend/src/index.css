@@ -59,6 +59,8 @@
   * { @apply border-border; }
   html { -webkit-font-smoothing: antialiased; }
   body { @apply bg-background text-foreground; font-family: 'Plus Jakarta Sans', sans-serif; }
+  p { margin-bottom: 0.25rem; }
+  p:last-child { margin-bottom: 0; }
   h1, h2, h3, h4, .font-heading { font-family: 'Outfit', sans-serif; }
   .font-mono { font-family: 'JetBrains Mono', monospace; }
   ::selection { background: rgba(255, 107, 0, 0.35); }
