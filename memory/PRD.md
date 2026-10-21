@@ -175,3 +175,10 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Iteration 19 stock verification test suite now passes 13/13 after follow-up fixes; production
   build succeeds. QA stock, sales, Rider accounts, and test files were cleaned back to baseline.
 - Next P1: Production Purchase Order request, Owner/Admin approval, and approval notifications.
+
+## Production and More Foundation (2026-10) — In Progress
+- Backend endpoints added for Purchase Order creation/listing and Owner/Admin approve/reject decisions,
+  including recipient notifications. Owner-only broadcast creates in-app notifications for selected
+  role groups, and payment-account endpoints support bank/QRIS account records.
+- Backend syntax validation passed. Frontend screens/routes for PO, broadcast WhatsApp links, and
+  Owner payment accounts are still pending and must be completed plus end-to-end tested next.

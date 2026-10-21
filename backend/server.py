@@ -439,6 +439,30 @@ class ConfigIn(BaseModel):
     apps_script_url: str
 
 
+class PurchaseOrderIn(BaseModel):
+    material_id: str
+    qty: float
+    note: str = ""
+
+
+class PurchaseOrderDecisionIn(BaseModel):
+    note: str = ""
+
+
+class BroadcastIn(BaseModel):
+    roles: List[str]
+    message: str
+
+
+class PaymentAccountIn(BaseModel):
+    name: str
+    bank_name: str
+    account_number: str
+    account_holder: str
+    active: bool = True
+    qris_photo: Optional[str] = None
+
+
 class GpsIn(BaseModel):
     lat: float
     lng: float
@@ -742,6 +766,90 @@ async def list_materials(u=Depends(ANY)):
 async def create_material(body: MaterialIn, u=Depends(STAFF)):
     doc = {**body.model_dump(), "id": uid(), "stock": 0, "created_at": now_iso()}
     await db.materials.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.get("/purchase-orders")
+async def list_purchase_orders(u=Depends(STAFF)):
+    query = {} if u["role"] in {"owner", "admin"} else {"requested_by": u["id"]}
+    return await db.purchase_orders.find(query, NOID).sort("created_at", -1).to_list(300)
+
+
+@api.post("/purchase-orders")
+async def create_purchase_order(body: PurchaseOrderIn, u=Depends(STAFF)):
+    if body.qty <= 0:
+        raise HTTPException(400, "Jumlah pesanan harus lebih dari nol")
+    material = await db.materials.find_one({"id": body.material_id}, NOID)
+    if not material:
+        raise HTTPException(404, "Bahan tidak ditemukan")
+    doc = {
+        "id": uid(), "material_id": material["id"], "material_name": material["name"],
+        "unit": material["unit"], "qty": body.qty, "note": body.note.strip(), "status": "pending",
+        "requested_by": u["id"], "requested_by_name": u["name"], "created_at": now_iso(),
+        "approved_by": None, "approved_at": None, "decision_note": "",
+    }
+    await db.purchase_orders.insert_one(doc)
+    await db.notifications.insert_one({
+        "id": uid(), "for_role": "owner", "type": "purchase_order",
+        "title": f"PO baru · {material['name']}",
+        "body": f"{u['name']} meminta {body.qty:g} {material['unit']}",
+        "ref_id": doc["id"], "read": False, "created_at": now_iso(),
+    })
+    doc.pop("_id", None)
+    return doc
+
+
+@api.post("/purchase-orders/{po_id}/{decision}")
+async def decide_purchase_order(po_id: str, decision: str, body: PurchaseOrderDecisionIn, u=Depends(REPORTS)):
+    if decision not in {"approve", "reject"}:
+        raise HTTPException(400, "Keputusan PO tidak valid")
+    po = await db.purchase_orders.find_one({"id": po_id}, NOID)
+    if not po:
+        raise HTTPException(404, "PO tidak ditemukan")
+    if po["status"] != "pending":
+        return po
+    status = "approved" if decision == "approve" else "rejected"
+    await db.purchase_orders.update_one({"id": po_id}, {"$set": {
+        "status": status, "approved_by": u["name"], "approved_at": now_iso(),
+        "decision_note": body.note.strip(),
+    }})
+    await db.notifications.insert_one({
+        "id": uid(), "for_user": po["requested_by"], "type": "purchase_order",
+        "title": f"PO {status} · {po['material_name']}",
+        "body": body.note.strip() or f"PO {po['qty']:g} {po['unit']} telah {status} oleh {u['name']}",
+        "ref_id": po_id, "read": False, "created_at": now_iso(),
+    })
+    return await db.purchase_orders.find_one({"id": po_id}, NOID)
+
+
+@api.post("/broadcast")
+async def broadcast_message(body: BroadcastIn, u=Depends(SUPER)):
+    roles = [role for role in body.roles if role in VALID_ROLES]
+    if not roles or not body.message.strip():
+        raise HTTPException(400, "Pilih penerima dan tulis pesan broadcast")
+    users = await db.users.find({"role": {"$in": roles}, "active": {"$ne": False}}, NOID).to_list(500)
+    if users:
+        await db.notifications.insert_many([{
+            "id": uid(), "for_user": recipient["id"], "type": "broadcast", "title": "Info dari Owner",
+            "body": body.message.strip(), "ref_id": None, "read": False, "created_at": now_iso(),
+        } for recipient in users])
+    return {"recipients": [{"name": recipient["name"], "whatsapp": recipient.get("whatsapp", "")} for recipient in users]}
+
+
+@api.get("/payment-accounts")
+async def list_payment_accounts(u=Depends(SUPER)):
+    return await db.payment_accounts.find({}, NOID).sort("created_at", -1).to_list(50)
+
+
+@api.post("/payment-accounts")
+async def create_payment_account(body: PaymentAccountIn, u=Depends(SUPER)):
+    if body.qris_photo and (not body.qris_photo.startswith("data:image/") or len(body.qris_photo) > 3_000_000):
+        raise HTTPException(400, "Gambar QRIS harus berupa foto maksimal 2 MB")
+    doc = {**body.model_dump(), "id": uid(), "created_by": u["id"], "created_at": now_iso()}
+    if body.qris_photo:
+        doc["qris_photo"] = await store_photo(body.qris_photo, "payment_accounts", u["id"])
+    await db.payment_accounts.insert_one(doc)
     doc.pop("_id", None)
     return doc
 
