@@ -1,0 +1,34 @@
+{
+  "summary": "Tested the login improvements and the Owner/Admin Reports access. Production build (CI=true, warnings treated as errors) passed. 10/10 backend pytest passed. Owner baa identify and PIN login work. Device legal consent is saved and the consent links are hidden after reload. The identifier is remembered and prefilled. Each PIN digit shows as type=tel and switches to password after about 1s. The PIN stage has no Terms/Privacy text. The 10-minute inactivity logout was confirmed with Playwright's fake clock: the token was still there at 9 min and removed at 10.5 min, and the login page appeared. /reports sales and operations tabs load for Owner with no redundant titles. Two issues found: the welcome toast account name is green, not orange; and a latent Bar Team redirect loop.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Login welcome toast", "issue": "The account name is not orange. index.css styles '.welcome-toast [data-description]', but Login.jsx puts the name in the toast title (toast.success(`Selamat datang, ${user.name}`)) with no description. With richColors the success title shows green rgb(0,138,46).", "selector": ".welcome-toast [data-title]", "priority": "MEDIUM"},
+      {"component": "App.js Home / Guard with Layout HOME map", "issue": "Infinite redirect loop for Bar Team. HOME.barteam is '/', but Home() redirects any role other than owner/admin to HOME[role], which is '/' again, so it loops. Any Guard rejection for barteam (/pos, /reports, /invoice, /finance, /user-info, /handover) also sends them to '/' and the same loop. Not reproducible live because no Bar Team account exists, but it will hang the first Bar Team login. Fix: give barteam a real home (e.g. /rider-dashboard or /menu-stock), or let Home render a Bar Team view.", "selector": "App.js Home()", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin nav", "issues": ["NAV.admin.main includes /pos, but POS_ACCESS excludes admin, so tapping it silently redirects to '/'. Remove it or allow it."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter13_login_reports_access.py", "/app/test_reports/pytest/pytest_iter13.xml"],
+  "action_items": [
+    "Make the welcome account name orange: move the name into the toast description (toast.success('Selamat datang', {description: user.name, className:'welcome-toast'})) or change the CSS to target [data-title] / a span.",
+    "Fix the Bar Team redirect loop in Home()/HOME.barteam before any Bar Team account is created.",
+    "Optional: store a last-activity timestamp (localStorage) and check it on load. Right now the 10-minute inactivity rule can be bypassed by closing and reopening the app, because the remembered token stays valid. Also consider adding 'mousemove'/'wheel' events; 'scroll' does not bubble from inner scroll containers."
+  ],
+  "critical_code_review_comments": [
+    "AuthContext logout clears only the client-side token (localStorage, sessionStorage, si4am_pos). There is no server-side revocation, so the JWT stays valid until it expires.",
+    "The inactivity timer exists only in memory, so it is reset on every page load and is not shared across tabs.",
+    "Backend REPORTS = roles('owner','admin') is correctly applied to /reports/sales and /reports/operations. Frontend REPORT_ACCESS = ['owner','admin'] and Home allows admin, so there is no loop for admin.",
+    "Playbook items for bcrypt/httpOnly cookies/lockout were not checked this iteration (focus was the requested scope). The app uses Bearer tokens in localStorage, not httpOnly cookies."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter13_login_reports_access.py"],
+  "success_rate": {"backend": "100%", "frontend": "90%"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Read-only tests; no accounts or transactions created.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login flow: identify, then PIN with 6 inputs (pin-digit-0..5); filling pin-digit-0 with 6 digits distributes them. Legal consent is stored in localStorage key si4am_legal_2026-06-01. Use page.clock.install() before goto to test inactivity. Admin and Bar Team accounts do not exist; role routes were verified in source only.",
+  "rca of the issue": "Toast color: the CSS selector targets the sonner [data-description] element, which is never rendered. Bar Team loop: Home's redirect target HOME['barteam'] equals the Home route path '/'."
+}

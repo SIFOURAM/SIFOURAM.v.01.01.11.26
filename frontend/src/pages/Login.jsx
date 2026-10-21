@@ -106,7 +106,7 @@ export default function Login() {
     try {
       const user = await login(account.account_token, pin, true);
       localStorage.setItem("si4am_remembered_identifier", identifier.trim());
-      toast.success(`Selamat datang, ${user.name}`, { className: "welcome-toast" });
+      toast.success("Selamat datang", { description: user.name, className: "welcome-toast" });
     } catch (error) {
       toast.error(errMsg(error));
       setDigits(Array(6).fill(""));

@@ -65,11 +65,11 @@ export const NAV = {
     more: [item("/finance", "finance")],
   },
   admin: {
-    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/pos", "pos"), item("/inventory", "inventory")],
+    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/inventory", "inventory")],
     more: [item("/settings", "settings")],
   },
   barteam: {
-    main: [item("/", "dashboard"), item("/menu-stock?mode=production", "menuStock"), item("/pos", "pos"), item("/inventory", "inventory")],
+    main: [item("/menu-stock?mode=production", "menuStock"), item("/inventory", "inventory")],
     more: [item("/settings", "settings")],
   },
   rider: {
@@ -77,7 +77,7 @@ export const NAV = {
     more: [item("/settings", "settings")],
   },
 };
-export const HOME = { owner: "/", admin: "/", barteam: "/", rider: "/pos" };
+export const HOME = { owner: "/", admin: "/", barteam: "/menu-stock", rider: "/pos" };
 
 export const CATEGORIES = {
   owner: [
