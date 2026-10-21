@@ -7,7 +7,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { api, errMsg } from "../lib/api";
 import { fmtRp } from "../lib/helpers";
-import { Bento, DateFilter, Empty, PageHeader, Select, Stat } from "../components/common";
+import { Bento, DateFilter, Empty, PageHeader, Stat } from "../components/common";
 
 const COLORS = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74"];
 const tooltip = { contentStyle: { borderRadius: 8, border: "1px solid #444", fontSize: 12 } };
@@ -22,9 +22,6 @@ const REPORT_TABS = [
 
 export default function Reports() {
   const [range, setRange] = useState(null);
-  const [method, setMethod] = useState("all");
-  const [orderType, setOrderType] = useState("all");
-  const [serviceType, setServiceType] = useState("all");
   const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView] = useState(searchParams.get("view") || "sales");
   const [report, setReport] = useState(null);
@@ -37,14 +34,14 @@ export default function Reports() {
     if (!range || !["sales", "products"].includes(view)) return;
     setLoading(true);
     setError("");
-    api.get("/reports/sales", { params: { ...range, payment_method: method, sale_kind: orderType, service_type: serviceType } })
+    api.get("/reports/sales", { params: range })
       .then((response) => setReport(response.data))
       .catch((requestError) => {
         setReport(null);
         setError(errMsg(requestError));
       })
       .finally(() => setLoading(false));
-  }, [range, method, orderType, serviceType, view]);
+  }, [range, view]);
 
   const title = view === "sales" ? "Laporan Penjualan" : "Performa Produk";
   const productRows = useMemo(() => report?.products || [], [report]);
@@ -128,11 +125,6 @@ export default function Reports() {
               <button data-testid="report-pdf-button" onClick={exportPdf} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button>
               <button data-testid="report-print-button" onClick={printPdf} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button>
             </div>}
-            <div className="grid grid-cols-3 gap-1.5">
-              <Select testId="report-payment-filter" className="h-8 min-w-0 px-1.5 text-[11px]" value={method} onChange={setMethod} options={[{ value: "all", label: "Bayar" }, { value: "cash", label: "Cash" }, { value: "qris", label: "QRIS" }]} />
-              <Select testId="report-type-filter" className="h-8 min-w-0 px-1.5 text-[11px]" value={orderType} onChange={setOrderType} options={[{ value: "all", label: "Order" }, { value: "regular", label: "Reguler" }, { value: "bundling", label: "Bundling" }]} />
-              <Select testId="report-service-filter" className="h-8 min-w-0 px-1.5 text-[11px]" value={serviceType} onChange={setServiceType} options={[{ value: "all", label: "Layanan" }, { value: "dine_in", label: "Dine In" }, { value: "takeaway", label: "Takeaway" }, { value: "online", label: "Online" }]} />
-            </div>
             <div className="flex flex-wrap items-start gap-2">
               <DateFilter onChange={setRange} />
             </div>
@@ -141,11 +133,13 @@ export default function Reports() {
       </PageHeader>
       {loading && <p data-testid="reports-loading" className="text-sm text-muted-foreground py-8">Memuat laporan...</p>}
       {error && <p data-testid="reports-error" className="text-sm text-red-500 py-8">Gagal memuat laporan: {error}</p>}
-      {report && <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {report && <><div className="grid grid-cols-2 gap-4">
         <Stat testId="report-transactions" label="Total transaksi" value={report.transactions} />
         <Stat testId="report-revenue" gold label="Total revenue" value={fmtRp(report.revenue)} />
+      </div><ReportFilterSummary report={report} /><div className="grid grid-cols-2 gap-4 mt-4">
         <Stat testId="report-average" label="Rata-rata order" value={fmtRp(report.average_order)} />
         <Stat testId="report-discount" label="Total diskon" value={fmtRp(report.discount)} />
+      </div><div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
         {view === "sales" && <>
           <Bento testId="report-revenue-trend" className="col-span-2 fade-up">
             <p className="eyebrow mb-4">Tren revenue harian</p>
@@ -166,7 +160,7 @@ export default function Reports() {
           </table>
           {!productRows.length && <Empty text="Belum ada produk terjual pada periode ini" />}
         </Bento>
-      </div>}
+      </div></>}
     </div>
   );
 }
@@ -177,6 +171,28 @@ function Distribution({ title, rows, testId }) {
       <p className="eyebrow mb-4">{title}</p>
       {rows.length ? <ResponsiveContainer width="100%" height={180}><PieChart><Pie data={rows} dataKey="value" nameKey="name" innerRadius={40} outerRadius={70}>{rows.map((row, index) => <Cell key={row.name} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip {...tooltip} formatter={(value) => fmtRp(value)} /></PieChart></ResponsiveContainer> : <Empty text="Tidak ada data" />}
     </Bento>
+  );
+}
+
+function ReportFilterSummary({ report }) {
+  const amount = (rows, name) => rows.find((row) => row.name.toLowerCase() === name)?.value || 0;
+  return (
+    <div className="grid grid-cols-2 gap-4 mt-4">
+      <Bento testId="report-payment-summary" className="fade-up">
+        <p className="eyebrow">Pembayaran</p>
+        <div className="mt-2 space-y-1 text-xs num">
+          <p className="flex justify-between"><span>Cash</span><span>{fmtRp(amount(report.payment_distribution, "cash"))}</span></p>
+          <p className="flex justify-between"><span>QRIS</span><span>{fmtRp(amount(report.payment_distribution, "qris"))}</span></p>
+        </div>
+      </Bento>
+      <Bento testId="report-order-service-summary" className="fade-up">
+        <p className="eyebrow">Order & Layanan</p>
+        <div className="mt-2 space-y-1 text-xs num">
+          <p className="flex justify-between"><span>Reguler / Bundling</span><span>{fmtRp(amount(report.order_distribution, "regular") + amount(report.order_distribution, "bundling"))}</span></p>
+          <p className="flex justify-between"><span>Dine / Takeaway / Online</span><span>{fmtRp(amount(report.service_distribution, "dine_in") + amount(report.service_distribution, "takeaway") + amount(report.service_distribution, "online"))}</span></p>
+        </div>
+      </Bento>
+    </div>
   );
 }
 
