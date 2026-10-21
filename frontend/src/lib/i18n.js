@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 const en = {
   dashboard: "Main Dashboard", inventory: "Inventory", menuStock: "Menu Stock", pos: "POS Cashier", riderStock: "Rider Stock", deposit: "Deposit",
-  invoice: "Invoice", riderDash: "Rider Dashboard", handover: "Cash Transfer / Handover", finance: "Financial Report", salary: "Salary & Incentive", profile: "Profile",
+  invoice: "Invoice", riderDash: "Rider Dashboard", handover: "Cash Transfer / Handover", finance: "Financial Report", salary: "Rider Rank Target", profile: "Profile",
   settings: "Settings", reports: "Reports", purchaseOrders: "Purchase Orders", broadcast: "Broadcast", paymentAccounts: "Payment Accounts", more: "More", logout: "Logout", main: "Main", stock: "Stock", today: "Today", yesterday: "Yesterday", week: "This Week", month: "This Month",
   prevmonth: "Previous Month", prevweek: "Previous Week", custom: "Custom", cupsSold: "Cups Sold", cashRevenue: "Cash Revenue", qrisRevenue: "QRIS Revenue", expenses: "Expenses",
   save: "Save", cancel: "Cancel", sendWA: "Send to WhatsApp", download: "Download", login: "Sign In", username: "Username or Email", password: "Password",
@@ -29,7 +29,7 @@ const en = {
 };
 const id = {
   dashboard: "Dashboard", inventory: "Inventaris", menuStock: "Stock Menu Production", posDashboard: "Dashboard POS", pos: "POS", riderStock: "Stock Awal", stockRider: "Stock Rider", stockPickup: "Pengambilan", stockRemaining: "Sisa", deposit: "Setoran",
-  invoice: "Invoice", riderDash: "Dasbor Rider", handover: "Transfer / Serah Terima Kas", finance: "Laporan Keuangan", salary: "Gaji & Insentif", profile: "Profil",
+  invoice: "Invoice", riderDash: "Dasbor Rider", handover: "Transfer / Serah Terima Kas", finance: "Laporan Keuangan", salary: "Target Rank Rider", profile: "Profil",
   settings: "Pengaturan", reports: "Laporan", purchaseOrders: "Purchase Order", broadcast: "Broadcast", paymentAccounts: "Akun Pembayaran", more: "Lainnya", logout: "Keluar", main: "Utama", stock: "Stok", today: "Hari Ini", yesterday: "Kemarin", week: "Minggu Ini", month: "Bulan Ini",
   prevmonth: "Bulan Lalu", prevweek: "Minggu Kemarin", custom: "Manual", cupsSold: "Cup Terjual", cashRevenue: "Pendapatan Cash", qrisRevenue: "Pendapatan QRIS", expenses: "Pengeluaran",
   save: "Simpan", cancel: "Batal", sendWA: "Kirim ke WhatsApp", download: "Unduh", login: "Masuk", username: "Username atau Email", password: "Kata Sandi",

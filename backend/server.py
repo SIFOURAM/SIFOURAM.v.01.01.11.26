@@ -1880,7 +1880,10 @@ async def rider_rank(start: str, end: str, rider_id: Optional[str] = None, u=Dep
         "rank": rank,
         "attendance_total": rank.get("attendance_benefit", 0) * attendance_days,
         "commission": round(gross * rank.get("commission_pct", 0)),
-        "main_estimated_commission": round(gross * rank.get("commission_pct", 0)),
+        "main_estimated_commission": round(
+            rank.get("attendance_benefit", 0) * attendance_days
+            + gross * rank.get("commission_pct", 0)
+        ),
         "progress": 100 if not next_minimum else round(min(100, gross / next_minimum * 100), 1),
         "remaining": 0 if not next_minimum else max(0, next_minimum - gross),
     }
@@ -2116,10 +2119,10 @@ async def salary(start: str, end: str, rider_id: Optional[str] = None, u=Depends
         gross = sum(x["cash"] + x["qris"] for x in mine)
         cups = sum(x["cups"] for x in mine)
         att_days = len([a for a in atts if a["rider_id"] == r["id"]])
-        sale_days = set(x["date"] for x in mine)
-        allowance_days = len(set([a["date"] for a in atts if a["rider_id"] == r["id"]] + list(sale_days)))
-        allowance = allowance_days * ALLOWANCE
         rank = rider_rank_for(gross)
+        sale_days = set(x["date"] for x in mine)
+        allowance_days = att_days
+        allowance = rank.get("attendance_benefit", 0) * allowance_days
         tier, pct = tier_for(gross, att_days)
         incentive = round(gross * pct)
         aw = sum(w["amount"] for w in wds if w["rider_id"] == r["id"] and w["type"] == "allowance")
@@ -2149,8 +2152,15 @@ async def salary(start: str, end: str, rider_id: Optional[str] = None, u=Depends
     return {
         "riders": out,
         "tiers": [
-            {"name": name, "threshold": minimum, "pct": commission, "min_days": 0}
-            for name, minimum, _maximum, _attendance, commission in RIDER_RANKS
+            {
+                "name": name,
+                "threshold": minimum,
+                "maximum": maximum,
+                "pct": commission,
+                "attendance_benefit": attendance,
+                "min_days": 0,
+            }
+            for name, minimum, maximum, attendance, commission in RIDER_RANKS
         ],
         "rider_count": len(out),
     }

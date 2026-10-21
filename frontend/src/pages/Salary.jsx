@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { fmtRp, initials, compressImage } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { PageHeader, Bento, DateFilter, Empty } from "../components/common";
-import { TierProgress } from "./RiderDashboard";
+import { RANK_ASSETS, TierProgress } from "./RiderDashboard";
 
 export default function Salary() {
   const { t } = useT();
@@ -26,12 +26,12 @@ export default function Salary() {
   };
   return (
     <div data-testid="salary-page">
-      <PageHeader eyebrow="Trader income" title={t("salary")}><DateFilter onChange={setRange} /></PageHeader>
+      <PageHeader eyebrow="Target mingguan" title={t("salary")}><DateFilter onChange={setRange} riderPeriods initialPreset="week" /></PageHeader>
       {d && (<>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {d.tiers.map((tr, i) => <Bento key={tr.name} gold={i === 3} className="fade-up" testId={`tier-${tr.name.toLowerCase()}`}><p className="eyebrow">{tr.name}</p><p className="font-heading font-bold text-xl mt-1">{Math.round(tr.pct * 100)}%</p><p className="text-xs text-muted-foreground num">≥ {fmtRp(tr.threshold)}{tr.min_days ? ` · ${tr.min_days}+ days` : ""}</p></Bento>)}
+          {d.tiers.map((tr) => <Bento key={tr.name} gold className="fade-up overflow-hidden p-0" testId={`tier-${tr.name.toLowerCase()}`}><img src={RANK_ASSETS[tr.name]} alt={`Kartu ${tr.name}`} className="w-full aspect-[16/8] object-cover" /><div className="p-4"><p className="eyebrow">{tr.name}</p><p className="font-heading font-bold text-lg mt-1">≥ {fmtRp(tr.threshold)} / minggu</p><p className="text-xs text-muted-foreground">Hadir {fmtRp(tr.attendance_benefit)} / hari · Bonus penjualan {Math.round(tr.pct * 100)}%</p></div></Bento>)}
         </div>
-        <p className="text-xs text-muted-foreground mb-4">{t("dailyAllowance")} Rp 20.000 / {t("attendance").toLowerCase()}. {t("period")}: 16 → 15.</p>
+        <p className="text-xs text-muted-foreground mb-4">Benefit kehadiran dan bonus penjualan mengikuti rank yang tercapai pada periode pilihan.</p>
         <div className="grid md:grid-cols-2 gap-4">
           {d.riders.map((r) => (
             <Bento key={r.rider_id} className="fade-up" testId={`salary-card-${r.rider_id}`}>

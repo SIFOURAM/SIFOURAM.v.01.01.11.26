@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { Trophy, Calendar, MapPin, Wallet, FileDown, Printer } from "lucide-react";
@@ -14,12 +14,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 
 const COLORS = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74", "#FF7A1A", "#E85D04", "#9A3412"];
 const tip = { contentStyle: { borderRadius: 12, border: "1px solid #333", background: "#111", color: "#fff", fontSize: 12 } };
-const RANK_ASSETS = {
-  Herald: "/assets/rank-herald.png",
-  Warriors: "/assets/rank-warriors.png",
-  Masters: "/assets/rank-masters.png",
-  Divine: "/assets/rank-divine.png",
-  Immortal: "/assets/rank-immortal.png",
+export const RANK_ASSETS = {
+  Herald: "https://customer-assets-lqy194kg.emergentagent.net/job_advanced-pos-system/artifacts/10bf6724e7402170_Card%20Rank%20Herald.png",
+  Warriors: "https://customer-assets-lqy194kg.emergentagent.net/job_advanced-pos-system/artifacts/d0cdce7517cfd127_Card%20Rank%20Warriors.png",
+  Masters: "https://customer-assets-lqy194kg.emergentagent.net/job_advanced-pos-system/artifacts/8e04b973df2cc5e5_Card%20Rank%20Masters.png",
+  Divine: "https://customer-assets-lqy194kg.emergentagent.net/job_advanced-pos-system/artifacts/babc31603abbed9d_Card%20Rank%20Divine.png",
+  Immortal: "https://customer-assets-lqy194kg.emergentagent.net/job_advanced-pos-system/artifacts/22eca8969968c61c_Card%20Rank%20Immortal.png",
 };
 
 function RankCard({ data, onOpen }) {
@@ -158,7 +158,7 @@ export default function RiderDashboard() {
   const [deps, setDeps] = useState([]);
   const [wd, setWd] = useState(null);
   const [rank, setRank] = useState(null);
-  const [showRank, setShowRank] = useState(false);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const tableRef = useRef();
@@ -258,7 +258,7 @@ export default function RiderDashboard() {
               <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{rider.placement || "-"}</p></>}
             <div className="mt-4 w-full rounded-xl bg-muted p-3"><p className="eyebrow">{t("totalIncome")}</p><p data-testid="rider-total-income" className="num font-bold text-primary">{fmtRp(agg.total_income)}</p></div>
           </Bento>
-          <Bento className="col-span-2 lg:col-span-3 fade-up" testId="rider-period-filter"><p className="eyebrow mb-3">Filter periode</p><DateFilter onChange={setRange} riderPeriods={isRider} /></Bento>
+          <Bento className="col-span-2 lg:col-span-3 fade-up" testId="rider-period-filter"><p className="eyebrow mb-3">Filter periode</p><DateFilter onChange={setRange} riderPeriods initialPreset="week" /></Bento>
           <Bento className="fade-up" testId="rider-stat-allowance"><div className="flex justify-between items-start"><p className="eyebrow">{t("dailyAllowance")}</p><Wallet className="w-4 h-4 text-primary" /></div>
             <p className="mt-3 text-2xl font-bold num font-heading">{fmtRp(agg.allowance)}</p><p className="text-xs text-muted-foreground">{t("available")}: <b className="num">{fmtRp(agg.allowance_available)}</b></p>
             {single && <button data-testid="withdraw-allowance-button" onClick={() => setWd("allowance")} className="btn-primary h-9 mt-3 w-full text-xs">{t("withdraw")}</button>}</Bento>
@@ -267,7 +267,7 @@ export default function RiderDashboard() {
               <p className="eyebrow">{t("incentive")} · {agg.tier}</p><p className="mt-3 text-2xl font-bold num font-heading">{fmtRp(agg.incentive)}</p><p className="text-xs text-muted-foreground">{t("available")}: <b className="num">{fmtRp(agg.incentive_available)}</b>{single && ` · ${t("withdraw")} →`}</p></button></Bento>
           <Stat label={t("totalCups")} value={sum.cups} sub={`${agg.attendance_days} ${t("attendance").toLowerCase()} · ${fmtRp(agg.gross)}`} testId="rider-stat-cups" />
 
-          {rank && <RankCard data={rank} onOpen={() => setShowRank(true)} />}
+          {rank && <RankCard data={rank} onOpen={() => navigate(`/salary?rider=${rank.rider_id}`)} />}
 
           <Bento className="col-span-2 lg:col-span-4 fade-up" testId="tier-card">
             <p className="eyebrow mb-4">
@@ -307,7 +307,6 @@ export default function RiderDashboard() {
         </div>
       )}
       {wd && single && <WithdrawDialog type={wd} s={agg} range={range} onClose={() => setWd(null)} onDone={() => load(true)} />}
-      {showRank && rank && <RankDialog data={rank} onClose={() => setShowRank(false)} />}
     </div>
   );
 }

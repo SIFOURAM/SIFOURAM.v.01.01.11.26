@@ -44,10 +44,10 @@ export const QtySelect = ({ value, onChange, max = 30, testId, className = "" })
   </select>
 );
 
-export function DateFilter({ onChange, showCustom = true, riderPeriods = false }) {
+export function DateFilter({ onChange, showCustom = true, riderPeriods = false, initialPreset = "today" }) {
   const { t } = useT();
-  const [preset, setPreset] = useState("today");
-  const [custom, setCustom] = useState(rangeFor("today"));
+  const [preset, setPreset] = useState(initialPreset);
+  const [custom, setCustom] = useState(rangeFor(initialPreset));
   useEffect(() => { onChange(rangeFor(preset, custom), preset); }, [preset, custom]); // eslint-disable-line
   const presets = riderPeriods
     ? ["today", "yesterday", "week", "prevweek", "month"]
