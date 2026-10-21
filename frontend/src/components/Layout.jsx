@@ -115,9 +115,9 @@ function CategoryTabs({ category, t }) {
   const activeTab = category.tabs.find((tab) => tab.to === currentPath || tab.subtabs?.some((subtab) => subtab.to === currentPath)) || category.tabs.find((tab) => location.pathname === tab.to.split("?")[0]) || category.tabs[0];
   return (
     <nav data-testid="category-tabs" className={`category-tab-bar ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
-      <div className="flex flex-wrap items-center gap-2 min-w-0">
-        <span data-testid="category-current-label" className="font-heading font-bold text-primary">{category.name}</span>
-        <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => navigate(event.target.value)} className="category-dropdown text-primary font-semibold max-w-[10rem]">
+      <div className="flex flex-nowrap items-center gap-1.5 min-w-0">
+        <span data-testid="category-current-label" className="flex h-7 items-center font-heading font-bold leading-none text-primary">{category.name}</span>
+        <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => navigate(event.target.value)} className={`category-dropdown h-7 px-2 text-xs text-primary font-semibold ${activeTab.subtabs?.length ? "max-w-[6rem]" : "max-w-[10rem]"}`}>
           {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{t(tab.key)}</option>)}
         </select>
         {activeTab.subtabs?.length > 0 && (
@@ -125,7 +125,7 @@ function CategoryTabs({ category, t }) {
             data-testid="category-subtabs-dropdown"
             value={currentPath}
             onChange={(event) => navigate(event.target.value)}
-            className="category-dropdown text-primary font-semibold max-w-[12rem]"
+            className="category-dropdown h-7 max-w-[8rem] px-2 text-xs text-primary font-semibold sm:max-w-[10rem]"
           >
             {activeTab.subtabs.map((tab) => <option key={tab.to} value={tab.to}>{tab.label}</option>)}
           </select>
