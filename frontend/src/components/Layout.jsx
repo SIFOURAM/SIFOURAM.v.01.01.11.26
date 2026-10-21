@@ -120,7 +120,16 @@ function CategoryTabs({ category, t }) {
         <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => navigate(event.target.value)} className="category-dropdown text-primary font-semibold max-w-[10rem]">
           {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{t(tab.key)}</option>)}
         </select>
-        {activeTab.subtabs?.length > 0 && <div className="basis-full flex items-center gap-2 pt-1"><span className="text-xs font-semibold text-muted-foreground">{t(activeTab.key)}</span><select data-testid="category-subtabs-dropdown" value={currentPath} onChange={(event) => navigate(event.target.value)} className="category-dropdown text-primary font-semibold max-w-[12rem]">{activeTab.subtabs.map((tab) => <option key={tab.to} value={tab.to}>{tab.label}</option>)}</select></div>}
+        {activeTab.subtabs?.length > 0 && (
+          <select
+            data-testid="category-subtabs-dropdown"
+            value={currentPath}
+            onChange={(event) => navigate(event.target.value)}
+            className="category-dropdown text-primary font-semibold max-w-[12rem]"
+          >
+            {activeTab.subtabs.map((tab) => <option key={tab.to} value={tab.to}>{tab.label}</option>)}
+          </select>
+        )}
       </div>
     </nav>
   );
