@@ -1,0 +1,44 @@
+{
+  "summary": "Iter20: tested Purchase Orders (approval + notifications), Owner Broadcast WhatsApp, Owner Payment Accounts/QRIS, POS QRIS display, notification isolation, and desktop/mobile route smoke for /purchase-orders, /broadcast, /payment-accounts. Backend: 14/15 pytest pass. The one failure is a gap against the requirement: Admin gets no notification when a new PO is created, because notifications only go to for_role=owner. UI flows work end-to-end: Bar Team submits a PO -> Owner sees it and the bell shows 'PO baru' -> Owner approves -> Bar Team sees APPROVED and gets the 'PO approved' notification. Broadcast creates the notification and opens wa.me with the prefilled text (popup went to api.whatsapp.com/send?phone=62812...&text=...), and the recipient list links are correct. The QRIS upload saves, with a fallback to an inline data URL, and renders. On mobile, POS QRIS (rider) shows the uploaded image (pos-qris-<id>, naturalWidth 200). Role guards redirect Bar Team away from /broadcast and /payment-accounts. All QA data was cleaned up (temp users, POs, notifications, payment accounts, rider_stock, menu stock restored).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/purchase-orders", "issue": "Only for_role='owner' gets the new-PO notification. Admin can approve but is never notified, so the requirement 'persetujuan Owner/Admin dan notifikasi' is not fully met. Fix: also notify admins, e.g. with for_role 'admin' plus a /notifications query for admin, or per-user inserts for active admins."},
+      {"endpoint": "POST /api/purchase-orders/{id}/{decision}", "issue": "The decision notification title/body uses raw English status ('PO approved · X', 'telah approved oleh ...') inside Indonesian text. Use 'disetujui'/'ditolak'."},
+      {"endpoint": "/api/payment-accounts", "issue": "There is no PUT/DELETE/toggle-active endpoint. The Owner cannot edit or deactivate a QRIS account, so a wrong QRIS stays on the POS for good (only POST and list exist)."},
+      {"endpoint": "POST /api/notifications/clear", "issue": "Hard-deletes notifications, but the UI button label says 'Semua Terbaca' (mark all read). For the owner it also deletes all shared for_role=owner notifications. This existed before this change."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Layout category-tabs dropdown", "issue": "i18n keys are missing for purchaseOrders, broadcast and paymentAccounts. The tab dropdown shows the raw keys 'purchaseOrders', 'broadcast', 'paymentAccounts' (seen on desktop and mobile). Add them to every language in lib/i18n.js.", "selector": "[data-testid='category-tabs-dropdown']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "POS QRIS (mobile 390px)", "issues": ["The floating 'Tanya AI' button covers the QRIS account name and caption in the pos-qris block.", "The QRIS image is only 80x80 (w-20 h-20), which is too small for customers to scan reliably. Make it larger or add tap-to-enlarge."]},
+      {"screen": "Notification dropdown (owner, desktop)", "issues": ["The 'Notifikasi' header and item titles have low contrast against the panel, which is semi-transparent over the orange header."]},
+      {"screen": "PurchaseOrders", "issues": ["Status badges show English 'pending/approved/rejected' in an Indonesian UI.", "decision_note is never shown and the UI always sends note:'', so the Owner cannot add a rejection reason."]},
+      {"screen": "Broadcast", "issues": ["Only the first recipient with WhatsApp is auto-opened, and window.open runs after an await, so popup blockers may stop it on real browsers. The others need a click in the recipient list, which is acceptable.", "Recipients without a whatsapp number still get a 'https://wa.me/?text=' link with no phone."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter20_po_broadcast_payment.py", "/app/backend/tests/qa_iter20_fixture.py", "/app/test_reports/pytest/pytest_iter20.xml"],
+  "action_items": [
+    "Notify Admin role users of new POs too (backend create_purchase_order plus the /notifications query for admin)",
+    "Add i18n keys purchaseOrders / broadcast / paymentAccounts in lib/i18n.js",
+    "Add edit/deactivate/delete for payment accounts so the Owner can manage QRIS",
+    "Localize PO status text in badges and notifications; optionally allow a decision note",
+    "Fix 'Tanya AI' FAB overlapping the POS QRIS block on mobile; enlarge the QRIS image"
+  ],
+  "critical_code_review_comments": [
+    "Notifications are role-scoped only for owner (for_role='owner'), and admin has no role channel. The Owner/Admin parity is inconsistent.",
+    "MoreTools.jsx packs whole components onto single 200+ char lines, which is hard to maintain. Format it.",
+    "Payment account QRIS fell back to an inline base64 data URL in the preview (object storage fallback), so the data URL is returned by /payment-accounts/public on every POS load. That is fine at 1-2 accounts but heavy if storage stays down.",
+    "Running this test file with pytest-xdist (the default addopts) causes cross-worker fixture teardown races. Run it with -p no:xdist -o addopts=''."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter20_po_broadcast_payment.py", "/app/backend/tests/qa_iter20_fixture.py"],
+  "success_rate": {"backend": "93% (14/15)", "frontend": "95% (all flows functional; i18n label + design issues)"},
+  "seed_data_creation": "Temporary qa20_* admin/barteam/rider users, POs, TEST_IT20/TEST_QA20 payment accounts, a rider_stock entry and notifications were created and then removed. Menu stock was restored.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_iter20_po_broadcast_payment.py -p no:xdist -o addopts=''. For UI: python tests/qa_iter20_fixture.py setup prints tokens; set localStorage si4am_token. The rider POS needs geolocation granted plus rider_stock for the Jakarta date. Run 'cleanup' afterwards. Owner login: baa / 130994."
+}

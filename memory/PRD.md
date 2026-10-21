@@ -182,3 +182,14 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   role groups, and payment-account endpoints support bank/QRIS account records.
 - Backend syntax validation passed. Frontend screens/routes for PO, broadcast WhatsApp links, and
   Owner payment accounts are still pending and must be completed plus end-to-end tested next.
+
+## Production, Broadcast, and Payment Accounts (2026-10)
+- Added Production Purchase Order page for Bar Team/Admin/Owner, with material request, Owner/Admin
+  approval or rejection, and recipient notifications. New PO notifications now reach both Owner and Admin.
+- Added Owner Broadcast page: role selection, in-app notifications, prefilled WhatsApp links, and
+  recipient list. Added Owner payment-account page with QRIS image upload.
+- Active QRIS accounts are exposed through a safe public endpoint and shown in Rider/Owner POS when
+  QRIS payment is selected. Iteration 20 validated end-to-end flows at 14/15 before the final Admin
+  notification fix; backend and frontend builds pass after that fix.
+- Remaining polish: payment-account edit/deactivate controls, localized navigation labels, decision
+  note field, and QRIS modal/enlarged scan treatment on mobile.

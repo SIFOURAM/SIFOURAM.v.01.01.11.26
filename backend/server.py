@@ -796,6 +796,12 @@ async def create_purchase_order(body: PurchaseOrderIn, u=Depends(STAFF)):
         "body": f"{u['name']} meminta {body.qty:g} {material['unit']}",
         "ref_id": doc["id"], "read": False, "created_at": now_iso(),
     })
+    await db.notifications.insert_one({
+        "id": uid(), "for_role": "admin", "type": "purchase_order",
+        "title": f"PO baru · {material['name']}",
+        "body": f"{u['name']} meminta {body.qty:g} {material['unit']}",
+        "ref_id": doc["id"], "read": False, "created_at": now_iso(),
+    })
     doc.pop("_id", None)
     return doc
 
@@ -810,14 +816,15 @@ async def decide_purchase_order(po_id: str, decision: str, body: PurchaseOrderDe
     if po["status"] != "pending":
         return po
     status = "approved" if decision == "approve" else "rejected"
+    status_label = "disetujui" if status == "approved" else "ditolak"
     await db.purchase_orders.update_one({"id": po_id}, {"$set": {
         "status": status, "approved_by": u["name"], "approved_at": now_iso(),
         "decision_note": body.note.strip(),
     }})
     await db.notifications.insert_one({
         "id": uid(), "for_user": po["requested_by"], "type": "purchase_order",
-        "title": f"PO {status} · {po['material_name']}",
-        "body": body.note.strip() or f"PO {po['qty']:g} {po['unit']} telah {status} oleh {u['name']}",
+        "title": f"PO {status_label} · {po['material_name']}",
+        "body": body.note.strip() or f"PO {po['qty']:g} {po['unit']} telah {status_label} oleh {u['name']}",
         "ref_id": po_id, "read": False, "created_at": now_iso(),
     })
     return await db.purchase_orders.find_one({"id": po_id}, NOID)
@@ -1580,16 +1587,16 @@ async def accept_withdrawal(wid: str, u=Depends(SUPER)):
 @api.get("/notifications")
 async def list_notifications(u=Depends(ANY)):
     query = {"$or": [{"for_user": u["id"]}]}
-    if u["role"] == "owner":
-        query["$or"].append({"for_role": "owner"})
+    if u["role"] in {"owner", "admin"}:
+        query["$or"].append({"for_role": u["role"]})
     return await db.notifications.find(query, NOID).sort("created_at", -1).limit(30).to_list(30)
 
 
 @api.post("/notifications/read")
 async def read_notifications(u=Depends(ANY)):
     query = {"$or": [{"for_user": u["id"]}]}
-    if u["role"] == "owner":
-        query["$or"].append({"for_role": "owner"})
+    if u["role"] in {"owner", "admin"}:
+        query["$or"].append({"for_role": u["role"]})
     await db.notifications.update_many({**query, "read": False}, {"$set": {"read": True}})
     return {"ok": True}
 
@@ -1597,8 +1604,8 @@ async def read_notifications(u=Depends(ANY)):
 @api.post("/notifications/clear")
 async def clear_notifications(u=Depends(ANY)):
     query = {"$or": [{"for_user": u["id"]}]}
-    if u["role"] == "owner":
-        query["$or"].append({"for_role": "owner"})
+    if u["role"] in {"owner", "admin"}:
+        query["$or"].append({"for_role": u["role"]})
     await db.notifications.delete_many(query)
     return {"ok": True}
 

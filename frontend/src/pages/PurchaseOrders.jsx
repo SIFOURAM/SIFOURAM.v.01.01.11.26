@@ -102,7 +102,7 @@ export default function PurchaseOrders() {
                   <p className="text-sm text-muted-foreground num">{order.qty} {order.unit} · {order.requested_by_name}</p>
                   {order.note && <p className="text-xs mt-2">{order.note}</p>}
                 </div>
-                <span data-testid={`purchase-order-status-${order.id}`} className={`h-fit px-2 py-1 rounded text-xs font-bold uppercase ${order.status === "approved" ? "bg-emerald-500/15 text-emerald-600" : order.status === "rejected" ? "bg-red-500/15 text-red-600" : "bg-amber-500/15 text-amber-600"}`}>{order.status}</span>
+                <span data-testid={`purchase-order-status-${order.id}`} className={`h-fit px-2 py-1 rounded text-xs font-bold uppercase ${order.status === "approved" ? "bg-emerald-500/15 text-emerald-600" : order.status === "rejected" ? "bg-red-500/15 text-red-600" : "bg-amber-500/15 text-amber-600"}`}>{order.status === "approved" ? "disetujui" : order.status === "rejected" ? "ditolak" : "menunggu"}</span>
               </div>
               {canDecide && order.status === "pending" && (
                 <div className="flex gap-2 mt-4">
