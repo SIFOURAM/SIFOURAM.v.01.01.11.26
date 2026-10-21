@@ -28,7 +28,7 @@ const en = {
   textFont: "Text & Font", textSize: "Text Size", boldText: "Bold Text", textColor: "Text Color", fontType: "Font Type", defaultFont: "Default",
 };
 const id = {
-  dashboard: "Dashboard", inventory: "Inventaris", menuStock: "Stock Menu Production", pos: "Kasir POS", riderStock: "Stock Awal", stockRider: "Stock Rider", stockPickup: "Pengambilan", stockRemaining: "Sisa", deposit: "Setoran",
+  dashboard: "Dashboard", inventory: "Inventaris", menuStock: "Stock Menu Production", posDashboard: "Dashboard POS", pos: "POS", riderStock: "Stock Awal", stockRider: "Stock Rider", stockPickup: "Pengambilan", stockRemaining: "Sisa", deposit: "Setoran",
   invoice: "Invoice", riderDash: "Dasbor Rider", handover: "Transfer / Serah Terima Kas", finance: "Laporan Keuangan", salary: "Gaji & Insentif", profile: "Profil",
   settings: "Pengaturan", reports: "Laporan", more: "Lainnya", logout: "Keluar", main: "Utama", stock: "Stok", today: "Hari Ini", yesterday: "Kemarin", week: "Minggu Ini", month: "Bulan Ini",
   prevmonth: "Bulan Lalu", prevweek: "Minggu Kemarin", custom: "Manual", cupsSold: "Cup Terjual", cashRevenue: "Pendapatan Cash", qrisRevenue: "Pendapatan QRIS", expenses: "Pengeluaran",

@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import MenuStock from "./pages/MenuStock";
 import POS from "./pages/POS";
+import POSDashboard from "./pages/POSDashboard";
 import RiderStock from "./pages/RiderStock";
 import Deposit from "./pages/DepositPage";
 import Invoice from "./pages/Invoice";
@@ -54,6 +55,7 @@ function Shell() {
         <Route path="/inventory" element={<Guard allow={SB}><Inventory /></Guard>} />
         <Route path="/menu-stock" element={<Guard allow={SB}><MenuStock /></Guard>} />
         <Route path="/pos" element={<Guard allow={POS_ACCESS}><POS /></Guard>} />
+        <Route path="/pos-dashboard" element={<Guard allow={REPORT_ACCESS}><POSDashboard /></Guard>} />
         <Route path="/rider-stock" element={<Guard allow={ALL}><RiderStock /></Guard>} />
         <Route path="/deposit" element={<Guard allow={SB}><Deposit /></Guard>} />
         <Route path="/invoice" element={<Guard allow={S}><Invoice /></Guard>} />
