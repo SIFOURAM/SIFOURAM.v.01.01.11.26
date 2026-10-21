@@ -26,10 +26,12 @@ function PinGate() {
   const [pin, setPin] = useState("");
   const press = async (k) => {
     if (k === "⌫") return setPin(pin.slice(0, -1));
-    const p = pin + k; setPin(p);
-    if (p.length >= 4) {
+    if (pin.length >= 6) return;
+    const p = pin + k;
+    setPin(p);
+    if (p.length === 6) {
       try { await api.post("/auth/verify-pin", { pin: p }); unlockPos(); toast.success("✓ PIN"); }
-      catch { if (p.length >= 6) { toast.error("PIN salah / Wrong PIN"); setPin(""); } }
+      catch (error) { toast.error(errMsg(error)); setPin(""); }
     }
   };
   return (
@@ -74,7 +76,7 @@ function Attendance({ rider, riders, riderId, setRiderId, isRider }) {
           <PhotoCapture value={photo} onChange={setPhoto} testId="attendance-photo" />
           <input data-testid="attendance-pin-input" type="password" inputMode="numeric" maxLength="6" className="field" placeholder="PIN Rider (6 angka)" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} />
           {!att ? <button data-testid="checkin-button" disabled={busy || pin.length !== 6 || !photo} onClick={() => act("checkin")} className="btn-primary w-full"><LogIn className="w-4 h-4" />{t("checkIn")}</button>
-            : <button data-testid="checkout-button" disabled={busy} onClick={() => act("checkout")} className="btn-ghost w-full"><LogOut className="w-4 h-4" />{t("checkOut")}</button>}
+            : <button data-testid="attendance-checkout-button" disabled={busy} onClick={() => act("checkout")} className="btn-ghost w-full"><LogOut className="w-4 h-4" />{t("checkOut")}</button>}
         </div>)}
     </Bento>
   );
@@ -168,7 +170,7 @@ export default function POS() {
         customer_name: cust.name,
         customer_phone: cust.phone,
         items,
-        payment_method: pay === "split" ? "cash" : pay,
+        payment_method: pay,
         payment_parts: paymentParts,
         cash_received: pay === "cash" ? Number(cash || 0) : splitCashAmount,
         order_type: orderType,
@@ -207,10 +209,22 @@ export default function POS() {
     `${receiptOrder ? `🍽️ ${receiptOrder}\n` : ""}` +
     receipt.items.map((i) => `${i.name} x${i.qty} = ${fmtRp(i.subtotal)}` + (i.component_names ? `\n   (${Object.entries(i.component_names).map(([n, q]) => `${n} ${q}`).join(", ")})` : "")).join("\n") +
     `\n----------------------------------\n💰 Total: ${fmtRp(receipt.total)}\n${receiptPaymentText || receipt.payment_method.toUpperCase()}${receipt.change ? `\n🔁 ${t("change")}: ${fmtRp(receipt.change)}` : ""}\n\n${t("thankYou")} ☕`;
+  const formatQty = (value) => Number.isInteger(value) ? value : Number(value || 0).toFixed(2);
   const eodText = eod && `*SI FOUR AM — ${L ? "TUTUP HARIAN" : "END OF DAY"}*\n🛵 ${rider?.name}\n📅 ${eod.date}\n----------------------------------\n` +
-    eod.rows.map((r) => `${r.name}: awal ${r.initial} | sisa ${r.remaining} | cash ${r.cash_qty} | qris ${r.qris_qty}`).join("\n") +
+    eod.rows.map((r) => `${r.name}: awal ${r.initial} | sisa ${r.remaining} | cash ${formatQty(r.cash_qty)} | qris ${formatQty(r.qris_qty)}`).join("\n") +
     `\n----------------------------------\n☕ ${t("totalSold")}: ${eod.total_cups} cups\n💰 Cash: ${fmtRp(eod.total_cash)}\n💳 QRIS: ${fmtRp(eod.total_qris)}\n🚀 Total: ${fmtRp(eod.total)}`;
-  const histRows = hist && stock.items.map((i) => { let c = 0, q = 0; hist.forEach((h) => h.items.forEach((it) => { const n = it.components ? it.components[i.menu_id] || 0 : it.menu_id === i.menu_id ? it.qty : 0; h.payment_method === "cash" ? (c += n) : (q += n); })); return { ...i, c, q }; });
+  const histRows = hist && stock.items.map((i) => {
+    let c = 0;
+    let q = 0;
+    let split = 0;
+    hist.forEach((h) => h.items.forEach((it) => {
+      const quantity = it.components ? it.components[i.menu_id] || 0 : it.menu_id === i.menu_id ? it.qty : 0;
+      if (h.payment_method === "cash") c += quantity;
+      else if (h.payment_method === "qris") q += quantity;
+      else split += quantity;
+    }));
+    return { ...i, c, q, split };
+  });
 
   return (
     <div data-testid="pos-page">
@@ -226,7 +240,7 @@ export default function POS() {
       <div className="grid gap-6">
         {!isRider && !riderId && <div className="rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary flex gap-2" data-testid="pick-rider-hint"><CalendarCheck className="w-4 h-4 shrink-0" />{L ? "Klik tombol Absen di kanan atas untuk memilih rider & melakukan absensi." : "Click Attendance (top right) to select a rider."}</div>}
         <div className="space-y-6">
-          {riderId && !stock.has_stock && <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-500 flex gap-2" data-testid="no-stock-warning"><Lock className="w-4 h-4 shrink-0" />{t("noStock")}</div>}
+          {riderId && !stock.has_stock && <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-500 flex gap-2" data-testid="no-stock-warning"><Lock className="w-4 h-4 shrink-0" />{stock.pending_stock ? "Stok awal sudah disiapkan dan menunggu verifikasi Rider sebelum kasir dibuka." : t("noStock")}</div>}
           {riderId && stock.has_stock && (stock.closed || stock.deposited) && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-500 flex gap-2" data-testid="pos-locked"><Lock className="w-4 h-4 shrink-0" />{stock.deposited ? t("depositDone") : t("eodDone")}</div>}
           {riderId && <>
             <Bento gold className="fade-up py-4" testId="daily-target">
@@ -299,12 +313,13 @@ export default function POS() {
                     <button
                       key={p}
                       data-testid={`pay-${p}`}
+                      aria-label={p === "split" ? "Split payment" : p}
                       onClick={() => setPay(p)}
                       className={`flex-1 h-10 rounded-lg text-xs font-bold uppercase ${
                         pay === p ? "bg-primary text-white" : "bg-muted"
                       }`}
                     >
-                      {p === "split" ? <Split className="mx-auto w-4 h-4" /> : p}
+                      {p === "split" ? <span className="flex items-center justify-center gap-1"><Split className="w-3.5 h-3.5" />Split</span> : p}
                     </button>
                   ))}
                 </div>
@@ -328,7 +343,7 @@ export default function POS() {
                 )}
               </div>
               {pay === "split" && !splitValid && (
-                <p data-testid="split-payment-hint" className="mt-2 text-xs text-amber-600">
+                <p data-testid="split-payment-hint" className="mt-2 text-xs text-amber-300">
                   Isi nominal tunai. Sisa total otomatis dibayar QRIS.
                 </p>
               )}
@@ -384,8 +399,8 @@ export default function POS() {
               <div className="rounded-xl bg-muted p-3"><p className="eyebrow">{t("revenue")}</p><p className="font-bold num text-xs">{fmtRp(hist.reduce((s, h) => s + h.total, 0))}</p></div>
               <div className="rounded-xl bg-muted p-3"><p className="eyebrow">{t("estProfit")}</p><p className="font-bold num text-xs text-emerald-500">{fmtRp(hist.reduce((s, h) => s + h.total, 0) - histRows.reduce((s, r) => s + (r.c + r.q) * (r.cost || 0), 0))}</p></div>
             </div>
-            <table className="table-x mb-4"><thead><tr><th>{t("menu")}</th><th>{t("stock")}</th><th>Cash</th><th>QRIS</th></tr></thead>
-              <tbody>{histRows.map((r) => <tr key={r.menu_id}><td className="text-xs font-semibold">{r.name}</td><td className="num">{r.initial}</td><td className="num">{r.c}</td><td className="num">{r.q}</td></tr>)}</tbody></table>
+            <table className="table-x mb-4"><thead><tr><th>{t("menu")}</th><th>{t("stock")}</th><th>Cash</th><th>QRIS</th><th>Split</th></tr></thead>
+              <tbody>{histRows.map((r) => <tr key={r.menu_id}><td className="text-xs font-semibold">{r.name}</td><td className="num">{r.initial}</td><td className="num">{r.c}</td><td className="num">{r.q}</td><td className="num">{r.split}</td></tr>)}</tbody></table>
             {hist.map((h) => <div key={h.id} className="flex justify-between text-sm py-2 border-b border-border/50"><button data-testid={`hist-receipt-${h.id}`} onClick={() => setReceipt(h)} className="text-left"><span className="num text-xs text-primary underline">{h.receipt_no}</span> <span className="text-xs text-muted-foreground">{h.time}</span> · {h.customer_name || "—"} · {h.cups} {t("cups")}</button><span className="num font-semibold">{fmtRp(h.total)} <span className="text-[10px] uppercase text-muted-foreground">{h.payment_method}</span></span></div>)}
             {!hist.length && <Empty text={t("noData")} />}
           </div>

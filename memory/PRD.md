@@ -148,3 +148,20 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Dashboard POS baru (`/pos-dashboard`) menampilkan filter periode, Total Tunai, QRIS, Total Penjualan, dan history transaksi dari API penjualan aktual. Iteration 16 lulus 18/18 backend checks dan 100% frontend checks; loading/error/empty state ditambahkan setelah review.
 - Iteration 12: 7/7 backend checks lulus, build frontend tanpa lint warning/error, serta Owner login/dashboard/Stock Awal smoke test lulus. Follow-up error handling prediksi telah diterapkan dan build ulang bersih.
 - Remaining: Dashboard POS, tab Stock Awal/Sisa dengan filter penuh, Purchase Order + notifikasi, akun pembayaran Owner, serta perubahan keranjang POS sesuai referensi.
+
+## POS P0 Completion (2026-10)
+- Rider dashboard salary fix verified in iteration 17: `/api/salary` serializes rank tiers safely,
+  uses Herald/Warriors/Masters/Divine/Immortal consistently for commission, and Rider Dashboard
+  now has loading, error/retry, and zero-rider empty states.
+- POS Keranjang now records `dine_in`, `takeaway`, or `online` orders. Dine In requires a table,
+  split payment records separate cash/QRIS amounts, and receipts, EOD, finance summaries, sales
+  reports, and Rider rank calculations preserve split totals without duplication.
+- POS keeps the menu grid visible while rider stock awaits verification, but blocks product additions
+  and payment. Attendance requires a numeric six-digit Rider PIN and photo before check-in.
+- Iteration 18: 16/16 backend checks passed plus desktop/mobile POS checks. Follow-up fixes added
+  whole-number EOD cup allocation, split-aware POS history, service-type reporting, localized
+  attendance errors, PIN-gate throttling, distinct test IDs, accessible receipt dialogs, and clear
+  pending-verification copy.
+- Remaining P1: complete Stock Awal/Sisa filters and photo-proof Pengambilan workflow; then build
+  Production Purchase Order approval/notification flow. P2 remains Broadcast WhatsApp, Owner
+  payment accounts, AI stock prediction, and Bluetooth receipt printing.

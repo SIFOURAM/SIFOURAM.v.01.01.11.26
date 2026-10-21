@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Download, MessageCircle, X, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent } from "./ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { compressImage, rangeFor, screenshotEl, shareReceipt, printBluetooth } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 
@@ -97,6 +97,7 @@ export function ReceiptModal({ open, onClose, title, waText, waPhone, filename =
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md p-0 border-0 bg-transparent shadow-none [&>button]:hidden" data-testid={testId}>
+        <DialogTitle className="sr-only">{title}</DialogTitle>
         <div className="relative">
           <button onClick={onClose} data-testid="receipt-close" className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center"><X className="w-4 h-4" /></button>
           <div ref={ref} className="rounded-3xl bg-white text-black p-6 gold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>

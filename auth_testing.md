@@ -8,3 +8,7 @@
 6. Owner creates an Admin, Bar Team, and Rider using `POST /api/users`; confirm six-digit PIN validation.
 7. Deactivate a test account using `PUT /api/users/{id}` and confirm both identify and authenticated API access are blocked.
 8. Confirm Rider cannot use Owner-only reports or user-management endpoints after the test account is created.
+9. `POST /api/auth/verify-pin` with an authenticated token and the six-digit owner PIN `130994`
+   returns `{ "ok": true }`; four- or five-digit values return HTTP 400 without unlocking POS.
+10. Submit five incorrect six-digit PIN values to `/api/auth/verify-pin` from the same session/IP;
+    the next request must return HTTP 429 for 15 minutes. A successful PIN clears the lock record.

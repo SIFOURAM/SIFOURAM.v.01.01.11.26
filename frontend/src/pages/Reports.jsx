@@ -23,6 +23,7 @@ export default function Reports() {
   const [range, setRange] = useState(null);
   const [method, setMethod] = useState("all");
   const [orderType, setOrderType] = useState("all");
+  const [serviceType, setServiceType] = useState("all");
   const [view, setView] = useState("sales");
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -32,14 +33,14 @@ export default function Reports() {
     if (!range || !["sales", "products"].includes(view)) return;
     setLoading(true);
     setError("");
-    api.get("/reports/sales", { params: { ...range, payment_method: method, order_type: orderType } })
+    api.get("/reports/sales", { params: { ...range, payment_method: method, sale_kind: orderType, service_type: serviceType } })
       .then((response) => setReport(response.data))
       .catch((requestError) => {
         setReport(null);
         setError(errMsg(requestError));
       })
       .finally(() => setLoading(false));
-  }, [range, method, orderType, view]);
+  }, [range, method, orderType, serviceType, view]);
 
   const title = view === "sales" ? "Laporan Penjualan" : "Performa Produk";
   const productRows = useMemo(() => report?.products || [], [report]);
@@ -127,6 +128,7 @@ export default function Reports() {
           <div className="flex flex-wrap items-start justify-end gap-2">
             <Select testId="report-payment-filter" className="w-32 h-9 text-xs" value={method} onChange={setMethod} options={[{ value: "all", label: "Semua bayar" }, { value: "cash", label: "Cash" }, { value: "qris", label: "QRIS" }]} />
             <Select testId="report-type-filter" className="w-32 h-9 text-xs" value={orderType} onChange={setOrderType} options={[{ value: "all", label: "Semua order" }, { value: "regular", label: "Reguler" }, { value: "bundling", label: "Bundling" }]} />
+            <Select testId="report-service-filter" className="w-32 h-9 text-xs" value={serviceType} onChange={setServiceType} options={[{ value: "all", label: "Semua layanan" }, { value: "dine_in", label: "Dine In" }, { value: "takeaway", label: "Takeaway" }, { value: "online", label: "Online" }]} />
             <DateFilter onChange={setRange} />
             {report && <div className="flex gap-1">
               <button data-testid="report-excel-button" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button>
@@ -150,6 +152,7 @@ export default function Reports() {
           </Bento>
           <Distribution title="Metode pembayaran" testId="report-payment-distribution" rows={report.payment_distribution} />
           <Distribution title="Tipe pesanan" testId="report-order-distribution" rows={report.order_distribution} />
+          <Distribution title="Layanan pesanan" testId="report-service-distribution" rows={report.service_distribution} />
           <Bento testId="report-hourly" className="col-span-2 fade-up">
             <p className="eyebrow mb-4">Transaksi & revenue per jam</p>
             {report.hourly.length ? <ResponsiveContainer width="100%" height={250}><BarChart data={report.hourly}><XAxis dataKey="hour" tick={{ fontSize: 10 }} /><YAxis hide /><Tooltip {...tooltip} formatter={(value) => fmtRp(value)} /><Bar dataKey="revenue" fill="#FF6B00" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer> : <Empty text="Belum ada transaksi pada periode ini" />}

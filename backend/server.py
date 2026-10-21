@@ -607,9 +607,23 @@ async def me(u=Depends(ANY)):
 
 
 @api.post("/auth/verify-pin")
-async def verify_pin(body: PinIn, u=Depends(ANY)):
+async def verify_pin(body: PinIn, request: Request, u=Depends(ANY)):
+    if len(body.pin) != 6 or not body.pin.isdigit():
+        raise HTTPException(400, "PIN harus berisi 6 angka")
+    key = f"pin-gate:{request_ip(request)}:{u['id']}"
+    attempt = await db.login_attempts.find_one({"identifier": key})
+    if attempt and attempt.get("count", 0) >= 5:
+        last_attempt = datetime.fromisoformat(attempt["last"])
+        if last_attempt > datetime.now(timezone.utc) - timedelta(minutes=15):
+            raise HTTPException(429, "Terlalu banyak percobaan PIN. Coba lagi dalam 15 menit.")
     if not check_pw(body.pin, u.get("pin_hash", "")):
-        raise HTTPException(401, "Wrong PIN")
+        await db.login_attempts.update_one(
+            {"identifier": key},
+            {"$inc": {"count": 1}, "$set": {"last": now_iso()}},
+            upsert=True,
+        )
+        raise HTTPException(401, "PIN salah")
+    await db.login_attempts.delete_one({"identifier": key})
     return {"ok": True}
 
 
@@ -856,11 +870,13 @@ async def list_attendance(start: Optional[str] = None, end: Optional[str] = None
 
 @api.post("/attendance/checkin")
 async def checkin(body: AttendanceIn, u=Depends(ANY)):
-    rider = await db.users.find_one({"id": body.rider_id, "role": "rider"})
+    rider = await db.users.find_one(
+        {"id": body.rider_id, "role": "rider", "active": {"$ne": False}}
+    )
     if not rider or not check_pw(body.pin, rider.get("pin_hash", "")):
-        raise HTTPException(401, "Wrong rider PIN")
+        raise HTTPException(401, "PIN Rider salah atau akun tidak aktif")
     if await db.attendance.find_one({"rider_id": body.rider_id, "date": body.date}):
-        raise HTTPException(409, "Attendance already recorded today")
+        raise HTTPException(409, "Absen masuk hari ini sudah tercatat")
     photo_url = await store_photo(body.photo, "attendance", rider["id"])
     doc = {"id": uid(), "rider_id": rider["id"], "rider_name": rider["name"], "date": body.date, "checkin_at": now_iso(), "checkin_time": now_wib(), "checkin_photo": photo_url,
            "checkout_at": None, "checkout_time": None, "checkout_photo": None, "lat": body.lat, "lng": body.lng}
@@ -874,14 +890,16 @@ async def checkin(body: AttendanceIn, u=Depends(ANY)):
 
 @api.post("/attendance/checkout")
 async def checkout(body: AttendanceIn, u=Depends(ANY)):
-    rider = await db.users.find_one({"id": body.rider_id, "role": "rider"})
+    rider = await db.users.find_one(
+        {"id": body.rider_id, "role": "rider", "active": {"$ne": False}}
+    )
     if not rider or not check_pw(body.pin, rider.get("pin_hash", "")):
-        raise HTTPException(401, "Wrong rider PIN")
+        raise HTTPException(401, "PIN Rider salah atau akun tidak aktif")
     att = await db.attendance.find_one({"rider_id": body.rider_id, "date": body.date})
     if not att:
-        raise HTTPException(404, "No check-in found today")
+        raise HTTPException(404, "Absen masuk hari ini belum ditemukan")
     if att.get("checkout_at"):
-        raise HTTPException(409, "Already checked out today")
+        raise HTTPException(409, "Absen pulang hari ini sudah tercatat")
     await db.attendance.update_one({"id": att["id"]}, {"$set": {"checkout_at": now_iso(), "checkout_time": now_wib(), "checkout_photo": await store_photo(body.photo, "attendance", rider["id"])}})
     doc = await db.attendance.find_one({"id": att["id"]}, NOID)
     await gs_sync("attendance", {**doc, "event": "checkout"}, body.photo, f"checkout_{rider['name']}_{body.date}.jpg")
@@ -1103,13 +1121,15 @@ async def eod_summary(rider_id: str, date: str):
                 })
                 for mid, q in it["components"].items():
                     if mid in menus:
-                        menus[mid]["cash_qty"] += q * cash_ratio
-                        menus[mid]["qris_qty"] += q * qris_ratio
+                        cash_qty = min(q, max(0, round(q * cash_ratio)))
+                        menus[mid]["cash_qty"] += cash_qty
+                        menus[mid]["qris_qty"] += q - cash_qty
             else:
                 m = menus.get(it["menu_id"])
                 if m:
-                    m["cash_qty"] += it["qty"] * cash_ratio
-                    m["qris_qty"] += it["qty"] * qris_ratio
+                    cash_qty = min(it["qty"], max(0, round(it["qty"] * cash_ratio)))
+                    m["cash_qty"] += cash_qty
+                    m["qris_qty"] += it["qty"] - cash_qty
                     m["cash_amt"] += it["subtotal"] * cash_ratio
                     m["qris_amt"] += it["subtotal"] * qris_ratio
     rows = list(menus.values())
@@ -1670,25 +1690,33 @@ async def sales_report(
     end: str,
     payment_method: Optional[str] = None,
     order_type: Optional[str] = None,
+    sale_kind: Optional[str] = None,
+    service_type: Optional[str] = None,
     u=Depends(REPORTS),
 ):
     query: Dict[str, Any] = {"date": {"$gte": start, "$lte": end}}
     rows = await db.sales.find(query, NOID).sort([("date", 1), ("time", 1)]).to_list(5000)
     filtered = []
     for sale in rows:
-        sale_type = "bundling" if any(item.get("bundle") for item in sale["items"]) else "regular"
-        if order_type and order_type != "all" and sale_type != order_type:
+        current_sale_kind = "bundling" if any(item.get("bundle") for item in sale["items"]) else "regular"
+        requested_sale_kind = sale_kind or order_type
+        if requested_sale_kind and requested_sale_kind != "all" and current_sale_kind != requested_sale_kind:
+            continue
+        current_service_type = sale.get("order_type") or "takeaway"
+        if service_type and service_type != "all" and current_service_type != service_type:
             continue
         payments = sale_payment_breakdown(sale)
         if payment_method and payment_method != "all" and not payments.get(payment_method, 0):
             continue
-        sale["order_type"] = sale_type
+        sale["sale_kind"] = current_sale_kind
+        sale["service_type"] = current_service_type
         sale["report_amount"] = payments.get(payment_method, 0) if payment_method and payment_method != "all" else sale["total"]
         sale["payment_breakdown"] = payments
         filtered.append(sale)
     by_date: Dict[str, float] = {}
     by_payment: Dict[str, float] = {}
     by_type: Dict[str, float] = {}
+    by_service: Dict[str, float] = {}
     by_hour: Dict[str, dict] = {}
     products: Dict[str, dict] = {}
     for sale in filtered:
@@ -1698,8 +1726,10 @@ async def sales_report(
         for method, value in sale["payment_breakdown"].items():
             if value:
                 by_payment[method] = by_payment.get(method, 0) + value
-        kind = sale["order_type"]
+        kind = sale["sale_kind"]
         by_type[kind] = by_type.get(kind, 0) + amount
+        service = sale["service_type"]
+        by_service[service] = by_service.get(service, 0) + amount
         hour = (sale.get("time") or "00:00")[:2]
         hour_row = by_hour.setdefault(hour, {"hour": f"{hour}:00", "transactions": 0, "revenue": 0})
         hour_row["transactions"] += 1
@@ -1723,7 +1753,13 @@ async def sales_report(
     for index, item in enumerate(product_rows, start=1):
         item["rank"] = index
     return {
-        "filters": {"start": start, "end": end, "payment_method": payment_method, "order_type": order_type},
+        "filters": {
+            "start": start,
+            "end": end,
+            "payment_method": payment_method,
+            "sale_kind": sale_kind or order_type,
+            "service_type": service_type,
+        },
         "transactions": len(filtered),
         "revenue": total_revenue,
         "average_order": round(total_revenue / len(filtered)) if filtered else 0,
@@ -1731,6 +1767,7 @@ async def sales_report(
         "daily_revenue": [{"date": key, "revenue": value} for key, value in sorted(by_date.items())],
         "payment_distribution": [{"name": key.upper(), "value": value} for key, value in by_payment.items()],
         "order_distribution": [{"name": key, "value": value} for key, value in by_type.items()],
+        "service_distribution": [{"name": key, "value": value} for key, value in by_service.items()],
         "hourly": [by_hour[key] for key in sorted(by_hour)],
         "products": product_rows,
     }

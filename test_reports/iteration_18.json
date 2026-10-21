@@ -1,0 +1,48 @@
+{
+  "summary": "Tested the POS P0 features end to end: backend pytest (16/16 passed) plus Playwright UI runs on desktop 1920 and mobile 390. Owner 2-step login (baa/130994) and the POS cashier PIN gate work. The Dine In/Takeaway/Online selector, the pos-table-select gate, split validation (cash > 0 and < total, QRIS computed automatically), the stock-unverified lock (product-grid visible, all products, bundles and checkout disabled) and the 6-digit rider attendance PIN (numeric-only, maxlength 6, button disabled without photo + 6 digits, wrong PIN rejected 401 with a toast) all work. Backend checks passed: POST /sales validations, split persistence, EOD, /reports/sales all/cash/qris, dashboard/summary and rider-rank (the split amount is neither doubled nor lost), client_id idempotency, and the EOD close lock. Found 2 split-related display/accounting bugs (fractional cup qty in EOD; history table counts split cups as QRIS), a floating AI-button overlap and a duplicate test ID. All QA data has been cleaned up.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/sales/eod", "issue": "For split sales, rows[].cash_qty / qris_qty are split by the payment ratio, so they become non-integer floats (e.g. 2 cups at 10000 cash / 14000 QRIS -> cash_qty 0.8333333333333334, qris_qty 1.1666666666666667). The amount totals are correct (cash 18000, QRIS 14000, total 32000). Cup counts should not be fractional: add a split_qty column or round/allocate whole cups."},
+      {"endpoint": "GET /api/reports/sales", "issue": "The response overwrites sale['order_type'] with 'bundling'/'regular'. The order_type query param also means bundling/regular, which clashes with the new dine_in/takeaway/online order_type field. There is no report breakdown by Dine In/Takeaway/Online. Suggest renaming the internal field to sale_kind and adding a distribution by service type."},
+      {"endpoint": "POST /api/attendance/checkin|checkout", "issue": "Error messages are in English ('Wrong rider PIN', 'Attendance already recorded today') in an Indonesian UI. Check-in also does not reject inactive riders (it does not check active=false)."},
+      {"endpoint": "POST /api/auth/verify-pin", "issue": "PinGate calls verify-pin at 4 and 5 digits before the 6th digit, so every unlock produces 2 x 401 console errors. verify-pin has no brute-force lockout."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "POS sales-history modal (histRows)", "issue": "The per-menu Cash/QRIS table uses h.payment_method === 'cash' ? c : q, so split sales are counted entirely as QRIS (2-cup split sale showed Cash 0 / QRIS 2). This is inconsistent with EOD. It needs to handle payment_method 'split' (e.g. a separate Split column, or use payment_parts).", "selector": "[data-testid=sales-history-modal] tbody", "priority": "MEDIUM"},
+      {"component": "EOD receipt", "issue": "Fractional cash_qty/qris_qty from the backend are shown raw ('0.8333333333333334') and overflow the 6-column grid, overlapping the neighbouring column.", "selector": "[data-testid=eod-receipt]", "priority": "MEDIUM"},
+      {"component": "Attendance dialog", "issue": "The attendance checkout button uses data-testid='checkout-button', the same as the POS cart checkout-button. Rename it to attendance-checkout-button.", "selector": "[data-testid=checkout-button]", "priority": "LOW"},
+      {"component": "no-stock-warning", "issue": "When stock is saved but not yet verified by the rider (pending_stock=true), the message still says 'Belum ada stok awal hari ini. Minta Bar Team / Superadmin menyimpan Stok Rider dulu.', which is misleading. Show a 'menunggu verifikasi Rider' message instead.", "selector": "[data-testid=no-stock-warning]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "POS cart (desktop 1920 and mobile 390)", "issues": ["The floating 'Tanya AI' CoachChat button overlaps the 'Bayar' checkout button on desktop and covers the split-qris-amount field on mobile. Add bottom padding to the cart or move the FAB.", "The pay-split button is icon-only (Split icon) with no text or aria-label, unlike the CASH/QRIS labels. Add a 'SPLIT' label.", "The split-payment-hint text-amber-600 has low contrast on the dark card."]},
+      {"screen": "Dialogs", "issues": ["Radix warning: 'DialogContent requires a DialogTitle' (pre-existing, accessibility)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter18_pos_p0.py", "/app/backend/tests/qa_iter18_fixture.py", "/app/test_reports/pytest/pytest_iter18.xml"],
+  "action_items": [
+    "Fix the POS history histRows so split sales are not counted as QRIS (use payment_parts or a split column)",
+    "Make EOD cup quantities for split sales whole numbers (split_qty column or integer allocation) and format them in the EOD receipt",
+    "Move or offset the Tanya AI FAB so it does not overlap checkout-button / split panel",
+    "Rename the attendance checkout testid to avoid clashing with the cart checkout-button",
+    "Show a distinct pending-verification message when pos/stock pending_stock=true",
+    "Optional: show the Dine In/Takeaway/Online breakdown in /reports/sales; localize attendance error messages; add a label to the split button"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 2049 lines; split it into routers (sales, attendance, reports, auth).",
+    "Frontend sends payment_method 'cash' for split payments. The backend derives 'split' from payment_parts, which works but is confusing; send 'split' explicitly.",
+    "reports/sales mutates sale['order_type'] with bundling/regular, so the semantics collide with the new order_type field.",
+    "Bundles in eod_summary still use 'method': s['payment_method'] (split) while cash/QRIS amounts are prorated. This is fine, but downstream consumers must handle 'split'.",
+    "The rider-stock POST decrements menus.stock even before rider verification (pre-existing behaviour)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter18_pos_p0.py", "/app/backend/tests/qa_iter18_fixture.py"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "~88% (core flows pass; 2 split display bugs + overlap)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md). Temporary riders qa_rider_p0_<hex> (pytest) and qa_rider_ui18 (UI) were created with PIN 246813 and then deleted.",
+  "seed_data_creation": "Temporary QA riders, rider_stock, sales, attendance and EOD were created on 2030-01-15 (pytest) and 2026-10-21 (UI). All of it was removed via Mongo afterwards and menus.stock was restored to its snapshot (all 0). DB after cleanup: users=1, sales/rider_stock/attendance/eod/customers/gps = 0, files=10 (unchanged). Limitation: any uploaded 1x1 test photo blobs in object storage may remain orphaned (no files records were created).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest /app/backend/tests/test_iter18_pos_p0.py (self-contained: it creates a rider, stock and sales on 2030-01-15 and cleans up in teardown). For UI, use 'python /app/backend/tests/qa_iter18_fixture.py setup <today>' then 'verify', and finally 'cleanup'. UI login requires scrolling the terms/privacy docs to enable the auth-*-agree buttons; the PIN is entered via pin-digit-0 + keyboard. posUnlocked persists per session. Retest: history split counting, EOD fractional qty, FAB overlap, attendance testid rename."
+}
