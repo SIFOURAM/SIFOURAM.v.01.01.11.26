@@ -133,10 +133,10 @@ export default function RiderStock() {
       <PageHeader eyebrow="Stock" title="Stock Awal" />
       <div className="grid lg:grid-cols-3 gap-6">
         <Bento gold className="lg:col-span-2 fade-up" testId="rider-stock-form">
-          <div className="grid sm:grid-cols-3 gap-3 mb-5">
-            <Field label={`${t("pic")} (auto)`}><input data-testid="rider-stock-pic" className="field bg-muted/50" value={user.name} readOnly /></Field>
-            <Field label={t("selectRider")}><Select testId="rider-stock-rider-select" value={riderId} onChange={setRiderId} placeholder="—" options={riders.map((r) => ({ value: r.id, label: r.name }))} /></Field>
-            <Field label={t("date")}><input data-testid="rider-stock-date-input" type="date" className="field" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <div className="grid grid-cols-3 gap-1.5 mb-5">
+            <Field label={`${t("pic")} (auto)`}><input data-testid="rider-stock-pic" className="field h-[22px] bg-muted/50 px-1 text-[11px]" value={user.name} readOnly /></Field>
+            <Field label={t("selectRider")}><Select testId="rider-stock-rider-select" className="h-[22px] px-1 text-[11px]" value={riderId} onChange={setRiderId} placeholder="—" options={riders.map((r) => ({ value: r.id, label: r.name }))} /></Field>
+            <Field label={t("date")}><input data-testid="rider-stock-date-input" type="date" className="field h-[22px] px-1 text-[11px]" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           </div>
           <div className="flex items-center justify-between mb-2"><p className="eyebrow">{t("menu")}</p>
             <button data-testid="forecast-button" disabled={!riderId} onClick={forecast} className="btn-ghost h-8 px-3 text-xs"><Sparkles className="w-3 h-3 text-primary" />{lang === "id" ? "Prediksi AI" : "AI Forecast"}</button></div>
