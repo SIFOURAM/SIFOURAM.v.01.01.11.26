@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Boxes, Layers, ShoppingCart, Bike, Wallet, FileText, HandCoins, LineChart, BadgeDollarSign, Settings as Cog, MoreHorizontal, LogOut, Sun, Moon, Gauge, Users, Bell, UserCog, ChartNoAxesCombined } from "lucide-react";
+import { LayoutDashboard, Boxes, Layers, ShoppingCart, Bike, Wallet, FileText, HandCoins, LineChart, BadgeDollarSign, Settings as Cog, MoreHorizontal, LogOut, Sun, Moon, Gauge, Users, Bell, UserCog, ChartNoAxesCombined, MessageCircle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useT } from "../lib/i18n";
 import { api } from "../lib/api";
@@ -56,7 +56,7 @@ function NotifBell() {
   );
 }
 
-const I = { dashboard: LayoutDashboard, inventory: Boxes, menuStock: Layers, pos: ShoppingCart, riderStock: Bike, stockRider: Bike, stockPickup: HandCoins, stockRemaining: Gauge, deposit: Wallet, invoice: FileText, riderDash: Gauge, handover: HandCoins, finance: LineChart, salary: BadgeDollarSign, settings: Cog, customers: Users, userInfo: UserCog, reports: ChartNoAxesCombined };
+const I = { dashboard: LayoutDashboard, inventory: Boxes, menuStock: Layers, pos: ShoppingCart, riderStock: Bike, stockRider: Bike, stockPickup: HandCoins, stockRemaining: Gauge, deposit: Wallet, invoice: FileText, riderDash: Gauge, handover: HandCoins, finance: LineChart, salary: BadgeDollarSign, settings: Cog, customers: Users, userInfo: UserCog, reports: ChartNoAxesCombined, purchaseOrders: FileText, broadcast: MessageCircle, paymentAccounts: Wallet };
 const item = (to, key) => ({ to, key, icon: I[key] });
 
 export const NAV = {
@@ -84,20 +84,20 @@ export const CATEGORIES = {
     { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/reports", "reports"), item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
     { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos-dashboard", tabs: [item("/pos-dashboard", "posDashboard"), item("/pos", "pos"), item("/deposit", "deposit"), item("/invoice", "invoice"), item("/customers", "customers"), item("/handover", "handover")] },
-    { name: "Production", icon: Layers, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock?mode=production", "menuStock")] },
-    { name: "Lainnya", icon: MoreHorizontal, to: "/finance", tabs: [item("/finance", "finance"), item("/user-info", "userInfo"), item("/settings", "settings")] },
+    { name: "Production", icon: Layers, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock?mode=production", "menuStock"), item("/purchase-orders", "purchaseOrders")] },
+    { name: "Lainnya", icon: MoreHorizontal, to: "/finance", tabs: [item("/finance", "finance"), item("/user-info", "userInfo"), item("/broadcast", "broadcast"), item("/payment-accounts", "paymentAccounts"), item("/settings", "settings")] },
   ],
   admin: [
     { name: "Dashboard", icon: LayoutDashboard, to: "/", tabs: [item("/", "dashboard"), item("/reports", "reports"), item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
     { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos-dashboard", tabs: [item("/pos-dashboard", "posDashboard"), item("/deposit", "deposit")] },
-    { name: "Production", icon: Layers, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock?mode=production", "menuStock")] },
+    { name: "Production", icon: Layers, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock?mode=production", "menuStock"), item("/purchase-orders", "purchaseOrders")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
   barteam: [
     { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
     { name: "POS", icon: ShoppingCart, to: "/deposit", tabs: [item("/deposit", "deposit")] },
-    { name: "Production", icon: Layers, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock?mode=production", "menuStock")] },
+    { name: "Production", icon: Layers, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock?mode=production", "menuStock"), item("/purchase-orders", "purchaseOrders")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
   rider: [
@@ -210,7 +210,7 @@ export default function Layout() {
           <div className="flex items-center gap-2 lg:hidden"><img src="/assets/si-four-am-logo.png" alt="SI FOUR AM" className="w-10 h-10 object-contain" /><div><span className="font-heading font-bold">SI FOUR AM</span><p data-testid="mobile-login-role" className="text-[0.6rem] font-semibold text-black/70 leading-none">{roleLabel}</p></div></div>
           <div className="hidden lg:block"><p className="eyebrow text-black/70">{roleLabel}</p></div>
           <div className="flex items-center gap-2">
-            {user.role === "owner" && <NotifBell />}
+            <NotifBell />
             <ThemeBtn id="theme-toggle-button" />
             <div className="text-right hidden sm:block"><p className="text-sm font-semibold leading-tight">{user.name}</p><p className="text-[0.7rem] text-black/70">@{user.username}</p></div>
             <Avatar />

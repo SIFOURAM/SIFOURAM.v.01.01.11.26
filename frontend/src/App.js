@@ -25,6 +25,8 @@ import Settings from "./pages/Settings";
 import Customers from "./pages/Customers";
 import UserInfo from "./pages/UserInfo";
 import Reports from "./pages/Reports";
+import PurchaseOrders from "./pages/PurchaseOrders";
+import { Broadcast, PaymentAccounts } from "./pages/MoreTools";
 
 const S = ["owner"];
 const SB = ["owner", "admin", "barteam"];
@@ -54,6 +56,7 @@ function Shell() {
         <Route path="/" element={<Home />} />
         <Route path="/inventory" element={<Guard allow={SB}><Inventory /></Guard>} />
         <Route path="/menu-stock" element={<Guard allow={SB}><MenuStock /></Guard>} />
+        <Route path="/purchase-orders" element={<Guard allow={SB}><PurchaseOrders /></Guard>} />
         <Route path="/pos" element={<Guard allow={POS_ACCESS}><POS /></Guard>} />
         <Route path="/pos-dashboard" element={<Guard allow={REPORT_ACCESS}><POSDashboard /></Guard>} />
         <Route path="/rider-stock" element={<Guard allow={ALL}><RiderStock /></Guard>} />
@@ -66,6 +69,8 @@ function Shell() {
         <Route path="/salary" element={<Guard allow={SB}><Salary /></Guard>} />
         <Route path="/customers" element={<Guard allow={SB}><Customers /></Guard>} />
         <Route path="/user-info" element={<Guard allow={S}><UserInfo /></Guard>} />
+        <Route path="/broadcast" element={<Guard allow={S}><Broadcast /></Guard>} />
+        <Route path="/payment-accounts" element={<Guard allow={S}><PaymentAccounts /></Guard>} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />

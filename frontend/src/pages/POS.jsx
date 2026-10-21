@@ -114,6 +114,7 @@ export default function POS() {
   const [splitCash, setSplitCash] = useState("");
   const [orderType, setOrderType] = useState("takeaway");
   const [tableNumber, setTableNumber] = useState("");
+  const [qrisAccounts, setQrisAccounts] = useState([]);
   const [receipt, setReceipt] = useState(null);
   const [eod, setEod] = useState(null);
   const [hist, setHist] = useState(null);
@@ -125,6 +126,11 @@ export default function POS() {
   useEffect(() => { if (!isRider) api.get("/users", { params: { role: "rider" } }).then((r) => setRiders(r.data)); }, [isRider]);
   const loadStock = () => riderId && api.get("/pos/stock", { params: { rider_id: riderId, date: today() } }).then((r) => setStock(r.data));
   useEffect(() => { loadStock(); }, [riderId]); // eslint-disable-line
+  useEffect(() => {
+    api.get("/payment-accounts/public")
+      .then((response) => setQrisAccounts(response.data))
+      .catch(() => setQrisAccounts([]));
+  }, []);
   useEffect(() => {
     const p = cust.phone.replace(/\D/g, "");
     if (p.length >= 5 && !cust.name) api.get("/customers/lookup", { params: { phone: p } }).then((r) => { const c = r.data.customers[0]; if (c?.name) setCust((x) => ({ ...x, name: c.name })); });
@@ -324,6 +330,12 @@ export default function POS() {
                   ))}
                 </div>
                 {pay === "cash" && <input data-testid="cash-received-input" type="number" className="field num" placeholder={t("cashReceived")} value={cash} onChange={(e) => setCash(e.target.value)} />}
+                {pay === "qris" && qrisAccounts.map((account) => (
+                  <div key={account.id} data-testid={`pos-qris-${account.id}`} className="sm:col-span-2 flex items-center gap-3 rounded-lg border border-primary/30 p-3">
+                    <img src={account.qris_photo} alt={`QRIS ${account.name}`} className="w-20 h-20 object-contain bg-white rounded" />
+                    <div><p className="font-semibold text-sm">{account.name}</p><p className="text-xs text-muted-foreground">Scan QRIS untuk pembayaran</p></div>
+                  </div>
+                ))}
                 {pay === "split" && (
                   <div className="grid grid-cols-2 gap-2 sm:col-span-2" data-testid="split-payment-panel">
                     <input

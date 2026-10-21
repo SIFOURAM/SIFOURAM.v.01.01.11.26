@@ -842,6 +842,14 @@ async def list_payment_accounts(u=Depends(SUPER)):
     return await db.payment_accounts.find({}, NOID).sort("created_at", -1).to_list(50)
 
 
+@api.get("/payment-accounts/public")
+async def list_public_payment_accounts(u=Depends(ANY)):
+    return await db.payment_accounts.find(
+        {"active": True, "qris_photo": {"$nin": [None, ""]}},
+        {"_id": 0, "id": 1, "name": 1, "bank_name": 1, "qris_photo": 1},
+    ).to_list(20)
+
+
 @api.post("/payment-accounts")
 async def create_payment_account(body: PaymentAccountIn, u=Depends(SUPER)):
     if body.qris_photo and (not body.qris_photo.startswith("data:image/") or len(body.qris_photo) > 3_000_000):
@@ -1570,19 +1578,28 @@ async def accept_withdrawal(wid: str, u=Depends(SUPER)):
 
 
 @api.get("/notifications")
-async def list_notifications(u=Depends(SUPER)):
-    return await db.notifications.find({"for_role": "owner"}, NOID).sort("created_at", -1).limit(30).to_list(30)
+async def list_notifications(u=Depends(ANY)):
+    query = {"$or": [{"for_user": u["id"]}]}
+    if u["role"] == "owner":
+        query["$or"].append({"for_role": "owner"})
+    return await db.notifications.find(query, NOID).sort("created_at", -1).limit(30).to_list(30)
 
 
 @api.post("/notifications/read")
-async def read_notifications(u=Depends(SUPER)):
-    await db.notifications.update_many({"for_role": "owner", "read": False}, {"$set": {"read": True}})
+async def read_notifications(u=Depends(ANY)):
+    query = {"$or": [{"for_user": u["id"]}]}
+    if u["role"] == "owner":
+        query["$or"].append({"for_role": "owner"})
+    await db.notifications.update_many({**query, "read": False}, {"$set": {"read": True}})
     return {"ok": True}
 
 
 @api.post("/notifications/clear")
-async def clear_notifications(u=Depends(SUPER)):
-    await db.notifications.delete_many({"for_role": "owner"})
+async def clear_notifications(u=Depends(ANY)):
+    query = {"$or": [{"for_user": u["id"]}]}
+    if u["role"] == "owner":
+        query["$or"].append({"for_role": "owner"})
+    await db.notifications.delete_many(query)
     return {"ok": True}
 
 
