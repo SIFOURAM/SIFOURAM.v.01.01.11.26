@@ -39,7 +39,7 @@ function NotifBell() {
   const clearAll = () => api.post("/notifications/clear").then(() => { setList([]); setOpen(false); }).catch(() => {});
   return (
     <div className="relative">
-      <button data-testid="notif-bell" onClick={() => { setOpen(!open); if (unread) api.post("/notifications/read").then(load); }} className="p-2 rounded-lg hover:bg-muted relative"><Bell className="w-4 h-4" />{unread > 0 && <span data-testid="notif-count" className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">{unread}</span>}</button>
+      <button data-testid="notif-bell" onClick={() => { setOpen(!open); if (unread) api.post("/notifications/read").then(load); }} className="p-2 rounded-lg hover:bg-muted relative text-foreground dark:text-white"><Bell className="w-4 h-4" />{unread > 0 && <span data-testid="notif-count" className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">{unread}</span>}</button>
       {open && <>
         <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
         <div data-testid="notif-list" className="fixed left-0 right-0 mx-auto top-20 w-[92vw] max-w-sm max-h-[70vh] overflow-y-auto bg-card text-foreground border border-border rounded-xl shadow-2xl p-3 z-50 fade-up">
@@ -117,7 +117,7 @@ function CategoryTabs({ categories, category, t }) {
     <nav data-testid="category-tabs" className={`category-tab-bar ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
       <div className="flex items-center gap-2 min-w-0">
         <span data-testid="category-current-label" className="font-heading font-bold text-primary">{category.name}</span>
-        <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => navigate(event.target.value)} className="category-dropdown">
+        <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => navigate(event.target.value)} className={`category-dropdown text-primary font-semibold ${activeTab.subtabs?.length ? "max-w-[7.5rem]" : ""}`}>
           {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{t(tab.key)}</option>)}
         </select>
         {activeTab.subtabs?.length > 0 && <><span className="text-muted-foreground">›</span><select data-testid="category-subtabs-dropdown" value={currentPath} onChange={(event) => navigate(event.target.value)} className="category-dropdown">{activeTab.subtabs.map((tab) => <option key={tab.to} value={tab.to}>{tab.label}</option>)}</select></>}
@@ -220,11 +220,11 @@ export default function Layout() {
           <div className="flex justify-around px-1 py-1.5 pb-[max(env(safe-area-inset-bottom),6px)]">
             {main.map((i) => (
               <NavLink key={i.to} to={i.to} end={i.to === "/"} data-testid={`bottomnav-${i.key}`}
-                className={({ isActive }) => `flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${i.key === "pos" ? "text-black" : isActive ? "text-primary" : "text-muted-foreground"}`}>
+                className={({ isActive }) => `flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${i.key === "pos" ? "text-black" : theme === "dark" ? "text-white" : isActive ? "text-primary" : "text-muted-foreground"}`}>
                 <span className={i.key === "pos" ? "flex w-10 h-10 -mt-3 items-center justify-center rounded-full bg-primary shadow-md" : "flex items-center justify-center"}>
                   <i.icon className={i.key === "pos" ? "w-5 h-5" : "w-[0.95rem] h-[0.95rem]"} />
                 </span>
-                {i.key !== "pos" && <span className="truncate max-w-full">{t(i.key)}</span>}
+                {i.key !== "pos" && <span className={`truncate max-w-full ${theme === "dark" ? "text-white" : ""}`}>{t(i.key)}</span>}
               </NavLink>))}
             {more.length > 0 && <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${activeCategory?.name === "Lainnya" || moreOpen ? "text-primary" : "text-muted-foreground"}`}><MoreHorizontal className="w-[0.95rem] h-[0.95rem]" /><span>{t("more")}</span></button>}
           </div>
