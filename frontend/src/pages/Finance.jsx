@@ -46,7 +46,7 @@ export default function Finance() {
 
   return (
     <div data-testid="finance-page">
-      <PageHeader eyebrow="Superadmin" title={t("finance")}>
+      <PageHeader eyebrow="Dashboard · Laporan" title="Laporan Keuangan">
         <DateFilter onChange={setRange} />
         {d && <div className="flex gap-2"><button data-testid="fin-excel-button" onClick={excel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />{t("excel")}</button><button data-testid="fin-pdf-button" onClick={pdf} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button><button data-testid="fin-wa-button" onClick={wa} className="btn-wa h-9 px-3 text-xs"><MessageCircle className="w-3.5 h-3.5" />WA</button></div>}
       </PageHeader>
@@ -61,7 +61,7 @@ export default function Finance() {
           <Stat label="Inventory value" value={fmtRp(d.inventory_value)} sub="raw + packaging on hand" testId="fin-inventory" />
           <Stat label="Margin" value={d.income ? `${Math.round((d.net / d.income) * 100)}%` : "—"} sub="net / income" testId="fin-margin" />
 
-          <Bento gold className="col-span-2 lg:col-span-1 fade-up" testId="expense-form">
+          {false && <Bento gold className="col-span-2 lg:col-span-1 fade-up" testId="expense-form">
             <p className="eyebrow mb-4">{t("addExpense")} / manual entry</p>
             <form onSubmit={save} className="space-y-3">
               <div className="flex gap-2">{["expense", "income"].map((k) => <button type="button" key={k} data-testid={`exp-type-${k}`} onClick={() => setF({ ...f, type: k })} className={`flex-1 h-9 rounded-full text-xs font-bold uppercase ${f.type === k ? "bg-primary text-white" : "bg-muted"}`}>{k}</button>)}</div>
@@ -74,7 +74,7 @@ export default function Finance() {
               <Field label="Note"><input data-testid="exp-note-input" className="field" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
               <button data-testid="exp-save-button" className="btn-primary w-full">{t("save")}</button>
             </form>
-          </Bento>
+          </Bento>}
           <Bento className="col-span-2 lg:col-span-1 fade-up" testId="expense-breakdown">
             <p className="eyebrow mb-4">Outgoing by category</p>
             {d.by_category.length ? <><ResponsiveContainer width="100%" height={160}><PieChart><Pie data={d.by_category} dataKey="amount" nameKey="name" innerRadius={45} outerRadius={70} paddingAngle={3}>{d.by_category.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip formatter={(v) => fmtRp(v)} contentStyle={{ borderRadius: 12, fontSize: 12 }} /></PieChart></ResponsiveContainer>
