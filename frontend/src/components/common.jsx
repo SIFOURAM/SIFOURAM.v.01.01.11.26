@@ -26,7 +26,7 @@ export const Stat = ({ label, value, sub, icon: Icon, gold, testId, className = 
 
 export const Field = ({ label, children, className = "" }) => (
   <label className={`block ${className}`}>
-    {label && <span className="eyebrow block mb-1">{label}</span>}
+    {label && <span className="eyebrow block mb-1.5">{label}</span>}
     {children}
   </label>
 );
@@ -39,7 +39,7 @@ export const Select = ({ value, onChange, options, testId, className = "", place
 );
 
 export const QtySelect = ({ value, onChange, max = 30, testId, className = "" }) => (
-  <select data-testid={testId} value={value} onChange={(e) => onChange(Number(e.target.value))} className={`qty ${className}`}>
+  <select data-testid={testId} value={value} onChange={(e) => onChange(Number(e.target.value))} className={`qty my-0 leading-none ${className}`}>
     {Array.from({ length: max + 1 }, (_, i) => <option key={i} value={i}>{i}</option>)}
   </select>
 );
