@@ -108,20 +108,11 @@ export const CATEGORIES = {
   ],
 };
 
-function CategoryTabs({ categories, category, t }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const currentPath = `${location.pathname}${location.search}`;
-  const activeTab = category.tabs.find((tab) => tab.to === currentPath || tab.subtabs?.some((subtab) => subtab.to === currentPath)) || category.tabs.find((tab) => location.pathname === tab.to.split("?")[0]) || category.tabs[0];
-  const selectedTabValue = activeTab.subtabs?.some((subtab) => subtab.to === currentPath) ? currentPath : activeTab.to;
+function CategoryTabs({ category }) {
   return (
     <nav data-testid="category-tabs" className={`category-tab-bar ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
       <div className="flex items-center gap-2 min-w-0">
         <span data-testid="category-current-label" className="font-heading font-bold text-primary">{category.name}</span>
-        <select data-testid="category-tabs-dropdown" value={selectedTabValue} onChange={(event) => navigate(event.target.value)} className="category-dropdown text-primary font-semibold max-w-[10rem]">
-          {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{t(tab.key)}</option>)}
-          {activeTab.subtabs?.length > 0 && <optgroup label={t(activeTab.key)}>{activeTab.subtabs.map((tab) => <option key={tab.to} value={tab.to}>↳ {tab.label}</option>)}</optgroup>}
-        </select>
       </div>
     </nav>
   );
@@ -213,7 +204,7 @@ export default function Layout() {
             <Avatar />
           </div>
         </header>
-        {activeCategory && <CategoryTabs categories={categories} category={activeCategory} t={t} />}
+        {activeCategory && <CategoryTabs category={activeCategory} />}
         <main className="flex-1 max-w-[1400px] w-full mx-auto min-w-0 p-4 pb-28 lg:p-8 lg:pb-8"><Outlet /></main>
         <RiderMotivation user={user} />
 
