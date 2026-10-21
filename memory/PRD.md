@@ -210,3 +210,6 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   activity after closing renews that three-hour timer.
 - Company book period remains 16th through 15th through the shared period helper. QRIS preview state
   is restored in POS to prevent the reported runtime error.
+- Follow-up QA fixed bodyless cron delivery and strict Bearer authorization. Rank cards now always use
+  Monday–Sunday independently of history filters; backend restart, bodyless cron call, and frontend
+  production build passed.

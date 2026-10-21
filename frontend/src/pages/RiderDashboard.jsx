@@ -191,7 +191,7 @@ export default function RiderDashboard() {
         api.get("/rider-stock/history", { params: p }),
         api.get("/sales", { params: p }),
         api.get("/deposits", { params: p }),
-        riderId !== "all" ? api.get("/rider-rank", { params: p }) : Promise.resolve(null),
+        riderId !== "all" ? api.get("/rider-rank", { params: { ...rangeFor("week"), rider_id: riderId } }) : Promise.resolve(null),
       ]);
       setSum(responses[0].data);
       setSal(responses[1].data);

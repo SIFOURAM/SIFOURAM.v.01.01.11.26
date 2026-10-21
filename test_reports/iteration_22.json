@@ -1,0 +1,41 @@
+{
+  "summary": "Focused regression on 6 items. (1) POS on mobile at 390px renders with no qrisPreview ReferenceError and no page errors. No riders or QRIS accounts exist, so the QRIS preview dialog was tested with Playwright network mocks of /users?role=rider, /pos/stock and /payment-accounts/public; nothing was persisted. With the mocks it opens from pos-qris-open-<id> and closes with Escape, and POS stays rendered. (2) AuthContext has no 10-minute path. With Playwright clock: still logged in after 11 min and after 4 h idle with no EOD; still logged in 2h50 after the EOD signal; logged out after 3h01; activity resets the timer; a stale EOD flag older than 3 h logs out on load. (3) rangeFor week/prevweek is correct Monday–Sunday for Sun/Mon/Wed/Sat. periodFor gives 16th–15th (4 boundary dates), checked with a node harness in TZ=Asia/Jakarta. (4) crons.yml parses, cron '0 0 * * 1', timezone Asia/Jakarta, POST. (5) The cron endpoint rejects a missing or wrong secret (401), accepts a valid request (200 queued) and is idempotent (duplicate:true), and returns 400 without a run_id. FAILURE: a POST with no body returns 422, even when authorised with an X-Webhook-Id header. Backend pytest: 6 of 8 passed.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/cron/weekly-rank-reset", "issue": "The signature has a required `body: Dict[str, Any]`. A POST with no body (common for cron schedulers) gets 422 before the auth check, even with a valid Bearer and an X-Webhook-Id header. If the Emergent cron sends no JSON body, the weekly job will fail every run. Make the body optional (e.g. `body: Optional[Dict[str, Any]] = Body(None)`) or read `await request.json()` inside a try block.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/cron/weekly-rank-reset", "issue": "`removeprefix('Bearer ')` means the raw secret without the 'Bearer ' prefix is also accepted (200). This is lenient; ideally require the Bearer scheme."},
+      {"endpoint": "POST /api/cron/weekly-rank-reset", "issue": "The cron only writes a marker document to rank_resets and nothing reads it. The rank 'reset' really depends on the frontend passing a Monday-start range to /api/rider-rank. That is functionally OK, but the cron has no effect."},
+      {"endpoint": "startup", "issue": "Backend log: 'Storage init failed: 401 Unauthorized for objstore storage/init'. Pre-existing, but uploads relying on object storage may fail."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "RiderDashboard RankCard", "issue": "The card is labelled 'Rank Mingguan', but /rider-rank is called with the dashboard's selected range (default 'today', can be 'month'). So the rank shown is not the weekly rank unless the 'week' preset is chosen. Call /rider-rank with rangeFor('week') regardless of the filter.", "selector": "[data-testid='rider-rank-card']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "EOD to 3h inactivity logout", "issue": "The si4am_eod_closed flag is set only on the device that clicks Tutup Penjualan (POS.jsx closeEod). When an owner or admin closes a rider's EOD, the owner's device gets the 3h logout and the rider's device never does. Also, the flag stays set into the next day until logout, so the 3h idle logout keeps applying during the next shift.", "affected_selectors": ["[data-testid='eod-button']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter22_cron_rank_reset.py", "/app/test_reports/pytest/pytest_iter22.xml"],
+  "action_items": [
+    "HIGH: Make the request body optional on POST /api/cron/weekly-rank-reset so a bodyless cron POST with valid Bearer + X-Webhook-Id returns 200 instead of 422",
+    "MEDIUM: Rider rank card labelled 'Rank Mingguan' should always query /rider-rank with rangeFor('week'), not the dashboard filter range",
+    "LOW: Decide whether an EOD closed by owner/admin should trigger the rider's 3h logout (server-side signal) and clear si4am_eod_closed at the next day's start",
+    "LOW: Require the 'Bearer ' prefix strictly in the cron auth check"
+  ],
+  "critical_code_review_comments": [
+    "AuthContext resetTimer writes localStorage on every mousemove/scroll event after EOD. Throttle it.",
+    "rangeFor/periodFor use the browser's local timezone, not WIB. Devices outside UTC+7 get shifted week/period boundaries around midnight.",
+    "Logout is client-only (the token is removed locally). The JWT remains valid server-side."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter22_cron_rank_reset.py"],
+  "success_rate": {"backend": "75% (6/8)", "frontend": "100% of requested checks (QRIS dialog via network mocks)"},
+  "test_credentials": "Owner baa / PIN 130994 from /app/memory/test_credentials.md works. Hashes are bcrypt $2b$. Brute-force lockout not tested, to avoid locking the only owner account.",
+  "seed_data_creation": "None persisted. 3 TEST_ rank_resets marker docs were created by the cron tests and deleted afterwards.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Only the owner account exists (no riders, no payment accounts), so POS QRIS needs page.route mocks. Login in Playwright via fetch /api/auth/identify + /api/auth/login, then localStorage si4am_token, plus sessionStorage si4am_pos='1' to skip the PIN gate. On mobile, use nav-profile-button as the logged-in indicator (logout-button is hidden in the sidebar). Use page.clock.install() + fast_forward to test the 3h EOD logout."
+}

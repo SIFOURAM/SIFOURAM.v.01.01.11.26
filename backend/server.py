@@ -6,7 +6,7 @@ load_dotenv(ROOT_DIR / '.env')
 import os, uuid, logging, bcrypt, jwt, requests, threading, hmac
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, BackgroundTasks
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, BackgroundTasks, Body
 import base64, re
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -50,13 +50,16 @@ async def record_weekly_rank_reset(run_id: str):
 
 
 @api.post("/cron/weekly-rank-reset")
-async def weekly_rank_reset(request: Request, background_tasks: BackgroundTasks, body: Dict[str, Any]):
+async def weekly_rank_reset(request: Request, background_tasks: BackgroundTasks, body: Optional[Dict[str, Any]] = Body(None)):
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
     secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
-    token = request.headers.get("Authorization", "").removeprefix("Bearer ")
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        raise HTTPException(401, "Unauthorized cron request")
+    token = header[7:]
     if not secret or not token or not hmac.compare_digest(token, secret):
         raise HTTPException(401, "Unauthorized cron request")
-    run_id = request.headers.get("X-Webhook-Id") or body.get("run_id")
+    run_id = request.headers.get("X-Webhook-Id") or (body or {}).get("run_id")
     if not run_id:
         raise HTTPException(400, "Missing cron run id")
     if await db.rank_resets.find_one({"run_id": run_id}, NOID):
