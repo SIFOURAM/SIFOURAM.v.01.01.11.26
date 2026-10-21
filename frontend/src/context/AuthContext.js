@@ -8,6 +8,14 @@ export function AuthProvider({ children }) {
   const [theme, setThemeState] = useState(localStorage.getItem("si4am_theme") || "dark");
   const [posUnlocked, setPosUnlocked] = useState(sessionStorage.getItem("si4am_pos") === "1");
   const inactivityTimer = useRef(null);
+  const wibDate = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta" }).format(new Date());
+  const millisToWibMidnight = () => {
+    const now = new Date();
+    const wib = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
+    const next = new Date(wib);
+    next.setHours(24, 0, 0, 0);
+    return next.getTime() - wib.getTime();
+  };
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -23,7 +31,15 @@ export function AuthProvider({ children }) {
       setUser(false);
       return;
     }
-    api.get("/auth/me").then((r) => setUser(r.data)).catch(() => setUser(false));
+    api.get("/auth/me").then((r) => {
+      if (r.data.role !== "rider" && localStorage.getItem("si4am_session_wib_date") !== wibDate()) {
+        localStorage.removeItem("si4am_token");
+        sessionStorage.removeItem("si4am_token");
+        setUser(false);
+        return;
+      }
+      setUser(r.data);
+    }).catch(() => setUser(false));
   }, []);
 
   const identify = useCallback(async (identifier, termsAccepted, privacyAccepted) => {
@@ -42,32 +58,32 @@ export function AuthProvider({ children }) {
       remember,
     });
     (remember ? localStorage : sessionStorage).setItem("si4am_token", data.token);
+    if (data.user.role !== "rider") localStorage.setItem("si4am_session_wib_date", wibDate());
     setUser(data.user);
     return data.user;
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("si4am_token"); sessionStorage.removeItem("si4am_token"); localStorage.removeItem("si4am_eod_closed"); sessionStorage.removeItem("si4am_pos");
+    localStorage.removeItem("si4am_token"); sessionStorage.removeItem("si4am_token"); localStorage.removeItem("si4am_eod_closed"); localStorage.removeItem("si4am_session_wib_date"); sessionStorage.removeItem("si4am_pos");
     setUser(false); setPosUnlocked(false);
   }, []);
 
   useEffect(() => {
     if (!user) return undefined;
-    const resetTimer = () => {
+    const schedule = () => {
       window.clearTimeout(inactivityTimer.current);
-      const closedAt = Number(localStorage.getItem("si4am_eod_closed") || 0);
-      if (!closedAt) return;
-      localStorage.setItem("si4am_eod_closed", String(Date.now()));
-      inactivityTimer.current = window.setTimeout(logout, 3 * 60 * 60 * 1000);
+      if (user.role === "rider") {
+        const closedAt = Number(localStorage.getItem("si4am_eod_closed") || 0);
+        if (closedAt) inactivityTimer.current = window.setTimeout(logout, Math.max(0, closedAt + 3 * 60 * 60 * 1000 - Date.now()));
+        return;
+      }
+      inactivityTimer.current = window.setTimeout(logout, millisToWibMidnight());
     };
-    const events = ["pointerdown", "keydown", "touchstart", "scroll", "mousemove", "wheel"];
-    events.forEach((event) => window.addEventListener(event, resetTimer, { passive: true }));
-    window.addEventListener("si4am-eod-closed", resetTimer);
-    resetTimer();
+    window.addEventListener("si4am-eod-closed", schedule);
+    schedule();
     return () => {
       window.clearTimeout(inactivityTimer.current);
-      events.forEach((event) => window.removeEventListener(event, resetTimer));
-      window.removeEventListener("si4am-eod-closed", resetTimer);
+      window.removeEventListener("si4am-eod-closed", schedule);
     };
   }, [user, logout]);
   const unlockPos = () => { sessionStorage.setItem("si4am_pos", "1"); setPosUnlocked(true); };

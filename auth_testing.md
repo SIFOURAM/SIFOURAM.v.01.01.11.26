@@ -12,5 +12,6 @@
    returns `{ "ok": true }`; four- or five-digit values return HTTP 400 without unlocking POS.
 10. Submit five incorrect six-digit PIN values to `/api/auth/verify-pin` from the same session/IP;
     the next request must return HTTP 429 for 15 minutes. A successful PIN clears the lock record.
-11. Confirm normal inactivity no longer logs the user out after ten minutes. After `POST /api/sales/eod/close`,
-    verify the browser records `si4am_eod_closed`; only three hours of no activity after that point logs out.
+11. Confirm normal inactivity never logs any role out. A Rider logs out exactly three hours after daily EOD
+    close; activity must not extend this fixed three-hour deadline. Owner, Admin, and Bar Team logout at
+    00:00 WIB regardless of activity, with the session date stored as `si4am_session_wib_date`.
