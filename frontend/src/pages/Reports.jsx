@@ -120,15 +120,8 @@ export default function Reports() {
 
   return (
     <div data-testid="reports-page">
-      <PageHeader>
+      <PageHeader title={title}>
         <div className="w-full flex flex-col gap-3">
-          <Select
-            testId="report-view-dropdown"
-            className="w-full sm:w-48 h-9 text-xs"
-            value={view}
-            onChange={selectView}
-            options={REPORT_TABS.map(([value, label]) => ({ value, label }))}
-          />
           <div className="flex flex-wrap items-start justify-end gap-2">
             <Select testId="report-payment-filter" className="w-32 h-9 text-xs" value={method} onChange={setMethod} options={[{ value: "all", label: "Semua bayar" }, { value: "cash", label: "Cash" }, { value: "qris", label: "QRIS" }]} />
             <Select testId="report-type-filter" className="w-32 h-9 text-xs" value={orderType} onChange={setOrderType} options={[{ value: "all", label: "Semua order" }, { value: "regular", label: "Reguler" }, { value: "bundling", label: "Bundling" }]} />
@@ -242,13 +235,6 @@ function OperationsReport({ kind, setView }) {
   return (
     <div data-testid={`operations-report-${kind}`}>
       <PageHeader title={labels[kind]}>
-        <Select
-          testId="operations-report-dropdown"
-          className="w-full sm:w-48 h-9 text-xs"
-          value={kind}
-          onChange={setView}
-          options={REPORT_TABS.map(([value, label]) => ({ value, label }))}
-        />
         {kind !== "inventory" && <DateFilter onChange={setRange} />}
         {data && <div className="flex gap-1"><button data-testid="operations-excel" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button><button data-testid="operations-pdf" onClick={() => printPdf(true)} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button><button data-testid="operations-print" onClick={() => printPdf(false)} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button></div>}
       </PageHeader>
