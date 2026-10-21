@@ -232,6 +232,10 @@ export default function RiderDashboard() {
       <PageHeader eyebrow={isRider ? (lang === "id" ? "Performa saya" : "My performance") : "Riders"} title={t("riderDash")}>
         {!isRider && <Select testId="rider-dash-select" value={riderId} onChange={setRiderId} className="w-44" options={[{ value: "all", label: t("allRiders") }, ...riders.map((r) => ({ value: r.id, label: r.name }))]} />}
       </PageHeader>
+      <Bento className="mb-4 fade-up" testId="rider-period-filter">
+        <p className="eyebrow mb-3">Filter periode</p>
+        <DateFilter onChange={setRange} riderPeriods initialPreset="week" />
+      </Bento>
       {loading && (
         <div data-testid="rider-dashboard-loading" className="py-14 text-center text-sm text-muted-foreground">
           Memuat dashboard rider…
@@ -258,7 +262,6 @@ export default function RiderDashboard() {
               <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{rider.placement || "-"}</p></>}
             <div className="mt-4 w-full rounded-xl bg-muted p-3"><p className="eyebrow">{t("totalIncome")}</p><p data-testid="rider-total-income" className="num font-bold text-primary">{fmtRp(agg.total_income)}</p></div>
           </Bento>
-          <Bento className="col-span-2 lg:col-span-3 fade-up" testId="rider-period-filter"><p className="eyebrow mb-3">Filter periode</p><DateFilter onChange={setRange} riderPeriods initialPreset="week" /></Bento>
           <Bento className="fade-up" testId="rider-stat-allowance"><div className="flex justify-between items-start"><p className="eyebrow">{t("dailyAllowance")}</p><Wallet className="w-4 h-4 text-primary" /></div>
             <p className="mt-3 text-2xl font-bold num font-heading">{fmtRp(agg.allowance)}</p><p className="text-xs text-muted-foreground">{t("available")}: <b className="num">{fmtRp(agg.allowance_available)}</b></p>
             {single && <button data-testid="withdraw-allowance-button" onClick={() => setWd("allowance")} className="btn-primary h-9 mt-3 w-full text-xs">{t("withdraw")}</button>}</Bento>
@@ -269,7 +272,7 @@ export default function RiderDashboard() {
 
           {rank && <RankCard data={rank} onOpen={() => navigate(`/salary?rider=${rank.rider_id}`)} />}
 
-          <Bento className="col-span-2 lg:col-span-4 fade-up" testId="tier-card">
+          {!rank && <Bento className="col-span-2 lg:col-span-4 fade-up" testId="tier-card">
             <p className="eyebrow mb-4">
               {t("nextTier")}{riderId === "all" ? ` (× ${agg.count} riders)` : ""}
             </p>
@@ -280,7 +283,7 @@ export default function RiderDashboard() {
             ) : (
               <TierProgress s={agg} count={riderId === "all" ? agg.count : 1} />
             )}
-          </Bento>
+          </Bento>}
 
           <Bento className="col-span-2 fade-up" testId="chart-daily">
             <p className="eyebrow mb-4">{t("dailySales")} (Cash + QRIS)</p>

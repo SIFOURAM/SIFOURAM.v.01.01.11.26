@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Camera } from "lucide-react";
 import { api } from "../lib/api";
@@ -13,11 +13,13 @@ export default function Salary() {
   const { t } = useT();
   const { user } = useAuth();
   const nav = useNavigate();
+  const [sp] = useSearchParams();
+  const targetRider = sp.get("rider");
   const [range, setRange] = useState(null);
   const [d, setD] = useState(null);
   const [wds, setWds] = useState([]);
   const loadWds = () => range && api.get("/withdrawals", { params: range }).then((r) => setWds(r.data)).catch(() => {});
-  useEffect(() => { if (range) { api.get("/salary", { params: range }).then((r) => setD(r.data)); loadWds(); } }, [range]); // eslint-disable-line
+  useEffect(() => { if (range) { api.get("/salary", { params: { ...range, ...(targetRider ? { rider_id: targetRider } : {}) } }).then((r) => setD(r.data)); loadWds(); } }, [range, targetRider]); // eslint-disable-line
   const accept = async (id) => { try { await api.post(`/withdrawals/${id}/accept`); toast.success("Ditandai diterima ✓"); loadWds(); } catch { toast.error("Gagal menandai"); } };
   const changePhoto = async (rid, file) => {
     try { const photo = await compressImage(file); const { data } = await api.put(`/users/${rid}/photo`, { photo });
@@ -29,12 +31,12 @@ export default function Salary() {
       <PageHeader eyebrow="Target mingguan" title={t("salary")}><DateFilter onChange={setRange} riderPeriods initialPreset="week" /></PageHeader>
       {d && (<>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {d.tiers.map((tr) => <Bento key={tr.name} gold className="fade-up overflow-hidden p-0" testId={`tier-${tr.name.toLowerCase()}`}><img src={RANK_ASSETS[tr.name]} alt={`Kartu ${tr.name}`} className="w-full aspect-[16/8] object-cover" /><div className="p-4"><p className="eyebrow">{tr.name}</p><p className="font-heading font-bold text-lg mt-1">≥ {fmtRp(tr.threshold)} / minggu</p><p className="text-xs text-muted-foreground">Hadir {fmtRp(tr.attendance_benefit)} / hari · Bonus penjualan {Math.round(tr.pct * 100)}%</p></div></Bento>)}
+          {d.tiers.map((tr) => <Bento key={tr.name} gold className="fade-up overflow-hidden p-0" testId={`tier-${tr.name.toLowerCase()}`}><img src={RANK_ASSETS[tr.name]} alt={`Kartu ${tr.name}`} className="w-full aspect-[16/8] object-cover" /><div className="p-4"><p className="eyebrow">{tr.name}</p><p className="font-heading font-bold text-lg mt-1">{fmtRp(tr.threshold)}{tr.maximum ? ` – ${fmtRp(tr.maximum - 1)}` : "+"} / minggu</p><p className="text-xs text-muted-foreground">Hadir {fmtRp(tr.attendance_benefit)} / hari · Bonus penjualan {Math.round(tr.pct * 100)}%</p></div></Bento>)}
         </div>
         <p className="text-xs text-muted-foreground mb-4">Benefit kehadiran dan bonus penjualan mengikuti rank yang tercapai pada periode pilihan.</p>
         <div className="grid md:grid-cols-2 gap-4">
           {d.riders.map((r) => (
-            <Bento key={r.rider_id} className="fade-up" testId={`salary-card-${r.rider_id}`}>
+            <Bento key={r.rider_id} gold={r.rider_id === targetRider} className="fade-up" testId={`salary-card-${r.rider_id}`}>
               <div className="flex items-center gap-3 mb-4">
                 <div className="relative w-11 h-11 shrink-0">
                   <div className="w-11 h-11 rounded-full bg-primary/15 text-black font-bold flex items-center justify-center overflow-hidden">{r.photo ? <img src={r.photo} alt="" className="w-full h-full object-cover" /> : initials(r.rider_name)}</div>

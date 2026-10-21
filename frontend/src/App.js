@@ -66,7 +66,7 @@ function Shell() {
         <Route path="/handover" element={<Guard allow={S}><Handover /></Guard>} />
         <Route path="/finance" element={<Guard allow={S}><Finance /></Guard>} />
         <Route path="/reports" element={<Guard allow={REPORT_ACCESS}><Reports /></Guard>} />
-        <Route path="/salary" element={<Guard allow={SB}><Salary /></Guard>} />
+        <Route path="/salary" element={<Guard allow={ALL}><Salary /></Guard>} />
         <Route path="/customers" element={<Guard allow={SB}><Customers /></Guard>} />
         <Route path="/user-info" element={<Guard allow={S}><UserInfo /></Guard>} />
         <Route path="/broadcast" element={<Guard allow={S}><Broadcast /></Guard>} />

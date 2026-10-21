@@ -56,7 +56,7 @@ const id = {
 };
 const ja = {
   dashboard: "メインダッシュボード", inventory: "在庫", menuStock: "メニュー在庫", pos: "レジ(POS)", riderStock: "ライダー在庫", deposit: "入金",
-  invoice: "請求書", riderDash: "ライダーダッシュボード", handover: "現金引き渡し", finance: "財務レポート", salary: "給与・インセンティブ", profile: "プロフィール",
+  invoice: "請求書", riderDash: "ライダーダッシュボード", handover: "現金引き渡し", finance: "財務レポート", salary: "ライダーランク目標", profile: "プロフィール",
   settings: "設定", more: "その他", logout: "ログアウト", main: "メイン", stock: "在庫", today: "今日", yesterday: "昨日", week: "今週", month: "今月",
   prevmonth: "先月", custom: "カスタム", cupsSold: "販売カップ数", cashRevenue: "現金売上", qrisRevenue: "QRIS売上", expenses: "経費",
   save: "保存", cancel: "キャンセル", sendWA: "WhatsAppで送信", download: "ダウンロード", login: "ログイン", username: "ユーザー名またはメール", password: "パスワード",
@@ -83,7 +83,7 @@ const ja = {
 };
 const zh = {
   dashboard: "主仪表板", inventory: "库存", menuStock: "菜单库存", pos: "收银台", riderStock: "骑手库存", deposit: "存款",
-  invoice: "发票", riderDash: "骑手仪表板", handover: "现金交接", finance: "财务报告", salary: "工资与奖金", profile: "个人资料",
+  invoice: "发票", riderDash: "骑手仪表板", handover: "现金交接", finance: "财务报告", salary: "骑手等级目标", profile: "个人资料",
   settings: "设置", more: "更多", logout: "退出", main: "主要", stock: "库存", today: "今天", yesterday: "昨天", week: "本周", month: "本月",
   prevmonth: "上月", custom: "自定义", cupsSold: "已售杯数", cashRevenue: "现金收入", qrisRevenue: "QRIS收入", expenses: "支出",
   save: "保存", cancel: "取消", sendWA: "发送到WhatsApp", download: "下载", login: "登录", username: "用户名或邮箱", password: "密码",

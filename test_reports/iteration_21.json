@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the Rider Rank weekly target redesign. Backend: 11 of 11 pytest checks passed. They cover the 9 boundaries on both /api/salary and /api/rider-rank, allowance counted from attendance days rather than sales days, main_estimated_commission = attendance_total + commission, rider-role scoping, a 400 when no rider is given and a 401 without auth. Frontend: the rank card on /rider-dashboard shows Masters, Rp 217.000 = 35.000 x 1 day + 7% of 2.600.000, and 'Rp 620.000 menuju Divine'. Owner clicking the card goes to /salary?rider=<id>. /salary shows all five rank image cards (images load, naturalWidth 320) with weekly default 'Minggu Ini'. The filter has all the required options. No horizontal overflow at 390px on dashboard or salary. FAILURES: (1) the Rider Dashboard period filter cannot be changed and always snaps back to 'Minggu Ini'; (2) a rider clicking their own rank card is redirected to /pos; (3) the 'Minggu Ini' and 'Minggu Kemarin' ranges are wrong on Sundays.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/salary", "issue": "allowance_days is always the same as attendance_days, and tier_for(gross, days) ignores days. This is dead or legacy code, not a functional bug."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "RiderDashboard DateFilter", "issue": "Selecting Hari Ini, Kemarin, Minggu Kemarin, Bulan Ini or Manual start/end dates fires the correct API calls (seen in network logs, e.g. rider-rank?start=2026-10-21&end=2026-10-21). Right after, it re-requests 2026-10-19..2026-10-21 and the select shows 'week' again. Cause: <DateFilter> sits inside the `!loading && !loadError && sum && agg` block (RiderDashboard.jsx line 261). load() sets loading=true, which unmounts DateFilter. It then remounts with initialPreset='week', and its useEffect calls onChange(week). As a result the transaction, stock and rank histories can never show anything but the current week. Fix: render the filter outside the loading conditional, or keep the grid mounted while reloading.", "selector": "[data-testid='filter-preset-select'], [data-testid='filter-custom-start'], [data-testid='filter-custom-end']", "priority": "CRITICAL"},
+      {"component": "RankCard navigation (rider role)", "issue": "A logged-in rider clicking rider-rank-card goes to /salary?rider=..., but the Guard redirects to /pos because the /salary route uses SB = ['owner','admin','barteam'] (App.js line 69). Riders can never see the target rank page. Fix: allow 'rider' on the /salary route (backend /salary already limits a rider to their own data), or open the existing unused RankDialog for riders.", "selector": "[data-testid='rider-rank-card']", "priority": "HIGH"},
+      {"component": "helpers.rangeFor week/prevweek", "issue": "Uses dayjs startOf('week') (Sunday-based) + 1 day. On Sundays: 'week' gives start = tomorrow's Monday and end = today (start > end, empty data); 'prevweek' gives Monday..today, i.e. the current week. Confirmed with node for 2026-10-18. Fix: use the isoWeek plugin, or if today.day()===0 subtract 6 days.", "selector": "[data-testid='filter-preset-select']", "priority": "HIGH"},
+      {"component": "Salary page ?rider= param", "issue": "Salary.jsx never reads the 'rider' query param, so arriving from the rank card shows all riders and does not focus or highlight the selected one.", "selector": "[data-testid='salary-page']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/salary tier cards", "issues": ["Cards show only '≥ Rp X / minggu' and no upper bound. The spec ranges (e.g. 1.750.000–2.519.999) are not shown.", "The ja/zh i18n 'salary' label is still the old 'Gaji & Insentif' (給与・インセンティブ / 工资与奖金). EN and ID are updated."]},
+      {"screen": "/rider-dashboard", "issues": ["RankDialog component is defined but never used (dead code).", "Both TierProgress (tier-card) and RankCard show the same next-rank progress, which is redundant."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter21_rider_rank.py", "/app/backend/tests/qa_iter21_fixture.py", "/app/test_reports/pytest/pytest_iter21.xml"],
+  "action_items": [
+    "CRITICAL: Move <DateFilter> in RiderDashboard.jsx outside the `!loading && ...` conditional so that changing the preset or manual dates is not reset to 'week'",
+    "HIGH: Allow the rider role on the /salary route (App.js), or show RankDialog for riders, so the rank card does not redirect riders to /pos",
+    "HIGH: Fix rangeFor('week'/'prevweek') for Sundays (Monday-based ISO week)",
+    "MEDIUM: Make Salary.jsx honour ?rider= (filter or scroll to and highlight the card)",
+    "LOW: Show the min–max range on tier cards; update ja/zh 'salary' labels"
+  ],
+  "critical_code_review_comments": [
+    "RiderDashboard: the initial range state is rangeFor('today') and is then overwritten by DateFilter('week'), which causes a double fetch on mount",
+    "rangeFor relies on dayjs default Sunday week start",
+    "/salary and /rider-rank compute rank in two separate code paths. Consider having /salary reuse the rider_rank_for payload directly."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter21_rider_rank.py", "/app/backend/tests/qa_iter21_fixture.py"],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "~60% (rank card, navigation for owner, five cards, images, weekly default and mobile layout pass; filter switching, rider navigation and Sunday week range fail)"},
+  "seed_data_creation": "Temporary rider qa21_rider / qa21ui_rider with deposits and attendance inserted directly into Mongo. All of it was deleted and verified at 0 remaining (users, deposits, attendance, withdrawals).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run `python /app/backend/tests/qa_iter21_fixture.py setup` (temp rider with this-week Masters deposit 2.6M plus 1 attendance, and a 2019-11-05 deposit for checking manual dates), then `cleanup`. Rider role needs geolocation granted in Playwright. Retest: change the preset to 'today' and manual 2019-11-01..2019-11-10 on /rider-dashboard?rider=<id>. Expect the filter to stay put and the history to show the 2019-11-05 row. Also check that a rider's rank card click stays on the target page.",
+  "rca of the issue": "Filter reset: DateFilter is conditionally rendered under !loading, so each load unmounts it. On remount its internal state resets to initialPreset='week' and its mount effect pushes the week range back to the parent. Rider redirect: Guard allow=SB excludes 'rider' on /salary."
+}

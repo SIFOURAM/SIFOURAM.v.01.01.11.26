@@ -17,11 +17,15 @@ export const rangeFor = (preset, custom) => {
   const t = dayjs();
   switch (preset) {
     case "yesterday": { const y = t.subtract(1, "day").format("YYYY-MM-DD"); return { start: y, end: y }; }
-    case "week": return { start: t.startOf("week").add(1, "day").format("YYYY-MM-DD"), end: t.format("YYYY-MM-DD") };
+    case "week": {
+      const monday = t.day() === 0 ? t.subtract(6, "day") : t.subtract(t.day() - 1, "day");
+      return { start: monday.format("YYYY-MM-DD"), end: t.format("YYYY-MM-DD") };
+    }
     case "prevweek": {
+      const monday = t.day() === 0 ? t.subtract(6, "day") : t.subtract(t.day() - 1, "day");
       return {
-        start: t.subtract(1, "week").startOf("week").add(1, "day").format("YYYY-MM-DD"),
-        end: t.subtract(1, "week").endOf("week").add(1, "day").format("YYYY-MM-DD"),
+        start: monday.subtract(1, "week").format("YYYY-MM-DD"),
+        end: monday.subtract(1, "day").format("YYYY-MM-DD"),
       };
     }
     case "month": return periodFor(t);

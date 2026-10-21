@@ -193,3 +193,12 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   notification fix; backend and frontend builds pass after that fix.
 - Remaining polish: payment-account edit/deactivate controls, localized navigation labels, decision
   note field, and QRIS modal/enlarged scan treatment on mobile.
+
+## Rider Weekly Rank Target Refresh (2026-10)
+- Replaced legacy Rider targets with weekly Herald, Warriors, Masters, Divine, and Immortal brackets:
+  Rp20k/0%, Rp30k/5%, Rp35k/7%, Rp40k/10%, and Rp50k/15% attendance/sales benefits respectively.
+- Rider dashboard shows uploaded rank artwork, live total commission, and next-rank progress. Clicking
+  the rank card now opens Target Rank Rider for both Owner and Rider accounts.
+- Fixed rank filters to persist while data reloads, fixed Sunday ISO-style Monday-to-Sunday ranges,
+  added full minimum–maximum rank ranges, rider query focus, and localized rank labels.
+- Verification: rank API boundary/commission suite 11/11 passed; frontend production build passed.
