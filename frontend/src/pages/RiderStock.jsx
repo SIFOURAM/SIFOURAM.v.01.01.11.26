@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 import { api, errMsg } from "../lib/api";
@@ -12,19 +13,35 @@ function RiderPickup({ user }) {
   const [stock, setStock] = useState(null);
   const [detail, setDetail] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [verificationPhoto, setVerificationPhoto] = useState(null);
   const load = useCallback(() => {
     return api.get("/rider-stock", { params: { rider_id: user.id, date: today() } })
       .then((response) => setStock(response.data))
       .catch(() => setStock(null));
   }, [user.id]);
   useEffect(() => { load(); }, [load]);
-  const verify = async () => { setBusy(true); try { await api.post(`/rider-stock/${stock.id}/verify`); toast.success("Stock awal diverifikasi · POS siap digunakan"); setDetail(false); load(); } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); } };
-  return <div data-testid="rider-pickup-page"><PageHeader eyebrow="Stock" title="Pengambilan" /><Bento gold><p className="eyebrow mb-2">Stock Awal Hari Ini</p>{stock ? <><p className="font-heading text-xl font-bold">Dari {stock.pic_name}</p><p className="text-sm text-muted-foreground">{fmtDate(stock.date)} · {stock.total} cup</p><button data-testid="pickup-detail-button" onClick={() => setDetail(true)} className="btn-primary mt-4">Lihat & Verifikasi</button></> : <Empty text="Belum ada stock awal untuk hari ini" />}</Bento>{detail && stock && <Dialog open onOpenChange={(open) => !open && setDetail(false)}><DialogContent data-testid="pickup-detail-dialog"><DialogHeader><DialogTitle>Verifikasi Stock Awal</DialogTitle></DialogHeader><p className="text-sm">Pemberi stock: <b>{stock.pic_name}</b></p><div className="space-y-2">{Object.entries(stock.items).map(([name, qty]) => <div key={name} className="flex justify-between text-sm"><span>{name}</span><b>{qty}</b></div>)}</div>{stock.photo && <img src={stock.photo} alt="Bukti stock awal" className="w-full rounded-lg max-h-52 object-cover" />}{stock.verified_at ? <p className="text-emerald-600 font-bold text-sm">✓ Sudah diverifikasi</p> : <button data-testid="pickup-verify-button" disabled={busy} onClick={verify} className="btn-primary w-full">Verifikasi & Isi Stock POS</button>}</DialogContent></Dialog>}</div>;
+  const verify = async () => {
+    if (!verificationPhoto) return toast.error("Ambil foto bukti penerimaan stock terlebih dahulu.");
+    setBusy(true);
+    try {
+      await api.post(`/rider-stock/${stock.id}/verify`, { photo: verificationPhoto });
+      toast.success("Stock awal diverifikasi · POS siap digunakan");
+      setVerificationPhoto(null);
+      setDetail(false);
+      load();
+    } catch (e) {
+      toast.error(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <div data-testid="rider-pickup-page"><PageHeader eyebrow="Stock" title="Pengambilan" /><Bento gold><p className="eyebrow mb-2">Stock Awal Hari Ini</p>{stock ? <><p className="font-heading text-xl font-bold">Dari {stock.pic_name}</p><p className="text-sm text-muted-foreground">{fmtDate(stock.date)} · {stock.total} cup</p><button data-testid="pickup-detail-button" onClick={() => setDetail(true)} className="btn-primary mt-4">Lihat & Verifikasi</button></> : <Empty text="Belum ada stock awal untuk hari ini" />}</Bento>{detail && stock && <Dialog open onOpenChange={(open) => !open && setDetail(false)}><DialogContent data-testid="pickup-detail-dialog"><DialogHeader><DialogTitle>Verifikasi Stock Awal</DialogTitle></DialogHeader><p className="text-sm">Pemberi stock: <b>{stock.pic_name}</b></p><div className="space-y-2">{Object.entries(stock.detail || stock.items).map(([name, qty]) => <div key={name} className="flex justify-between text-sm"><span>{name}</span><b>{qty}</b></div>)}</div>{stock.photo && <img src={stock.photo} alt="Bukti stock awal" className="w-full rounded-lg max-h-52 object-cover" />}{stock.verified_at ? <p data-testid="pickup-verified-status" className="text-emerald-600 font-bold text-sm">✓ Sudah diverifikasi</p> : <><p className="eyebrow">Foto bukti penerimaan *</p><PhotoCapture value={verificationPhoto} onChange={setVerificationPhoto} testId="pickup-verification-photo" label="Foto stock yang diterima" /><button data-testid="pickup-verify-button" disabled={busy || !verificationPhoto} onClick={verify} className="btn-primary w-full">Verifikasi & Isi Stock POS</button></>}</DialogContent></Dialog>}</div>;
 }
 
 export default function RiderStock() {
   const { t, lang } = useT();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [busy, setBusy] = useState(false);
   const [fc, setFc] = useState(null);
   const [riders, setRiders] = useState([]);
@@ -34,6 +51,8 @@ export default function RiderStock() {
   const [items, setItems] = useState({});
   const [photo, setPhoto] = useState(null);
   const [history, setHistory] = useState([]);
+  const [remainingRows, setRemainingRows] = useState([]);
+  const view = searchParams.get("view") || "initial";
 
   useEffect(() => {
     if (user.role === "rider") return;
@@ -51,7 +70,17 @@ export default function RiderStock() {
     api.get("/rider-stock/history", { params: { rider_id: riderId, start: "2000-01-01", end: "2100-01-01" } }).then((r) => setHistory(r.data));
   }, [riderId, date, user.role]);
 
+  useEffect(() => {
+    if (view !== "remaining") return;
+    const params = { date, ...(riderId ? { rider_id: riderId } : {}) };
+    api.get("/rider-stock/remaining", { params })
+      .then((response) => setRemainingRows(response.data))
+      .catch((error) => toast.error(errMsg(error)));
+  }, [date, riderId, view]);
+
   if (user.role === "rider") return <RiderPickup user={user} />;
+
+  if (view === "remaining") return <div data-testid="rider-stock-remaining-page"><PageHeader /><div className="grid sm:grid-cols-2 gap-3 mb-5"><Field label={t("date")}><input data-testid="remaining-date-input" type="date" className="field" value={date} onChange={(event) => setDate(event.target.value)} /></Field><Field label={t("selectRider")}><Select testId="remaining-rider-select" value={riderId} onChange={setRiderId} placeholder="Semua Rider" options={riders.map((item) => ({ value: item.id, label: item.name }))} /></Field></div>{remainingRows.map((row) => <Bento key={row.stock_id} testId={`remaining-row-${row.stock_id}`} className="mb-3"><div className="flex justify-between gap-3"><div><p className="font-heading font-bold">{row.rider_name}</p><p className="text-xs text-muted-foreground">Awal {row.initial_total} · Terjual {row.sold_total}</p></div><p className="num font-bold text-primary">Sisa {row.remaining_total}</p></div><div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">{row.items.map((item) => <div key={item.menu_id} className="bg-muted p-2 rounded-lg"><p className="truncate">{item.name}</p><p className="num font-bold">{item.remaining} sisa</p></div>)}</div></Bento>)}{!remainingRows.length && <Empty text="Belum ada stock Rider pada tanggal ini." />}</div>;
 
   const total = Object.values(items).reduce((a, b) => a + b, 0);
   const rider = riders.find((r) => r.id === riderId);

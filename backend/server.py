@@ -316,6 +316,10 @@ class RiderStockIn(BaseModel):
     photo: Optional[str] = None
 
 
+class RiderStockVerifyIn(BaseModel):
+    photo: str
+
+
 class SaleItem(BaseModel):
     menu_id: Optional[str] = None
     qty: int = 1
@@ -953,14 +957,23 @@ async def save_rider_stock(body: RiderStockIn, u=Depends(STAFF)):
 
 
 @api.post("/rider-stock/{stock_id}/verify")
-async def verify_rider_stock(stock_id: str, u=Depends(ANY)):
+async def verify_rider_stock(stock_id: str, body: RiderStockVerifyIn, u=Depends(ANY)):
     if u["role"] != "rider":
         raise HTTPException(403, "Pengambilan hanya dapat diverifikasi Rider")
     stock = await db.rider_stock.find_one({"id": stock_id}, NOID)
     if not stock or stock["rider_id"] != u["id"]:
         raise HTTPException(404, "Stock awal tidak ditemukan")
     if not stock.get("verified_at"):
-        await db.rider_stock.update_one({"id": stock_id}, {"$set": {"verified_at": now_iso(), "verified_by": u["id"]}})
+        verification_photo = await store_photo(body.photo, "rider_stock_verification", u["id"])
+        await db.rider_stock.update_one(
+            {"id": stock_id},
+            {"$set": {
+                "verified_at": now_iso(),
+                "verified_by": u["id"],
+                "verified_by_name": u["name"],
+                "verification_photo": verification_photo,
+            }},
+        )
     return await db.rider_stock.find_one({"id": stock_id}, NOID)
 
 
@@ -999,6 +1012,28 @@ async def pos_stock(rider_id: str, date: str):
 @api.get("/pos/stock")
 async def get_pos_stock(rider_id: str, date: str, u=Depends(ANY)):
     return await pos_stock(rider_id, date)
+
+
+@api.get("/rider-stock/remaining")
+async def rider_stock_remaining(date: str, rider_id: Optional[str] = None, u=Depends(ANY)):
+    if u["role"] == "rider":
+        rider_id = u["id"]
+    query = {"date": date, **({"rider_id": rider_id} if rider_id else {})}
+    stocks = await db.rider_stock.find(query, NOID).sort("rider_name", 1).to_list(200)
+    rows = []
+    for stock in stocks:
+        current = await pos_stock(stock["rider_id"], date)
+        rows.append({
+            "stock_id": stock["id"],
+            "rider_id": stock["rider_id"],
+            "rider_name": stock["rider_name"],
+            "verified_at": stock.get("verified_at"),
+            "items": current["items"],
+            "initial_total": stock.get("total", 0),
+            "remaining_total": sum(item["remaining"] for item in current["items"]),
+            "sold_total": sum(item["sold"] for item in current["items"]),
+        })
+    return rows
 
 
 @api.post("/sales")
