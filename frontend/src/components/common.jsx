@@ -81,9 +81,9 @@ export function DateFilter({ onChange, showCustom = true, riderPeriods = false, 
         <option value="custom">{t("custom")}</option>
       </select>
       {(showCustom || preset === "custom") && (
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-1 items-center w-full">
+        <div className="grid grid-cols-1 gap-1 sm:grid-cols-[1fr_auto_1fr] sm:items-center w-full">
           <input data-testid="filter-custom-start" type="date" className="field h-[22px] min-w-0 text-[11px] px-2" value={custom.start} onChange={(e) => { setCustom({ ...custom, start: e.target.value }); setPreset("custom"); }} />
-          <span className="text-muted-foreground text-xs">→</span>
+          <span className="hidden text-center text-muted-foreground text-xs sm:block">→</span>
           <input data-testid="filter-custom-end" type="date" className="field h-[22px] min-w-0 text-[11px] px-2" value={custom.end} onChange={(e) => { setCustom({ ...custom, end: e.target.value }); setPreset("custom"); }} />
         </div>
       )}

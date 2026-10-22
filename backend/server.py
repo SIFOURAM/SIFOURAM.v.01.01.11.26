@@ -12,7 +12,8 @@ import base64, re
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
+from pymongo import ReturnDocument
 from seed import SEED_USERS, SEED_MATERIALS, SEED_MENUS, MENU_PHOTOS
 
 client = AsyncIOMotorClient(os.environ['MONGO_URL'])
@@ -245,8 +246,19 @@ def make_identify_token(user_id: str) -> str:
 def request_ip(request: Request) -> str:
     forwarded = request.headers.get("X-Forwarded-For", "")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        return forwarded.split(",")[-1].strip()
     return request.client.host if request.client else "unknown"
+
+
+async def next_document_number(kind: str, date: str) -> int:
+    counter = await db.counters.find_one_and_update(
+        {"key": f"{kind}:{date}"},
+        {"$inc": {"value": 1}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+        projection=NOID,
+    )
+    return counter["value"]
 
 
 def public_user(u: dict) -> dict:
@@ -418,6 +430,13 @@ class RiderStockIn(BaseModel):
     items: Dict[str, int]
     photo: Optional[str] = None
 
+    @field_validator("items")
+    @classmethod
+    def validate_items(cls, value: Dict[str, int]):
+        if any(quantity < 0 for quantity in value.values()):
+            raise ValueError("Jumlah stock tidak boleh negatif")
+        return value
+
 
 class RiderStockVerifyIn(BaseModel):
     photo: str
@@ -425,9 +444,16 @@ class RiderStockVerifyIn(BaseModel):
 
 class SaleItem(BaseModel):
     menu_id: Optional[str] = None
-    qty: int = 1
+    qty: int = Field(default=1, ge=1)
     bundle: Optional[int] = None
     components: Optional[Dict[str, int]] = None  # menu_id -> cups (for bundles)
+
+    @field_validator("components")
+    @classmethod
+    def validate_components(cls, value: Optional[Dict[str, int]]):
+        if value is not None and any(quantity < 1 for quantity in value.values()):
+            raise ValueError("Komponen bundling harus minimal satu cup")
+        return value
 
 
 class SalePaymentPart(BaseModel):
@@ -440,7 +466,7 @@ class SaleIn(BaseModel):
     date: str
     customer_name: str = ""
     customer_phone: str = ""
-    items: List[SaleItem]
+    items: List[SaleItem] = Field(min_length=1)
     payment_method: str = "cash"
     payment_parts: List[SalePaymentPart] = []
     cash_received: float = 0
@@ -467,8 +493,8 @@ class DepositIn(BaseModel):
 
 class InvoiceRow(BaseModel):
     menu_id: str
-    qty: int
-    price: Optional[float] = None
+    qty: int = Field(ge=0)
+    price: Optional[float] = Field(default=None, ge=0)
 
 
 class InvoiceIn(BaseModel):
@@ -477,14 +503,14 @@ class InvoiceIn(BaseModel):
     date: str
     rows: List[InvoiceRow]
     payment_method: str = "cash"
-    discount: float = 0
-    down_payment: float = 0
+    discount: float = Field(default=0, ge=0)
+    down_payment: float = Field(default=0, ge=0)
     note: str = ""
     client_id: Optional[str] = None
 
 
 class PayIn(BaseModel):
-    amount: float
+    amount: float = Field(gt=0)
     method: str = "cash"
 
 
@@ -716,7 +742,7 @@ async def login(body: LoginIn, request: Request, response: Response):
             401,
             "PIN belum didaftarkan, atau akun tidak aktif. Segera hubungi Tim Bar atau Owner.",
         )
-    key = f"{request_ip(request)}:{u['id']}"
+    key = f"login:{u['id']}"
     att = await db.login_attempts.find_one({"identifier": key})
     if att and att.get("count", 0) >= 5 and datetime.fromisoformat(att["last"]) > datetime.now(timezone.utc) - timedelta(minutes=15):
         raise HTTPException(429, "Too many attempts. Try again in 15 minutes.")
@@ -780,7 +806,7 @@ async def verify_pin(body: PinIn, request: Request, u=Depends(ANY)):
     enforce_rate_limit(request, "pin-gate", 10, 60)
     if len(body.pin) != 6 or not body.pin.isdigit():
         raise HTTPException(400, "PIN harus berisi 6 angka")
-    key = f"pin-gate:{request_ip(request)}:{u['id']}"
+    key = f"pin-gate:{u['id']}"
     attempt = await db.login_attempts.find_one({"identifier": key})
     if attempt and attempt.get("count", 0) >= 5:
         last_attempt = datetime.fromisoformat(attempt["last"])
@@ -1239,7 +1265,10 @@ async def rider_stock_history(start: str, end: str, rider_id: Optional[str] = No
 
 @api.post("/rider-stock")
 async def save_rider_stock(body: RiderStockIn, u=Depends(STAFF)):
-    rider = await db.users.find_one({"id": body.rider_id}, NOID)
+    rider = await db.users.find_one(
+        {"id": body.rider_id, "role": "rider", "active": {"$ne": False}},
+        NOID,
+    )
     if not rider:
         raise HTTPException(404, "Rider not found")
     prev = await db.rider_stock.find_one({"rider_id": body.rider_id, "date": body.date}, NOID)
@@ -1249,10 +1278,17 @@ async def save_rider_stock(body: RiderStockIn, u=Depends(STAFF)):
     photo = await store_photo(photo, "rider_stock", rider["id"])
     prev_items = prev["items"] if prev else {}
     menus = {m["id"]: m for m in await db.menus.find({}, NOID).to_list(100)}
+    changes = []
     for mid, qty in body.items.items():
+        if mid not in menus:
+            raise HTTPException(404, "Menu stock tidak ditemukan")
         delta = qty - prev_items.get(mid, 0)
-        if delta and mid in menus:
-            await db.menus.update_one({"id": mid}, {"$inc": {"stock": -delta}})
+        if delta > 0 and menus[mid]["stock"] < delta:
+            raise HTTPException(400, f"Stock central {menus[mid]['name']} tidak mencukupi")
+        if delta:
+            changes.append((mid, delta))
+    for mid, delta in changes:
+        await db.menus.update_one({"id": mid}, {"$inc": {"stock": -delta}})
     total = sum(body.items.values())
     doc = {"id": prev["id"] if prev else uid(), "rider_id": rider["id"], "rider_name": rider["name"], "pic_id": u["id"], "pic_name": u["name"], "date": body.date,
            "time": now_wib(), "items": body.items, "detail": {menus[k]["name"]: v for k, v in body.items.items() if k in menus}, "total": total, "photo": photo,
@@ -1405,6 +1441,8 @@ async def create_sale(body: SaleIn, u=Depends(ANY)):
             sub = s["price"] * it.qty
             items.append({"menu_id": it.menu_id, "name": s["name"], "qty": it.qty, "price": s["price"], "subtotal": sub})
         total += sub
+    if total <= 0:
+        raise HTTPException(400, "Pesanan harus memiliki total positif")
     for mid, q in need.items():
         if stock[mid]["remaining"] < q:
             raise HTTPException(400, f"Insufficient stock for {stock[mid]['name']} (remaining {stock[mid]['remaining']})")
@@ -1434,8 +1472,8 @@ async def create_sale(body: SaleIn, u=Depends(ANY)):
     if cash_part and body.cash_received < cash_part:
         raise HTTPException(400, "Nominal tunai kurang dari total pembayaran tunai")
 
-    cnt = await db.sales.count_documents({"date": body.date})
-    receipt_no = f"S4-{body.date.replace('-', '')}-{cnt + 1:04d}"
+    serial = await next_document_number("sale", body.date)
+    receipt_no = f"S4-{body.date.replace('-', '')}-{serial:04d}"
     rider = await db.users.find_one({"id": body.rider_id}, NOID)
     cash_received = body.cash_received if cash_part else total
     doc = {"id": uid(), "client_id": body.client_id or uid(), "receipt_no": receipt_no, "rider_id": body.rider_id, "rider_name": rider["name"] if rider else "", "date": body.date, "time": now_wib(),
@@ -1509,6 +1547,8 @@ async def eod_summary(rider_id: str, date: str):
 
 @api.get("/sales/eod")
 async def end_of_day(rider_id: str, date: str, u=Depends(ANY)):
+    if u["role"] == "rider" and rider_id != u["id"]:
+        raise HTTPException(403, "Rider hanya dapat melihat EOD miliknya")
     return await eod_summary(rider_id, date)
 
 
@@ -1553,6 +1593,8 @@ async def rider_debt(rider_id: str, before_date: str) -> float:
 
 @api.get("/deposits/debt")
 async def get_debt(rider_id: str, date: str, u=Depends(ANY)):
+    if u["role"] == "rider" and rider_id != u["id"]:
+        raise HTTPException(403, "Rider hanya dapat melihat hutang miliknya")
     return {"debt": await rider_debt(rider_id, date)}
 
 
@@ -1635,8 +1677,8 @@ async def save_deposit(body: DepositIn, u=Depends(STAFF)):
     else:
         motiv = "🎉 Congratulations! Target smashed! Keep up your performance! 🏆☕"
     prev = await db.deposits.find_one({"rider_id": body.rider_id, "date": body.date}, NOID)
-    cnt = await db.deposits.count_documents({})
-    doc = {"id": prev["id"] if prev else uid(), "receipt_no": prev["receipt_no"] if prev else f"DEP-{body.date.replace('-', '')}-{cnt + 1:03d}",
+    serial = await next_document_number("deposit", body.date) if not prev else None
+    doc = {"id": prev["id"] if prev else uid(), "receipt_no": prev["receipt_no"] if prev else f"DEP-{body.date.replace('-', '')}-{serial:03d}",
            "rider_id": body.rider_id, "rider_name": rider["name"], "pic_id": pic["id"], "pic_name": pic["name"], "date": body.date, "time": now_wib(), "rows": rows, "bundles": bundles_out,
            "total_cups": cups, "total_cash": cash, "total_qris": qris, "total_income": cash + qris, "minus": minus, "total_wastage": wastage_total,
            "initial_debt": initial_debt, "new_debt": minus, "debt_payment": debt_payment, "remaining_debt": remaining_debt, "commission": commission,
@@ -1707,10 +1749,16 @@ async def create_invoice(body: InvoiceIn, u=Depends(SUPER)):
         price = r.price if r.price is not None else m["price"]
         rows.append({"menu_id": m["id"], "name": m["name"], "qty": r.qty, "price": price, "subtotal": price * r.qty})
         subtotal += price * r.qty
-    cnt = await db.invoices.count_documents({})
+    if not rows:
+        raise HTTPException(400, "Pilih minimal satu produk untuk invoice")
+    if body.discount > subtotal:
+        raise HTTPException(400, "Diskon tidak boleh melebihi subtotal")
     total = subtotal - body.discount
+    if body.down_payment > total:
+        raise HTTPException(400, "Uang muka tidak boleh melebihi total invoice")
     remaining = max(0, total - body.down_payment)
-    doc = {"id": uid(), "client_id": body.client_id or uid(), "invoice_no": f"INV-{body.date.replace('-', '')}-{cnt + 1:03d}", "customer_name": body.customer_name, "customer_phone": body.customer_phone,
+    serial = await next_document_number("invoice", body.date)
+    doc = {"id": uid(), "client_id": body.client_id or uid(), "invoice_no": f"INV-{body.date.replace('-', '')}-{serial:03d}", "customer_name": body.customer_name, "customer_phone": body.customer_phone,
            "date": body.date, "time": now_wib(), "rows": rows, "subtotal": subtotal, "discount": body.discount, "total": total, "down_payment": body.down_payment, "paid": body.down_payment,
            "remaining": remaining, "status": "paid" if remaining <= 0 else "unpaid", "payments": ([{"date": body.date, "amount": body.down_payment, "method": body.payment_method}] if body.down_payment else []),
            "cups": sum(r["qty"] for r in rows), "payment_method": body.payment_method, "note": body.note, "created_by": u["name"], "created_at": now_iso()}
@@ -1727,6 +1775,8 @@ async def pay_invoice(iid: str, body: PayIn, u=Depends(SUPER)):
     inv = await db.invoices.find_one({"id": iid}, NOID)
     if not inv:
         raise HTTPException(404, "Invoice not found")
+    if body.amount > inv.get("remaining", 0):
+        raise HTTPException(400, "Pembayaran melebihi sisa invoice")
     paid = inv.get("paid", 0) + body.amount
     remaining = max(0, inv["total"] - paid)
     await db.invoices.update_one({"id": iid}, {"$set": {"paid": paid, "remaining": remaining, "status": "paid" if remaining <= 0 else "unpaid"},

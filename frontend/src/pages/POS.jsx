@@ -246,7 +246,7 @@ export default function POS() {
         </div>
       </PageHeader>
       <div className="grid gap-6">
-        {!isRider && !riderId && <div className="rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary flex gap-2" data-testid="pick-rider-hint"><CalendarCheck className="w-4 h-4 shrink-0" />{L ? "Klik tombol Absen di kanan atas untuk memilih rider & melakukan absensi." : "Click Attendance (top right) to select a rider."}</div>}
+        {!isRider && !riderId && <div className="rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary flex gap-2" data-testid="pick-rider-hint"><CalendarCheck className="w-4 h-4 shrink-0" />{L ? "Klik tombol Absen untuk memilih rider dan melakukan absensi." : "Click Attendance to select a rider."}</div>}
         <div className="space-y-6">
           {riderId && !stock.has_stock && <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-500 flex gap-2" data-testid="no-stock-warning"><Lock className="w-4 h-4 shrink-0" />{stock.pending_stock ? "Stok awal sudah disiapkan dan menunggu verifikasi Rider sebelum kasir dibuka." : t("noStock")}</div>}
           {riderId && stock.has_stock && (stock.closed || stock.deposited) && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-500 flex gap-2" data-testid="pos-locked"><Lock className="w-4 h-4 shrink-0" />{stock.deposited ? t("depositDone") : t("eodDone")}</div>}

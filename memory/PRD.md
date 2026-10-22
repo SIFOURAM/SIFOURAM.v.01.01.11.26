@@ -240,3 +240,28 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   second countdown after the selection is finished.
 - POS Dashboard payment summary now shows Total Penjualan as the first full-width card, followed by
   Total Tunai and Total QRIS side-by-side.
+
+## Finalization, Security, and Reset (2026-10)
+- Deposit Setoran now keeps manual Stock, Cash, QRIS, Sisa, and Wastage quantities mutually bounded;
+  mobile Terjual and Selisih are presented on separate lines. Server-side deposit accounting rejects
+  over-counted stock, writes wastage idempotently, and prevents duplicate owner notifications.
+- Sales and Product reports now include payment/order/service/Rider filters, KPIs, localized chart
+  legends, revenue/HPP/profit/contribution metrics, transaction detail, and complete Excel/PDF exports.
+  Payment-filter reports use proportional cup, revenue, and HPP allocation for split payments.
+- Security hardening: the frontend uses a Secure HttpOnly session cookie rather than storing new tokens
+  in browser storage; sessions are server-revocable, active role/state is read on each request, and
+  credential/role/status changes revoke sessions. Added security headers, 5 MB API payload limit,
+  rate limiting and lockouts, audit logging without secrets, role denial auditing, and restrictive CORS.
+- Validation/security safeguards now reject negative/zero sales and bundle quantities, negative invoice
+  amounts, overpayment, stock handoffs above central stock, cross-Rider EOD/debt reads, and re-use atomic
+  counters for receipt, invoice, and deposit identifiers.
+- Final test results: security/core flow suite 27/27 passed; Setoran/Invoice and Reports regression
+  suites 27/27 passed; frontend production build and mobile Owner smoke tests passed.
+- Approved operational reset executed: retained only Owner `baa` / `baazulfikar@gmail.com` and master
+  menu/material records. Cleared sales, EOD, stock handoffs, deposits, invoices, customers, attendance,
+  GPS, notifications, AI chats, purchase orders, broadcasts, payment accounts, sessions, operational
+  transactions, and counters. Menu/material stock are set to zero; the audit log retains one reset event.
+
+## Remaining Backlog
+- P2: physical Web Bluetooth receipt pairing remains hardware-dependent and is mocked in headless tests.
+- Optional future: split the oversized backend into dedicated auth, sales, deposit, and report routers.

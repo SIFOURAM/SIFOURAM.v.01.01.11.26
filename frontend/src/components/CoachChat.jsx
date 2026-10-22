@@ -65,7 +65,7 @@ export default function CoachChat({ hidden = false }) {
   return (
     <>
       <button data-testid="coach-open" onClick={() => setOpen(true)} aria-label="Tanya AI"
-        className="fixed left-4 bottom-24 lg:bottom-6 z-40 rounded-full p-[2px] bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)] shadow-xl hover:scale-105 active:scale-95 transition-transform">
+        className="fixed left-4 bottom-24 lg:bottom-20 z-40 rounded-full p-[2px] bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)] shadow-xl hover:scale-105 active:scale-95 transition-transform">
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)]">
           <Sparkles className="w-4 h-4 text-white" />
         </span>

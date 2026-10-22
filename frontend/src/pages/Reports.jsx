@@ -9,8 +9,18 @@ import { api, errMsg } from "../lib/api";
 import { fmtRp, openWA } from "../lib/helpers";
 import { Bento, DateFilter, Empty, Field, PageHeader, Select, Stat } from "../components/common";
 
-const COLORS = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74"];
+const COLORS = ["#FF6B00", "#14B8A6", "#EAB308", "#EF4444", "#0EA5E9", "#84CC16"];
 const tooltip = { contentStyle: { borderRadius: 8, border: "1px solid #444", fontSize: 12 } };
+const reportLabel = (value) => ({
+  regular: "Reguler",
+  bundling: "Bundling",
+  takeaway: "Bawa pulang",
+  dine_in: "Makan di tempat",
+  online: "Online",
+  split: "Gabungan",
+  cash: "Cash",
+  qris: "QRIS",
+}[value] || value);
 const REPORT_TABS = [
   ["sales", "Penjualan"],
   ["products", "Produk"],
@@ -94,9 +104,9 @@ export default function Reports() {
         Struk: row.receipt_no,
         Rider: row.rider_name,
         Cup: row.cups,
-        Layanan: row.order_type,
-        Jenis: row.sale_kind,
-        Pembayaran: row.payment_method,
+        Layanan: reportLabel(row.order_type),
+        Jenis: reportLabel(row.sale_kind),
+        Pembayaran: reportLabel(row.payment_method),
         Cash: row.cash,
         QRIS: row.qris,
         Total: row.total,
@@ -149,9 +159,9 @@ export default function Reports() {
           `${row.date} ${row.time}`,
           row.receipt_no,
           row.rider_name,
-          row.order_type.replace("_", " "),
-          row.sale_kind,
-          row.payment_method,
+          reportLabel(row.order_type),
+          reportLabel(row.sale_kind),
+          reportLabel(row.payment_method),
           row.cups,
           fmtRp(row.cash),
           fmtRp(row.qris),
@@ -286,7 +296,7 @@ export default function Reports() {
         <Stat testId="report-revenue" gold label="Total revenue" value={fmtRp(report.revenue)} />
       </div><ReportFilterSummary report={report} /><div className="grid grid-cols-2 gap-4 mt-4">
         <Stat testId="report-average" label="Rata-rata order" value={fmtRp(report.average_order)} />
-        <Stat testId="report-cups" label="Cup terjual" value={report.total_cups} />
+        <Stat testId="report-cups" label={report.filters.payment_method === "all" ? "Cup terjual" : "Cup setara pembayaran"} value={report.total_cups} />
       </div><div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
         {view === "sales" && <>
           <Bento testId="report-revenue-trend" className="col-span-2 fade-up">
@@ -310,7 +320,7 @@ export default function Reports() {
         {view === "sales" && <Bento testId="report-transactions-table" scrollable className="col-span-2 lg:col-span-4 fade-up overflow-x-auto">
           <p className="eyebrow mb-4">Detail transaksi</p>
           <table className={report.transaction_rows.length ? "table-x min-w-[58rem]" : "table-x w-full"}><thead><tr><th>Tanggal</th><th>Struk</th><th>Rider</th><th>Service</th><th>Jenis</th><th>Pembayaran</th><th className="text-right">Cup</th><th className="text-right">Cash</th><th className="text-right">QRIS</th><th className="text-right">Total</th></tr></thead>
-            <tbody>{report.transaction_rows.length ? report.transaction_rows.map((row) => <tr key={row.id} data-testid={`report-transaction-${row.id}`}><td className="num whitespace-nowrap">{row.date} {row.time}</td><td className="num whitespace-nowrap">{row.receipt_no}</td><td>{row.rider_name}</td><td className="capitalize">{row.order_type.replace("_", " ")}</td><td className="capitalize">{row.sale_kind}</td><td className="uppercase">{row.payment_method}</td><td className="num text-right">{row.cups}</td><td className="num text-right">{fmtRp(row.cash)}</td><td className="num text-right">{fmtRp(row.qris)}</td><td className="num text-right font-bold">{fmtRp(row.total)}</td></tr>) : <tr><td colSpan="10"><Empty text="Belum ada transaksi pada periode ini" /></td></tr>}</tbody>
+            <tbody>{report.transaction_rows.length ? report.transaction_rows.map((row) => <tr key={row.id} data-testid={`report-transaction-${row.id}`}><td className="num whitespace-nowrap">{row.date} {row.time}</td><td className="num whitespace-nowrap">{row.receipt_no}</td><td>{row.rider_name}</td><td>{reportLabel(row.order_type)}</td><td>{reportLabel(row.sale_kind)}</td><td>{reportLabel(row.payment_method)}</td><td className="num text-right">{row.cups}</td><td className="num text-right">{fmtRp(row.cash)}</td><td className="num text-right">{fmtRp(row.qris)}</td><td className="num text-right font-bold">{fmtRp(row.total)}</td></tr>) : <tr><td colSpan="10"><Empty text="Belum ada transaksi pada periode ini" /></td></tr>}</tbody>
           </table>
         </Bento>}
       </div></>}
@@ -322,7 +332,7 @@ function Distribution({ title, rows, testId }) {
   return (
     <Bento testId={testId} className="col-span-2 lg:col-span-1 fade-up">
       <p className="eyebrow mb-4">{title}</p>
-      {rows.length ? <><ResponsiveContainer width="100%" height={150}><PieChart><Pie data={rows} dataKey="value" nameKey="name" innerRadius={40} outerRadius={70}>{rows.map((row, index) => <Cell key={row.name} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip {...tooltip} formatter={(value) => fmtRp(value)} /></PieChart></ResponsiveContainer><div className="mt-2 space-y-1">{rows.map((row, index) => <div key={row.name} className="flex items-center justify-between gap-2 text-[10px]"><span className="flex items-center gap-1.5 truncate"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />{row.name}</span><span className="num">{fmtRp(row.value)}</span></div>)}</div></> : <Empty text="Tidak ada data" />}
+      {rows.length ? <><ResponsiveContainer width="100%" height={150}><PieChart><Pie data={rows} dataKey="value" nameKey="name" innerRadius={40} outerRadius={70}>{rows.map((row, index) => <Cell key={row.name} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip {...tooltip} formatter={(value) => fmtRp(value)} /></PieChart></ResponsiveContainer><div className="mt-2 space-y-1">{rows.map((row, index) => <div key={row.name} className="flex items-center justify-between gap-2 text-[10px]"><span className="flex items-center gap-1.5 truncate"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />{reportLabel(row.name)}</span><span className="num">{fmtRp(row.value)}</span></div>)}</div></> : <Empty text="Tidak ada data" />}
     </Bento>
   );
 }

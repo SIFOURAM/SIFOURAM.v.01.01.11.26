@@ -1,0 +1,54 @@
+{
+  "summary": "Finalization QA via preview HTTPS. Backend: new suite test_iter33_security_flow.py 24/27 passed (3 real defects); iter31+iter32 regression 27/27 (must run with -n 0). Cookie auth works: login JSON is user-only, HttpOnly+Secure cookie, auth/me via cookie, logout revokes the session (replayed cookie gets 401), legacy JWT without sid / identify-type token / garbage gets 401, Rider gets 403 on reports/users/invoices, revocation works on role/PIN/password/active changes, owner cannot self-demote or deactivate, identify returns 429 after the limit, audit rows hold no PIN/token/hash. Core flow passed end to end: stock handoff pending -> sale blocked -> Rider verify -> cash/QRIS/split sales -> overstock and bad-split rejected -> deposit blocked before EOD -> EOD closes and blocks sales -> deposit over stock rejected -> manual deposit accounting (minus/diff/wastage) correct -> invoice create/pay -> sales report KPIs and filters exact. UI desktop 1920 and mobile 390: cookie login, 21 Owner routes render with no horizontal overflow and no JS page errors (only expected 401 from /auth/me before login). Deposit mobile shows Terjual and Selisih as separate block lines. Invoice WhatsApp label does not overlap. Reports tables scroll inside their containers, legends render, and transactions show Jenis. PDF and Excel exports include the Jenis column and the transaction table. POS UI sale via Owner PIN gate and receipt works. The Bluetooth print button is hidden in headless Chromium because navigator.bluetooth is missing (mocked, expected). All temp data cleaned and DB is back to baseline.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "rate limiting (enforce_rate_limit / login_attempts key)", "issue": "request_ip() trusts the first X-Forwarded-For value, which the client controls. A spoofed XFF header bypasses the identify/login/PIN rate limits and the 5-fail PIN lockout, which is keyed by ip:user. Verified: after a 429, the same request with a forged X-Forwarded-For returned 401 instead of 429. Fix: take the right-most/trusted-proxy hop (or the ingress's real client-IP header). Key the PIN lockout on user id alone (plus optionally IP), and persist the buckets instead of keeping them in-process memory.", "priority": "HIGH"},
+      {"endpoint": "POST /api/sales", "issue": "Negative or zero item qty is accepted. qty=-1 created a sale with total -8000 and receipt S4-...-0004. The cash_received check passes because cash_part is negative. Bundle components can also hold negative values as long as the sum matches. Fix: Pydantic conint(ge=1) on SaleItem.qty and ge=1 on component values; reject total <= 0.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/invoices", "issue": "Accepts negative row price and negative discount/down_payment (returns 200). Also pay_invoice accepts amount <= 0. Add ge=0 / gt=0 validation."},
+      {"endpoint": "POST /api/rider-stock", "issue": "Decrements menus.stock with no availability check. Current menu stock is 0, so every handoff drives it negative. Negative item quantities are also not validated."},
+      {"endpoint": "GET /api/sales/eod, GET /api/deposits/debt", "issue": "No Rider ownership check: a Rider can read another Rider's EOD summary or debt by passing rider_id (pos/stock and rider-stock do enforce it)."},
+      {"endpoint": "receipt_no / invoice_no / deposit receipt", "issue": "Generated from count_documents()+1, so it races under concurrent requests and repeats numbers after deletes. Consider an atomic counter."},
+      {"endpoint": "Set-Cookie (ingress)", "issue": "Backend sends SameSite=Lax, but the preview ingress rewrites it to SameSite=None; Partitioned and rewrites Cache-Control to 'no-store, no-cache, must-revalidate'. Not an app bug, but confirm the production cookie attributes after deploy."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Sidebar (desktop)", "issue": "Floating sparkle/AI FAB in the bottom-left overlaps the 'Keluar' logout row icon.", "selector": "[data-testid=logout-button]", "priority": "LOW"},
+      {"component": "POS hint copy", "issue": "Text says 'Klik tombol Absen di kanan atas', but the Absen button sits at the top-left/centre of the content.", "selector": "[data-testid=pick-rider-hint]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Reports/Dashboard date range (mobile 390 + desktop)", "issues": ["Native <input type=date> values are truncated ('10/22/2' on mobile, '10/22/202' on desktop). Uses the browser's native date picker and native <select> instead of shadcn Calendar/Select."]},
+      {"screen": "Reports + Dashboard donuts", "issues": ["All pie/donut slices and legend dots use the same orange, so segments cannot be told apart. Use distinct palette colours.", "Legend labels show raw enums ('regular', 'bundling', 'online', 'takeaway'), while the cards use 'Reguler'. Exports also show raw enums ('dine_in', 'split')."]},
+      {"screen": "Reports with payment filter", "issues": ["'Cup Terjual' shows fractional cups (2.2) because a split sale's cups are allocated proportionally. Consider rounding or labelling it as an allocation."]},
+      {"screen": "Invoice (mobile)", "issues": ["WhatsApp/Pelanggan inputs are only 20px tall (h-5), well below the 44px tap-target guideline."]},
+      {"screen": "Category header on Deposit/POS/Reports (mobile & desktop)", "issues": ["The crumb bar sometimes renders only a lone '>' chevron with no title, while Invoice shows 'POS | Invoice'. Inconsistent and looks empty."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter33_security_flow.py", "/app/backend/tests/ui_seed_iter33.py", "/app/backend/tests/db_counts.py", "/app/test_reports/pytest/iter33_results.xml"],
+  "action_items": [
+    "HIGH: Stop trusting a client-supplied X-Forwarded-For[0] for rate limiting and PIN lockout. Use the trusted proxy hop and key the lockout per user.",
+    "HIGH: Validate SaleItem.qty >= 1 and bundle component qty >= 1. Reject sales with total <= 0.",
+    "Validate invoice price/discount/down_payment >= 0 and pay amount > 0.",
+    "Add a Rider ownership check on GET /sales/eod and /deposits/debt.",
+    "Decide whether a rider-stock handoff must check available menu stock (it currently goes negative).",
+    "Design: distinct chart colours, readable date inputs (shadcn calendar), localized enum labels, bigger invoice inputs, remove the FAB overlap on logout."
+  ],
+  "critical_code_review_comments": [
+    "server.py is about 2600 lines. Split auth, sales, deposits, reports and users into routers.",
+    "RATE_BUCKETS is in-process memory: it resets on restart and is not shared across workers.",
+    "get_user still accepts an Authorization: Bearer fallback. That is fine because of the sid/session check, but the frontend no longer needs it.",
+    "Deposit calc rejects accounted > stock correctly, but Pydantic DepositRow has no ge=0. Negatives are caught manually, which is fine.",
+    "Existing regression suites seed module-scoped data and collide under pytest-xdist auto mode. Always run them with -n 0 (doubled seeds caused 8 false failures)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter33_security_flow.py", "/app/backend/tests/ui_seed_iter33.py", "/app/backend/tests/db_counts.py"],
+  "success_rate": {"backend": "89% (24/27 new + 27/27 regression)", "frontend": "95% (all routes/flows work; design nits only)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md). Note that file still says login returns {token}; it now returns {user} plus the cookie, so update the doc. bcrypt hashes start with $2b$ (verified).",
+  "seed_data_creation": "Temp users test_r33_*/test_v33_* (via API) and TEST_ui33_rider/rider2 (direct DB), with sales/EOD/deposit/invoice on 2031-03-15 and today. All hard-deleted, menu stock restored, TEST audit rows removed. Final DB: users=1 (Owner), sales/deposits/eod/invoices/rider_stock/customers/menu_stock_tx=0. QA leaves extra Owner sessions (29) and audit_logs (~100); reset_final_revision.py should clear or revoke these as desired.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && pytest tests/test_iter33_security_flow.py tests/test_iter31_deposit_manual.py tests/test_iter32_sales_report.py -n 0 -p no:cacheprovider. Run them in separate invocations about 60s apart, because the login limit is 10/min per IP and identify is 12/min; otherwise you get 429 errors. Expected failures until fixed: test_05_negative_qty_sale_rejected, test_11_invoice_rejects_negative_values, test_rate_limit_not_bypassable_via_x_forwarded_for. For UI data use python tests/ui_seed_iter33.py seed|clean. The Owner POS needs the PIN keypad, then Absen -> pos-rider-select -> Escape.",
+  "rca of the issue": "XFF bypass: request_ip() returns headers['X-Forwarded-For'].split(',')[0]. The ingress appends the real IP to the right, so the left-most value is whatever the client sent. Repro: send 13 POST /api/auth/identify requests to get a 429, then resend with 'X-Forwarded-For: 10.9.1.7' and get 401 (the limiter was bypassed). Negative sale: SaleItem.qty is a plain int with no bound. need[mid] goes negative, so the stock check passes, and cash_part<0 makes the 'cash_received < cash_part' check false."
+}
