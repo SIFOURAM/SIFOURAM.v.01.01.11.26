@@ -7,6 +7,7 @@ import { api } from "../lib/api";
 import { initials } from "../lib/helpers";
 import GpsGate from "./GpsGate";
 import RiderMotivation from "./RiderMotivation";
+import ContextInfo from "./ContextInfo";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 
 function playTriTone() {
@@ -275,6 +276,7 @@ export default function Layout() {
         {activeCategory && <CategoryTabs category={activeCategory} t={t} />}
         <main className="flex-1 max-w-[1400px] w-full mx-auto min-w-0 p-4 pb-28 lg:p-8 lg:pb-8"><Outlet /></main>
         <RiderMotivation user={user} />
+        <ContextInfo location={loc} category={activeCategory} />
 
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-background/90 backdrop-blur-xl border-t border-border/70" data-testid="bottom-nav">
           <div className="flex justify-around px-1 py-1.5 pb-[max(env(safe-area-inset-bottom),6px)]">

@@ -29,6 +29,7 @@ async def reset():
         "attendance",
         "broadcasts",
         "coach_chats",
+        "coach_sessions",
         "counters",
         "customers",
         "deposits",

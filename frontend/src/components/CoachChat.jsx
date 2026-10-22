@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Sparkles, Send, X, MapPin } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { History, MapPin, MessageSquarePlus, Send, Sparkles, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, errMsg } from "../lib/api";
 
@@ -29,16 +29,44 @@ export default function CoachChat({ hidden = false }) {
   const [busy, setBusy] = useState(false);
   const [pois, setPois] = useState([]);
   const [provider, setProvider] = useState(localStorage.getItem("si4am_ai_provider") || "gpt");
+  const [sessions, setSessions] = useState([]);
+  const [sessionId, setSessionId] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
   const setProv = (p) => { setProvider(p); localStorage.setItem("si4am_ai_provider", p); };
-  const loaded = useRef(false);
   const lastRef = useRef();
+  const newChatRef = useRef(false);
+
+  const loadSessions = useCallback(async (preferredSessionId = null) => {
+    const { data } = await api.get("/coach/sessions");
+    setSessions(data);
+    const nextSessionId = preferredSessionId || sessionId || (
+      newChatRef.current ? null : data[0]?.id
+    );
+    if (nextSessionId) {
+      setSessionId(nextSessionId);
+    }
+  }, [sessionId]);
 
   useEffect(() => {
-    if (open && !loaded.current) {
-      loaded.current = true;
-      api.get("/coach/history").then((r) => { setMsgs([...r.data].reverse()); if (r.data[0]?.pois) setPois(r.data[0].pois); }).catch(() => {});
+    if (open) {
+      loadSessions().catch(() => {});
     }
-  }, [open]);
+  }, [open, loadSessions]);
+
+  useEffect(() => {
+    if (!open || !sessionId) {
+      return;
+    }
+    api.get(`/coach/sessions/${sessionId}/messages`)
+      .then((response) => {
+        setMsgs(response.data);
+        setPois(response.data.at(-1)?.pois || []);
+      })
+      .catch(() => {
+        setMsgs([]);
+        setPois([]);
+      });
+  }, [open, sessionId]);
 
   // Scroll holds at the START of the last exchange (not jump fully to bottom)
   useEffect(() => { if (open && msgs.length) lastRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [msgs.length, open]);
@@ -50,12 +78,57 @@ export default function CoachChat({ hidden = false }) {
     let pos = {};
     try { const p = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })); pos = { lat: p.coords.latitude, lng: p.coords.longitude }; } catch { /* no gps */ }
     try {
-      const { data } = await api.post("/coach/chat", { message, provider, ...pos });
+      let activeSessionId = sessionId;
+      if (!activeSessionId) {
+        const { data: createdSession } = await api.post("/coach/sessions", { provider });
+        activeSessionId = createdSession.id;
+        newChatRef.current = false;
+        setSessionId(activeSessionId);
+      }
+      const { data } = await api.post("/coach/chat", {
+        message,
+        provider,
+        session_id: activeSessionId,
+        ...pos,
+      });
       setMsgs((m) => [...m, data]);
       setPois(data.pois || []);
+      await loadSessions(activeSessionId);
       playChime();
     } catch (e) { toast.error(errMsg(e)); }
     finally { setBusy(false); }
+  };
+
+  const newChat = () => {
+    newChatRef.current = true;
+    setSessionId(null);
+    setMsgs([]);
+    setPois([]);
+    setShowHistory(false);
+  };
+
+  const selectSession = (nextSessionId) => {
+    newChatRef.current = false;
+    setSessionId(nextSessionId);
+    setMsgs([]);
+    setPois([]);
+    setShowHistory(false);
+  };
+
+  const deleteSession = async (event, targetSessionId) => {
+    event.stopPropagation();
+    try {
+      await api.delete(`/coach/sessions/${targetSessionId}`);
+      const remainingSessions = sessions.filter((session) => session.id !== targetSessionId);
+      setSessions(remainingSessions);
+      if (targetSessionId === sessionId) {
+        setSessionId(null);
+        setMsgs([]);
+        setPois([]);
+      }
+    } catch (error) {
+      toast.error(errMsg(error));
+    }
   };
 
   const quick = ["Lokasi ramai terdekat sekarang?", "Tips tembus 50 cup hari ini", "Cara nawarin bundling", "Semangatin aku dong!"];
@@ -74,13 +147,15 @@ export default function CoachChat({ hidden = false }) {
       {open && (
         <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4" onClick={() => setOpen(false)}>
           <div onClick={(e) => e.stopPropagation()} data-testid="coach-panel"
-            className="w-full sm:max-w-md h-[88vh] sm:h-[620px] flex flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl bg-card border border-border/60 shadow-2xl">
+            className="relative w-full sm:max-w-md h-[88vh] sm:h-[620px] flex flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl bg-card border border-border/60 shadow-2xl">
             <div className="flex items-center gap-3 p-4 border-b border-border/60 bg-gradient-to-r from-primary/10 to-transparent">
               <div className="w-9 h-9 rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)] flex items-center justify-center shrink-0"><Sparkles className="w-4 h-4 text-white" /></div>
               <div className="flex-1 min-w-0"><p className="font-heading font-bold leading-tight">SI FOUR AM AI</p><p className="text-[11px] text-muted-foreground truncate">Tanya apa saja — dimaksimalkan untuk jualan ☕</p></div>
               <select data-testid="coach-provider" value={provider} onChange={(e) => setProv(e.target.value)} className="text-[11px] font-semibold rounded-full bg-muted px-2 py-1 border border-border shrink-0">
                 <option value="gpt">GPT</option><option value="claude">Claude</option><option value="gemini">Gemini</option>
               </select>
+              <button data-testid="coach-history-open" onClick={() => setShowHistory(true)} className="p-2 rounded-full hover:bg-muted"><History className="w-4 h-4" /></button>
+              <button data-testid="coach-new-chat" onClick={newChat} className="p-2 rounded-full hover:bg-muted"><MessageSquarePlus className="w-4 h-4" /></button>
               <button data-testid="coach-close" onClick={() => setOpen(false)} className="p-2 rounded-full hover:bg-muted"><X className="w-4 h-4" /></button>
             </div>
 
@@ -114,6 +189,27 @@ export default function CoachChat({ hidden = false }) {
                 <button data-testid="coach-send" disabled={busy} onClick={() => send()} className="btn-primary w-11 h-10 p-0 rounded-full shrink-0"><Send className="w-4 h-4" /></button>
               </div>
             </div>
+            {showHistory && (
+              <div data-testid="coach-history-panel" className="absolute inset-0 z-10 flex flex-col bg-card">
+                <div className="flex items-center justify-between border-b border-border/60 p-4">
+                  <p className="font-heading font-bold">Riwayat Chat</p>
+                  <button data-testid="coach-history-close" onClick={() => setShowHistory(false)} className="p-2 rounded-full hover:bg-muted"><X className="w-4 h-4" /></button>
+                </div>
+                <button data-testid="coach-history-new" onClick={newChat} className="btn-primary mx-4 mt-4 h-10 text-xs"><MessageSquarePlus className="w-4 h-4" />Chat Baru</button>
+                <div className="flex-1 overflow-y-auto p-3">
+                  {sessions.map((session) => (
+                    <div key={session.id} className={`group flex items-center gap-2 rounded-lg px-3 py-1 ${session.id === sessionId ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}>
+                      <button data-testid={`coach-session-${session.id}`} onClick={() => selectSession(session.id)} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm">
+                        <History className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{session.title}</span>
+                      </button>
+                      <button data-testid={`coach-session-delete-${session.id}`} onClick={(event) => deleteSession(event, session.id)} className="rounded p-1 text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                    </div>
+                  ))}
+                  {!sessions.length && <p data-testid="coach-history-empty" className="px-3 py-8 text-center text-xs text-muted-foreground">Belum ada riwayat chat.</p>}
+                </div>
+              </div>
+            )}
           </div>
         </div>)}
     </>

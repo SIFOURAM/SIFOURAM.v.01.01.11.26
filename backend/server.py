@@ -614,6 +614,8 @@ async def seed():
     await db.sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.audit_logs.create_index([("created_at", -1)])
     await db.audit_logs.create_index([("user_id", 1), ("created_at", -1)])
+    await db.coach_sessions.create_index([("user_id", 1), ("updated_at", -1)])
+    await db.coach_chats.create_index([("user_id", 1), ("session_id", 1), ("created_at", 1)])
     for su in SEED_USERS:
         ex = await db.users.find_one({"username": su["username"]})
         doc = {
@@ -2044,6 +2046,15 @@ class CoachIn(BaseModel):
     lat: Optional[float] = None
     lng: Optional[float] = None
     provider: Optional[str] = "gpt"
+    session_id: Optional[str] = None
+
+
+class CoachSessionIn(BaseModel):
+    provider: Optional[str] = "gpt"
+
+
+class CoachSessionRenameIn(BaseModel):
+    title: str = Field(min_length=1, max_length=80)
 
 
 def _overpass(lat: float, lng: float):
@@ -2074,9 +2085,65 @@ def _area_name(lat: float, lng: float) -> str:
         return ""
 
 
+@api.get("/coach/sessions")
+async def coach_sessions(u=Depends(ANY)):
+    return await db.coach_sessions.find(
+        {"user_id": u["id"]},
+        NOID,
+    ).sort("updated_at", -1).limit(50).to_list(50)
+
+
+@api.post("/coach/sessions")
+async def create_coach_session(body: CoachSessionIn, u=Depends(ANY)):
+    session = {
+        "id": uid(),
+        "user_id": u["id"],
+        "title": "Chat baru",
+        "provider": body.provider or "gpt",
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.coach_sessions.insert_one(session.copy())
+    return session
+
+
+@api.get("/coach/sessions/{session_id}/messages")
+async def coach_session_messages(session_id: str, u=Depends(ANY)):
+    session = await db.coach_sessions.find_one({"id": session_id, "user_id": u["id"]}, NOID)
+    if not session:
+        raise HTTPException(404, "Sesi chat tidak ditemukan")
+    return await db.coach_chats.find(
+        {"user_id": u["id"], "session_id": session_id},
+        NOID,
+    ).sort("created_at", 1).limit(100).to_list(100)
+
+
+@api.put("/coach/sessions/{session_id}")
+async def rename_coach_session(session_id: str, body: CoachSessionRenameIn, u=Depends(ANY)):
+    result = await db.coach_sessions.update_one(
+        {"id": session_id, "user_id": u["id"]},
+        {"$set": {"title": body.title.strip(), "updated_at": now_iso()}},
+    )
+    if not result.matched_count:
+        raise HTTPException(404, "Sesi chat tidak ditemukan")
+    return {"ok": True}
+
+
+@api.delete("/coach/sessions/{session_id}")
+async def delete_coach_session(session_id: str, u=Depends(ANY)):
+    result = await db.coach_sessions.delete_one({"id": session_id, "user_id": u["id"]})
+    if not result.deleted_count:
+        raise HTTPException(404, "Sesi chat tidak ditemukan")
+    await db.coach_chats.delete_many({"user_id": u["id"], "session_id": session_id})
+    return {"ok": True}
+
+
 @api.get("/coach/history")
-async def coach_history(u=Depends(ANY)):
-    return await db.coach_chats.find({"user_id": u["id"]}, NOID).sort("created_at", -1).limit(30).to_list(30)
+async def coach_history(session_id: Optional[str] = None, u=Depends(ANY)):
+    query: Dict[str, Any] = {"user_id": u["id"]}
+    if session_id:
+        query["session_id"] = session_id
+    return await db.coach_chats.find(query, NOID).sort("created_at", -1).limit(100).to_list(100)
 
 
 @api.post("/coach/chat")
@@ -2089,7 +2156,30 @@ async def coach_chat(body: CoachIn, u=Depends(ANY)):
     pois = _overpass(body.lat, body.lng) if body.lat is not None else []
     area = _area_name(body.lat, body.lng) if body.lat is not None else ""
     poi_txt = "\n".join(f"- {p['name']} ({p['type']})" for p in pois) or ("(daftar POI tidak tersedia — gunakan pengetahuan umum tentang area " + (area or "sekitar rider") + ": sekolah, pasar, kantor, stasiun, masjid, taman, kos-kosan)")
-    hist = await db.coach_chats.find({"user_id": u["id"]}, NOID).sort("created_at", -1).limit(6).to_list(6)
+    session_id = body.session_id
+    session = None
+    if session_id:
+        session = await db.coach_sessions.find_one(
+            {"id": session_id, "user_id": u["id"]},
+            NOID,
+        )
+        if not session:
+            raise HTTPException(404, "Sesi chat tidak ditemukan")
+    else:
+        session = {
+            "id": uid(),
+            "user_id": u["id"],
+            "title": "Chat baru",
+            "provider": body.provider or "gpt",
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }
+        await db.coach_sessions.insert_one(session.copy())
+        session_id = session["id"]
+    hist = await db.coach_chats.find(
+        {"user_id": u["id"], "session_id": session_id},
+        NOID,
+    ).sort("created_at", -1).limit(6).to_list(6)
     hist_txt = "\n".join(f"Rider: {h['message']}\nCoach: {h['reply'][:300]}" for h in reversed(hist))
     system = ("Kamu adalah 'Coach SI FOUR AM', asisten AI yang hangat, cerdas, dan energik untuk tim kopi gerobak keliling (Rp5.000–12.000/cup). "
               "Jawab pertanyaan APAPUN dari pengguna dalam Bahasa Indonesia yang santai, ramah, dan membantu — entah soal jualan, motivasi, ide konten, cuaca, pengetahuan umum, atau obrolan biasa. "
@@ -2098,9 +2188,20 @@ async def coach_chat(body: CoachIn, u=Depends(ANY)):
               f"\nKONTEKS: waktu {datetime.now(WIB).strftime('%A %H:%M')} WIB. Lokasi rider: {area or 'tidak diketahui'}. User: {u['name']} ({u['role']}). Terjual hari ini {sold} cup (target 50). Sisa stok: {remaining}.\nPOI radius 1,5 km:\n{poi_txt}\n\nRiwayat:\n{hist_txt}")
     models = {"gpt": ("openai", "gpt-5.4"), "claude": ("anthropic", "claude-sonnet-4-6"), "gemini": ("gemini", "gemini-3.1-pro-preview")}
     prov, model = models.get(body.provider or "gpt", ("openai", "gpt-5.4"))
-    chat = LlmChat(api_key=os.environ["EMERGENT_LLM_KEY"], session_id=f"coach-{u['id']}", system_message=system).with_model(prov, model)
+    chat = LlmChat(
+        api_key=os.environ["EMERGENT_LLM_KEY"],
+        session_id=f"coach-{u['id']}-{session_id}",
+        system_message=system,
+    ).with_model(prov, model)
     reply = await chat.send_message(UserMessage(text=body.message))
-    doc = {"id": uid(), "user_id": u["id"], "message": body.message, "reply": reply, "provider": body.provider or "gpt", "pois": pois, "area": area, "sold": sold, "created_at": now_iso()}
+    title = session["title"]
+    if title == "Chat baru":
+        title = body.message.strip().replace("\n", " ")[:48] or "Chat baru"
+    await db.coach_sessions.update_one(
+        {"id": session_id, "user_id": u["id"]},
+        {"$set": {"title": title, "provider": body.provider or "gpt", "updated_at": now_iso()}},
+    )
+    doc = {"id": uid(), "user_id": u["id"], "session_id": session_id, "message": body.message, "reply": reply, "provider": body.provider or "gpt", "pois": pois, "area": area, "sold": sold, "created_at": now_iso()}
     await db.coach_chats.insert_one(doc)
     doc.pop("_id", None)
     return doc
