@@ -236,3 +236,5 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   frontend production build passed.
 - The live panel is labeled “Data Rider dengan Target yang Sedang Tercapai” and explicitly shows each
   Rider's achieved rank plus the next target when one is available.
+- Header navigation auto-hide pauses while either tab dropdown is focused/open, then resumes its three
+  second countdown after the selection is finished.
