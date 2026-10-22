@@ -374,3 +374,9 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Rank name uses the same eyebrow font/color treatment as Rank Mingguan. The commission overlay moved ten
   percent upward and now spans the image width while preserving its left-aligned value.
 - Frontend production build passed.
+
+## UX Update — Rider Rank Progress (2026-10)
+- Commission value is now centered vertically in the Rank image with a 20% larger font. Rank progress
+  moved into the bottom of the card image. The incentive availability line no longer includes the
+  withdrawal arrow.
+- Frontend production build passed.

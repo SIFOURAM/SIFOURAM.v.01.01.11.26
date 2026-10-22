@@ -33,11 +33,13 @@ function RankCard({ data, onOpen }) {
         </div>
         <div className="relative">
           <img src={RANK_ASSETS[rank.name]} alt={`Rank ${rank.name}`} className="w-full aspect-[16/7] object-cover rounded-lg" />
-          <div className="absolute inset-x-0 top-[40%] flex -translate-y-1/2 items-center px-4">
-            <p className="num text-2xl font-bold text-primary">{fmtRp(data.main_estimated_commission)}</p>
+          <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center px-4">
+            <p className="num text-3xl font-bold text-primary">{fmtRp(data.main_estimated_commission)}</p>
+          </div>
+          <div className="absolute inset-x-4 bottom-3 h-2 overflow-hidden rounded-full bg-black/30">
+            <div className="h-full rounded-full bg-primary" style={{ width: `${data.progress}%` }} />
           </div>
         </div>
-        <div className="mt-3 h-2 bg-muted overflow-hidden rounded-full"><div className="h-full bg-primary rounded-full" style={{ width: `${data.progress}%` }} /></div>
         <p className="text-xs text-muted-foreground mt-2">{rank.next ? `${fmtRp(data.remaining)} menuju ${rank.next.name}` : "Rank tertinggi tercapai"}</p>
       </Bento>
     </button>
@@ -293,7 +295,7 @@ export default function RiderDashboard() {
           </Bento>
           <Bento className={`fade-up ${single ? "cursor-pointer hover:border-primary/50" : ""}`} testId="rider-stat-incentive">
             <button data-testid="incentive-card-button" disabled={!single} onClick={() => setWd("incentive")} className="w-full text-left">
-              <p className="eyebrow">{t("incentive")} · {agg.tier}</p><p className="mt-3 text-2xl font-bold num font-heading">{fmtRp(agg.incentive)}</p><p className="text-xs text-muted-foreground">{t("available")}: <b className="num">{fmtRp(agg.incentive_available)}</b>{single && ` · ${t("withdraw")} →`}</p></button></Bento>
+              <p className="eyebrow">{t("incentive")} · {agg.tier}</p><p className="mt-3 text-2xl font-bold num font-heading">{fmtRp(agg.incentive)}</p><p className="text-xs text-muted-foreground">{t("available")}: <b className="num">{fmtRp(agg.incentive_available)}</b></p></button></Bento>
           <Stat label={t("totalCups")} value={sum.cups} sub={`${agg.attendance_days} ${t("attendance").toLowerCase()} · ${fmtRp(agg.gross)}`} testId="rider-stat-cups" />
 
           {rank && <RankCard data={rank} onOpen={() => navigate(`/salary?rider=${rank.rider_id}`)} />}
