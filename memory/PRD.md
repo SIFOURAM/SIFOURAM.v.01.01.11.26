@@ -364,3 +364,8 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   Stock, POS, Akun, and Pengaturan. The Lainnya menu is removed for Rider.
 - Rider home now opens Dashboard. POS keeps its highlighted center action while retaining a visible POS
   label. Frontend production build passed.
+
+## UX Update — Rider Rank Card Layout (2026-10)
+- Rank Mingguan and rank name now sit above the card image on one row. The commission value is displayed
+  at the image's left center in a larger font, without the former dark overlay or commission label.
+- Frontend production build passed.

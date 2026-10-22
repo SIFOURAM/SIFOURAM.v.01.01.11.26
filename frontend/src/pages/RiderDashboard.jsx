@@ -27,14 +27,16 @@ function RankCard({ data, onOpen }) {
   return (
     <button data-testid="rider-rank-card" onClick={onOpen} className="col-span-2 lg:col-span-1 text-left">
       <Bento gold className="fade-up h-full overflow-hidden">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <p className="eyebrow">Rank Mingguan</p>
+          <p className="font-heading text-xl font-bold">{rank.name}</p>
+        </div>
         <div className="relative">
           <img src={RANK_ASSETS[rank.name]} alt={`Rank ${rank.name}`} className="w-full aspect-[16/7] object-cover rounded-lg" />
-          <div className="absolute inset-x-0 bottom-0 rounded-b-lg bg-black/70 px-3 py-2 text-right text-white">
-            <p className="text-[10px] font-semibold">Estimasi Komisi Utama Anda</p>
-            <p className="num text-sm font-bold text-primary">{fmtRp(data.main_estimated_commission)}</p>
+          <div className="absolute inset-y-0 left-0 flex items-center px-4">
+            <p className="num text-2xl font-bold text-primary">{fmtRp(data.main_estimated_commission)}</p>
           </div>
         </div>
-        <div className="mt-3"><p className="eyebrow">Rank Mingguan</p><p className="font-heading font-bold text-xl">{rank.name}</p></div>
         <div className="mt-3 h-2 bg-muted overflow-hidden rounded-full"><div className="h-full bg-primary rounded-full" style={{ width: `${data.progress}%` }} /></div>
         <p className="text-xs text-muted-foreground mt-2">{rank.next ? `${fmtRp(data.remaining)} menuju ${rank.next.name}` : "Rank tertinggi tercapai"}</p>
       </Bento>
