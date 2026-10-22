@@ -399,3 +399,8 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Low Stock status in Inventory is now a clickable action. It routes to Purchase Orders with the selected
   material already prefilled, reducing duplicate manual entry for Bar Team purchase requests.
 - Frontend production build passed.
+
+## UX Update — Rider Commission Contrast (2026-10)
+- Rider commission text moved upward within the Rank image and now uses a white outline with black shadow
+  for legibility over any rank artwork.
+- Frontend production build passed.

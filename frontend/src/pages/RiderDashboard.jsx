@@ -33,8 +33,8 @@ function RankCard({ data, onOpen }) {
         </div>
         <div className="relative">
           <img src={RANK_ASSETS[rank.name]} alt={`Rank ${rank.name}`} className="w-full aspect-[16/7] object-cover rounded-lg" />
-          <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center px-4">
-            <p className="num text-3xl font-bold text-primary">{fmtRp(data.main_estimated_commission)}</p>
+          <div className="absolute inset-x-0 top-[30%] flex -translate-y-1/2 items-center px-4">
+            <p className="num text-3xl font-bold text-primary [-webkit-text-stroke:1px_white] [text-shadow:0_2px_4px_#000]">{fmtRp(data.main_estimated_commission)}</p>
           </div>
           <div className="absolute inset-x-4 bottom-3 h-2 overflow-hidden rounded-full bg-black/30">
             <div className="h-full rounded-full bg-primary" style={{ width: `${data.progress}%` }} />
