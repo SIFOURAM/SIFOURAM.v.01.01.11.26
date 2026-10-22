@@ -353,3 +353,8 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   key names. Added diagnostic warnings for prior silent realtime/motivation load failures.
 - Memoized Dashboard central-stock sorting and aggregation. Frontend production build and backend Python
   compilation pass after the review fixes.
+
+## UX Update — Rider Rank Commission (2026-10)
+- Removed the separate Uang Harian withdrawal button from Rider Dashboard.
+- Moved Estimasi Komisi Utama Anda into a readable overlay at the bottom of the Rank card image, directly
+  under its commission label. Frontend production build passed.

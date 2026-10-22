@@ -27,8 +27,14 @@ function RankCard({ data, onOpen }) {
   return (
     <button data-testid="rider-rank-card" onClick={onOpen} className="col-span-2 lg:col-span-1 text-left">
       <Bento gold className="fade-up h-full overflow-hidden">
-        <img src={RANK_ASSETS[rank.name]} alt={`Rank ${rank.name}`} className="w-full aspect-[16/7] object-cover rounded-lg" />
-        <div className="mt-3 flex justify-between gap-3"><div><p className="eyebrow">Rank Mingguan</p><p className="font-heading font-bold text-xl">{rank.name}</p></div><div className="text-right"><p className="eyebrow">Estimasi Komisi Utama Anda</p><p className="num font-bold text-primary">{fmtRp(data.main_estimated_commission)}</p></div></div>
+        <div className="relative">
+          <img src={RANK_ASSETS[rank.name]} alt={`Rank ${rank.name}`} className="w-full aspect-[16/7] object-cover rounded-lg" />
+          <div className="absolute inset-x-0 bottom-0 rounded-b-lg bg-black/70 px-3 py-2 text-right text-white">
+            <p className="text-[10px] font-semibold">Estimasi Komisi Utama Anda</p>
+            <p className="num text-sm font-bold text-primary">{fmtRp(data.main_estimated_commission)}</p>
+          </div>
+        </div>
+        <div className="mt-3"><p className="eyebrow">Rank Mingguan</p><p className="font-heading font-bold text-xl">{rank.name}</p></div>
         <div className="mt-3 h-2 bg-muted overflow-hidden rounded-full"><div className="h-full bg-primary rounded-full" style={{ width: `${data.progress}%` }} /></div>
         <p className="text-xs text-muted-foreground mt-2">{rank.next ? `${fmtRp(data.remaining)} menuju ${rank.next.name}` : "Rank tertinggi tercapai"}</p>
       </Bento>
@@ -282,7 +288,7 @@ export default function RiderDashboard() {
           </Bento>
           <Bento className="fade-up" testId="rider-stat-allowance"><div className="flex justify-between items-start"><p className="eyebrow">{t("dailyAllowance")}</p><Wallet className="w-4 h-4 text-primary" /></div>
             <p className="mt-3 text-2xl font-bold num font-heading">{fmtRp(agg.allowance)}</p><p className="text-xs text-muted-foreground">{t("available")}: <b className="num">{fmtRp(agg.allowance_available)}</b></p>
-            {single && <button data-testid="withdraw-allowance-button" onClick={() => setWd("allowance")} className="btn-primary h-9 mt-3 w-full text-xs">{t("withdraw")}</button>}</Bento>
+          </Bento>
           <Bento className={`fade-up ${single ? "cursor-pointer hover:border-primary/50" : ""}`} testId="rider-stat-incentive">
             <button data-testid="incentive-card-button" disabled={!single} onClick={() => setWd("incentive")} className="w-full text-left">
               <p className="eyebrow">{t("incentive")} · {agg.tier}</p><p className="mt-3 text-2xl font-bold num font-heading">{fmtRp(agg.incentive)}</p><p className="text-xs text-muted-foreground">{t("available")}: <b className="num">{fmtRp(agg.incentive_available)}</b>{single && ` · ${t("withdraw")} →`}</p></button></Bento>
