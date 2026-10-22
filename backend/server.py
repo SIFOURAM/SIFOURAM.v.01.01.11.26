@@ -375,7 +375,10 @@ class SaleIn(BaseModel):
 
 class DepositRow(BaseModel):
     menu_id: str
+    stock: int = 0
     remaining: int = 0
+    cash: int = 0
+    qris: int = 0
     wastage: int = 0
 
 
@@ -1431,32 +1434,31 @@ async def list_deposits(start: str, end: str, rider_id: Optional[str] = None, u=
 
 @api.post("/deposits")
 async def save_deposit(body: DepositIn, u=Depends(STAFF)):
-    rider = await db.users.find_one({"id": body.rider_id}, NOID)
+    rider = await db.users.find_one(
+        {"id": body.rider_id, "role": "rider", "active": {"$ne": False}},
+        NOID,
+    )
     if not rider:
         raise HTTPException(404, "Rider tidak ditemukan")
     pic = await db.users.find_one({"id": body.pic_id}, NOID) if body.pic_id else u
+    if not pic:
+        pic = u
     menus = {m["id"]: m for m in await db.menus.find({}, NOID).to_list(100)}
     summary = await eod_summary(body.rider_id, body.date)
     if not summary["closed"]:
         raise HTTPException(400, "Rider harus menutup EOD sebelum setoran dibuat")
 
     input_rows = {row.menu_id: row for row in body.rows}
-    eod_rows = {row["menu_id"]: row for row in summary["rows"]}
-    rows, minus, wastage_total = [], 0, 0
-    for menu_id, eod_row in eod_rows.items():
-        m = menus.get(menu_id)
-        if not m:
-            continue
+    rows, wastage_lines, minus, wastage_total = [], [], 0, 0
+    for menu_id, m in menus.items():
         submitted = input_rows.get(menu_id, DepositRow(menu_id=menu_id))
-        if submitted.remaining < 0 or submitted.wastage < 0:
-            raise HTTPException(400, "Sisa dan wastage tidak boleh bernilai negatif")
-        stock = int(eod_row["initial"])
-        sold = int(eod_row["sold"])
-        maximum_accounted = max(0, stock - sold)
-        if submitted.remaining + submitted.wastage > maximum_accounted:
-            raise HTTPException(400, f"Sisa dan wastage {m['name']} melebihi stok tersedia")
-        cash_qty = int(eod_row["cash_qty"])
-        qris_qty = int(eod_row["qris_qty"])
+        quantities = (submitted.stock, submitted.remaining, submitted.cash, submitted.qris, submitted.wastage)
+        if any(quantity < 0 for quantity in quantities):
+            raise HTTPException(400, "Jumlah setoran tidak boleh bernilai negatif")
+        stock = submitted.stock
+        cash_qty = submitted.cash
+        qris_qty = submitted.qris
+        sold = cash_qty + qris_qty
         diff = stock - (sold + submitted.remaining + submitted.wastage)
         row_minus = max(0, diff) * m["price"]
         rows.append({
@@ -1472,47 +1474,18 @@ async def save_deposit(body: DepositIn, u=Depends(STAFF)):
             "wastage": submitted.wastage,
             "total_sold": sold,
             "diff": diff,
-            "cash_amt": eod_row["cash_amt"],
-            "qris_amt": eod_row["qris_amt"],
+            "cash_amt": cash_qty * m["price"],
+            "qris_amt": qris_qty * m["price"],
             "minus": row_minus,
         })
         minus += row_minus
         wastage_total += submitted.wastage
         if submitted.wastage:
-            await db.menu_stock_tx.insert_one({
-                "id": uid(),
-                "menu_id": m["id"],
-                "menu_name": m["name"],
-                "type": "wastage",
-                "qty": submitted.wastage,
-                "before": m["stock"],
-                "after": m["stock"],
-                "note": f"Wastage rider {rider['name']}",
-                "date": body.date,
-                "user": u["name"],
-                "created_at": now_iso(),
-            })
+            wastage_lines.append((m, submitted.wastage))
+    cups = sum(row["total_sold"] for row in rows)
+    cash = sum(row["cash_amt"] for row in rows)
+    qris = sum(row["qris_amt"] for row in rows)
     bundles_out = []
-    for bundle in summary["bundles"]:
-        item_names = {
-            menus[menu_id]["name"]: qty
-            for menu_id, qty in bundle["items"].items()
-            if menu_id in menus
-        }
-        cash_amount = bundle["cash_amount"]
-        qris_amount = bundle["qris_amount"]
-        method = "split" if cash_amount and qris_amount else "cash" if cash_amount else "qris"
-        bundles_out.append({
-            "bundle": bundle["bundle"],
-            "name": BUNDLES[bundle["bundle"]]["name"],
-            "method": method,
-            "qty": bundle["qty"],
-            "amount": cash_amount + qris_amount,
-            "items": item_names,
-        })
-    cups = summary["total_cups"]
-    cash = summary["total_cash"]
-    qris = summary["total_qris"]
     initial_debt = await rider_debt(body.rider_id, body.date)
     debt_payment = 0
     expenses = 0
@@ -1534,6 +1507,29 @@ async def save_deposit(body: DepositIn, u=Depends(STAFF)):
            "initial_debt": initial_debt, "new_debt": minus, "debt_payment": debt_payment, "remaining_debt": remaining_debt, "commission": commission,
            "expenses": expenses, "expense_note": expense_note, "net_cash": net_cash, "motivation": motiv, "updated_at": now_iso()}
     await db.deposits.update_one({"rider_id": body.rider_id, "date": body.date}, {"$set": doc}, upsert=True)
+    await db.menu_stock_tx.delete_many({
+        "type": "wastage",
+        "source": "deposit",
+        "rider_id": body.rider_id,
+        "date": body.date,
+    })
+    for menu, quantity in wastage_lines:
+        await db.menu_stock_tx.insert_one({
+            "id": uid(),
+            "menu_id": menu["id"],
+            "menu_name": menu["name"],
+            "type": "wastage",
+            "source": "deposit",
+            "rider_id": body.rider_id,
+            "deposit_id": doc["id"],
+            "qty": quantity,
+            "before": menu["stock"],
+            "after": menu["stock"],
+            "note": f"Wastage rider {rider['name']}",
+            "date": body.date,
+            "user": u["name"],
+            "created_at": now_iso(),
+        })
     await gs_sync("deposits", {**doc, "rows": "; ".join(f"{r['name']}: stock {r['stock']} sisa {r['remaining']} cash {r['cash']} qris {r['qris']} waste {r['wastage']}" for r in rows), "bundles": str(bundles_out)})
     await db.notifications.insert_one({"id": uid(), "for_role": "owner", "type": "deposit", "title": f"Setoran · {rider['name']}",
                                        "body": f"{cups} cups · Cash Rp {int(cash):,} · QRIS Rp {int(qris):,} · Net Rp {int(net_cash):,}".replace(",", "."),

@@ -49,21 +49,91 @@ export default function Invoice() {
       <PageHeader eyebrow="Superadmin" title={t("invoice")} />
       <div className="grid lg:grid-cols-3 gap-6">
         <Bento gold className="lg:col-span-2 fade-up" testId="invoice-form">
-          <div className="grid sm:grid-cols-2 gap-3 mb-3">
-            <Field label={`${t("customer")} WhatsApp`}><input data-testid="invoice-phone-input" className="field" placeholder="08xx" value={f.customer_phone} onChange={(e) => setF({ ...f, customer_phone: e.target.value })} /></Field>
-            <Field label={t("customer")}><input data-testid="invoice-customer-input" className="field" value={f.customer_name} onChange={(e) => setF({ ...f, customer_name: e.target.value })} /></Field>
-            <Field label={t("date")}><input data-testid="invoice-date-input" type="date" className="field" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>
-            <Field label={t("method")}><Select testId="invoice-payment-select" value={f.payment_method} onChange={(v) => setF({ ...f, payment_method: v })} options={[{ value: "cash", label: "Cash" }, { value: "qris", label: "QRIS / Transfer" }]} /></Field>
+          <div className="grid grid-cols-2 gap-3 mb-3 invoice-detail-fields">
+            <Field label={`${t("customer")} WhatsApp`}>
+              <input
+                data-testid="invoice-phone-input"
+                className="field h-5 px-2 text-xs"
+                placeholder="08xx"
+                value={f.customer_phone}
+                onChange={(event) => setF({ ...f, customer_phone: event.target.value })}
+              />
+            </Field>
+            <Field label={t("customer")}>
+              <input
+                data-testid="invoice-customer-input"
+                className="field h-5 px-2 text-xs"
+                value={f.customer_name}
+                onChange={(event) => setF({ ...f, customer_name: event.target.value })}
+              />
+            </Field>
+            <Field label={t("date")}>
+              <input
+                data-testid="invoice-date-input"
+                type="date"
+                className="field h-5 px-2 text-xs"
+                value={f.date}
+                onChange={(event) => setF({ ...f, date: event.target.value })}
+              />
+            </Field>
+            <Field label={t("method")}>
+              <Select
+                testId="invoice-payment-select"
+                value={f.payment_method}
+                onChange={(value) => setF({ ...f, payment_method: value })}
+                className="h-5 px-2 text-xs"
+                options={[
+                  { value: "cash", label: "Cash" },
+                  { value: "qris", label: "QRIS / Transfer" },
+                ]}
+              />
+            </Field>
           </div>
           {unpaid && <button data-testid="unpaid-hint" onClick={() => setResult(unpaid)} className="w-full text-left rounded-xl bg-red-500/10 border border-red-500/30 p-3 text-xs mb-4 flex justify-between items-center"><span>⚠️ {unpaid.invoice_no} · {unpaid.customer_name} · {t("remainingPayment")} <b className="num">{fmtRp(unpaid.remaining)}</b></span><Badge s="unpaid" /></button>}
-          <div className="overflow-x-auto -mx-5 px-5"><table className="table-x"><thead><tr><th>{t("menu")}</th><th>{t("price")}</th><th>{t("qty")}</th><th className="text-right">Subtotal</th></tr></thead>
-            <tbody>{menus.map((m) => <tr key={m.id}><td className="font-semibold text-sm">{m.name}</td><td className="num text-muted-foreground text-xs">{fmtRp(m.price)}</td>
-              <td><input data-testid={`invoice-qty-${m.id}`} type="number" min="0" className="field w-20 h-9 num" value={qty[m.id] || ""} placeholder="0" onChange={(e) => setQty({ ...qty, [m.id]: Number(e.target.value) })} /></td>
-              <td className="num text-right text-sm">{fmtRp((qty[m.id] || 0) * m.price)}</td></tr>)}</tbody></table></div>
+          <div className="overflow-x-auto -mx-5 px-5">
+            <table className="table-x invoice-table">
+              <thead>
+                <tr>
+                  <th>{t("menu")}</th>
+                  <th>{t("price")}</th>
+                  <th>{t("qty")}</th>
+                  <th className="text-right">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {menus.map((menu) => (
+                  <tr key={menu.id}>
+                    <td className="max-w-[9rem] truncate whitespace-nowrap text-xs font-semibold">
+                      {menu.name}
+                    </td>
+                    <td className="num whitespace-nowrap text-[10px] text-muted-foreground">
+                      {fmtRp(menu.price)}
+                    </td>
+                    <td className="text-center">
+                      <input
+                        data-testid={`invoice-qty-${menu.id}`}
+                        type="number"
+                        min="0"
+                        className="field h-8 w-8 rounded-full p-0 text-center text-xs num"
+                        value={qty[menu.id] || ""}
+                        placeholder="0"
+                        onChange={(event) => {
+                          setQty({ ...qty, [menu.id]: Number(event.target.value) });
+                        }}
+                      />
+                    </td>
+                    <td className="num whitespace-nowrap text-right text-xs">
+                      {fmtRp((qty[menu.id] || 0) * menu.price)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="grid sm:grid-cols-3 gap-3 mt-4">
             <Field label={`${L ? "Diskon" : "Discount"} (Rp)`}><input data-testid="invoice-discount-input" type="number" className="field num" value={f.discount} onChange={(e) => setF({ ...f, discount: e.target.value })} /></Field>
             <Field label={`${t("downPayment")} (Rp)`}><input data-testid="invoice-dp-input" type="number" className="field num" value={f.down_payment} onChange={(e) => setF({ ...f, down_payment: e.target.value })} /></Field>
-            <Field label={t("note")}><input className="field" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
+            <Field label={t("note")}><input data-testid="invoice-note-input" className="field" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mt-6 pt-6 border-t border-border/60">
             <div><p className="text-xs text-muted-foreground">Subtotal {fmtRp(subtotal)} · Total {fmtRp(total)} · DP {fmtRp(f.down_payment)}</p><p className="eyebrow mt-2">{t("remainingPayment")}</p><p data-testid="invoice-remaining" className="text-3xl font-black num font-heading text-primary">{fmtRp(remaining)}</p></div>

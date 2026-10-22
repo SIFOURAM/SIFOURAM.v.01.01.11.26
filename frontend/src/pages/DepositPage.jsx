@@ -26,35 +26,51 @@ export default function DepositPage() {
   useEffect(() => { api.get("/users", { params: { role: "rider" } }).then((r) => setRiders(r.data)); api.get("/menus").then((r) => setMenus(r.data)); loadList(); }, []);
 
   useEffect(() => {
-    if (!riderId || !menus.length) return;
+    if (!riderId || !menus.length) {
+      return undefined;
+    }
+    let cancelled = false;
     (async () => {
-      const [existing, salesEod, debtResult] = await Promise.all([
-        api.get("/deposits", {
-          params: { start: date, end: date, rider_id: riderId },
-        }),
-        api.get("/sales/eod", { params: { rider_id: riderId, date } }),
-        api.get("/deposits/debt", { params: { rider_id: riderId, date } }),
-      ]);
-      const previous = existing.data[0];
-      const eodRows = Object.fromEntries(
-        salesEod.data.rows.map((row) => [row.menu_id, row]),
-      );
-      const nextRows = {};
-      menus.forEach((menu) => {
-        const sale = eodRows[menu.id];
-        const priorRow = previous?.rows.find((row) => row.menu_id === menu.id);
-        nextRows[menu.id] = {
-          stock: sale?.initial || 0,
-          remaining: priorRow?.remaining ?? Math.max(0, sale?.remaining || 0),
-          cash: sale?.cash_qty || 0,
-          qris: sale?.qris_qty || 0,
-          wastage: priorRow?.wastage || 0,
-        };
-      });
-      setEod(salesEod.data);
-      setDebt(debtResult.data.debt);
-      setRows(nextRows);
+      try {
+        const [existing, salesEod, debtResult] = await Promise.all([
+          api.get("/deposits", {
+            params: { start: date, end: date, rider_id: riderId },
+          }),
+          api.get("/sales/eod", { params: { rider_id: riderId, date } }),
+          api.get("/deposits/debt", { params: { rider_id: riderId, date } }),
+        ]);
+        if (cancelled) {
+          return;
+        }
+        const previous = existing.data[0];
+        const eodRows = Object.fromEntries(
+          salesEod.data.rows.map((row) => [row.menu_id, row]),
+        );
+        const nextRows = {};
+        menus.forEach((menu) => {
+          const sale = eodRows[menu.id];
+          const priorRow = previous?.rows.find((row) => row.menu_id === menu.id);
+          nextRows[menu.id] = {
+            stock: priorRow?.stock ?? sale?.initial ?? 0,
+            remaining: priorRow?.remaining ?? Math.max(0, sale?.remaining || 0),
+            cash: priorRow?.cash ?? sale?.cash_qty ?? 0,
+            qris: priorRow?.qris ?? sale?.qris_qty ?? 0,
+            wastage: priorRow?.wastage || 0,
+          };
+        });
+        setEod(salesEod.data);
+        setDebt(debtResult.data.debt);
+        setRows(nextRows);
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(errMsg(error));
+          setEod(null);
+        }
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [riderId, date, menus]);
 
   const calc = useMemo(() => {
@@ -68,9 +84,9 @@ export default function DepositPage() {
       wastage += row.wastage;
       return { ...menu, ...row, sold, diff };
     });
-    const cash = eod?.total_cash || 0;
-    const qris = eod?.total_qris || 0;
-    const cups = eod?.total_cups || 0;
+    const cash = lines.reduce((total, line) => total + line.cash * line.price, 0);
+    const qris = lines.reduce((total, line) => total + line.qris * line.price, 0);
+    const cups = lines.reduce((total, line) => total + line.sold, 0);
     return {
       lines,
       cups,
@@ -82,9 +98,22 @@ export default function DepositPage() {
       remainingDebt: debt + minus,
       net: cash,
     };
-  }, [rows, menus, eod, debt]);
+  }, [rows, menus, debt]);
 
-  const setCell = (mid, k, v) => setRows({ ...rows, [mid]: { ...(rows[mid] || EMPTY), [k]: v } });
+  const setCell = (mid, key, value) => {
+    const current = rows[mid] || EMPTY;
+    const next = { ...current, [key]: value };
+    const sold = next.cash + next.qris;
+    const maxRemaining = Math.max(0, next.stock - sold);
+    if (key !== "remaining") {
+      next.remaining = Math.min(next.remaining, maxRemaining);
+    }
+    const available = Math.max(0, next.stock - sold - next.remaining);
+    if (key !== "wastage") {
+      next.wastage = Math.min(next.wastage, available);
+    }
+    setRows({ ...rows, [mid]: next });
+  };
 
   const save = async () => {
     setBusy(true);
@@ -95,7 +124,10 @@ export default function DepositPage() {
         pic_id: user.id,
         rows: menus.map((menu) => ({
           menu_id: menu.id,
+          stock: rows[menu.id]?.stock || 0,
           remaining: rows[menu.id]?.remaining || 0,
+          cash: rows[menu.id]?.cash || 0,
+          qris: rows[menu.id]?.qris || 0,
           wastage: rows[menu.id]?.wastage || 0,
         })),
       });
@@ -125,7 +157,7 @@ export default function DepositPage() {
           <Field label={`${t("pic")} (auto)`}>
             <input
               data-testid="deposit-pic"
-              className="field bg-muted/50"
+              className="field h-9 bg-muted/50 sm:h-10"
               value={user.name}
               readOnly
             />
@@ -194,22 +226,29 @@ export default function DepositPage() {
                       {fmtRp(line.price)}
                     </p>
                   </td>
-                  <td className="num font-semibold">{line.stock}</td>
                   <td>
-                    <output
-                      data-testid={`deposit-cash-${line.id}`}
-                      className="deposit-auto-value"
-                    >
-                      {line.cash}
-                    </output>
+                    <QtySelect
+                      testId={`deposit-stock-${line.id}`}
+                      max={line.max_stock}
+                      value={line.stock}
+                      onChange={(value) => setCell(line.id, "stock", value)}
+                    />
                   </td>
                   <td>
-                    <output
-                      data-testid={`deposit-qris-${line.id}`}
-                      className="deposit-auto-value"
-                    >
-                      {line.qris}
-                    </output>
+                    <QtySelect
+                      testId={`deposit-cash-${line.id}`}
+                      max={Math.max(0, line.stock - line.qris)}
+                      value={line.cash}
+                      onChange={(value) => setCell(line.id, "cash", value)}
+                    />
+                  </td>
+                  <td>
+                    <QtySelect
+                      testId={`deposit-qris-${line.id}`}
+                      max={Math.max(0, line.stock - line.cash)}
+                      value={line.qris}
+                      onChange={(value) => setCell(line.id, "qris", value)}
+                    />
                   </td>
                   <td>
                     <QtySelect

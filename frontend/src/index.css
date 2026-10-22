@@ -77,7 +77,7 @@
 }
 
 @layer components {
-  .bento { @apply relative overflow-hidden rounded-2xl border border-transparent bg-card px-4 py-2 sm:px-[1.2rem] sm:py-[0.6rem] transition-shadow duration-300; background-clip: padding-box; }
+  .bento { @apply relative overflow-hidden rounded-2xl border border-transparent bg-card px-4 py-[0.4rem] sm:px-[1.2rem] sm:py-[0.48rem] transition-shadow duration-300; background-clip: padding-box; }
   .bento::before {
     content: "";
     position: absolute;
@@ -128,12 +128,11 @@
   .table-x { @apply w-full text-sm; table-layout: auto; }
   .table-x th { @apply text-left eyebrow py-3 px-2 border-b border-border; }
   .table-x td { @apply py-2.5 px-2 border-b border-border/50; }
+  .invoice-table th { padding-top: 0.75rem; padding-bottom: 0.75rem; }
   .hide-sm { @apply hidden md:table-cell; }
   .hide-xs { @apply hidden sm:table-cell; }
   .qty { @apply h-[29px] rounded-lg border border-input bg-background text-xs outline-none focus:ring-2 focus:ring-primary/40 num; width: 1.76rem; padding: 0; text-align: center; appearance: none; -webkit-appearance: none; }
-  .deposit-auto-value { @apply inline-flex h-[29px] min-w-[1.76rem] items-center justify-center rounded-lg bg-muted px-1 text-xs font-semibold text-muted-foreground num; }
   @media (min-width: 640px) { .qty { width: 2.72rem; padding: 0 0.32rem; font-size: 0.75rem; appearance: auto; -webkit-appearance: auto; text-align: left; } }
-  @media (min-width: 640px) { .deposit-auto-value { min-width: 2.72rem; padding: 0 0.32rem; } }
   @media (min-width: 1024px) { .qty { width: 3.36rem; } }
   @media (max-width: 639px) {
     select.field, .category-dropdown {
@@ -150,7 +149,8 @@
     .table-x th { font-size: 9px; letter-spacing: 0.04em; padding: 0.5rem 0.15rem; }
     .table-x td { padding: 0.4rem 0.15rem; }
     .table-x td p { font-size: 11px; }
-    .bento { padding: 0.32rem 0.64rem; }
+    .bento { padding: 0.256rem 0.64rem; }
+    .invoice-table th { padding-top: 0.25rem; padding-bottom: 0.25rem; }
   }
   @media (max-width: 360px) { .table-x { font-size: 10px; } .qty { width: 1.9rem; height: 2rem; } .table-x td p { font-size: 10px; } }
   .num { @apply font-mono tabular-nums; }

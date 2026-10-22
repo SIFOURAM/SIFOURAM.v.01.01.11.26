@@ -1,0 +1,46 @@
+{
+  "summary": "Tested Setoran/Deposit P0 overhaul end-to-end with a controlled temporary TEST_ rider seeded directly in Mongo (rider_stock, 3 sales incl. split bundle, EOD) and HARD-DELETED afterwards (all collections back to baseline: 1 user, 0 deposits/sales/eod/rider_stock/menu_stock_tx, 7 notifications). Core requirements PASS: forged cash/qris/stock/price/total fields are ignored and totals come from server eod_summary (cash 36000, qris 35000, cups 7, bundle split 45000); POST /api/deposits rejects before closed EOD (400); Cash/QRIS rendered as read-only <output>; only Sisa/Wastage selects editable; Wastage>0 gets text-primary font-bold (rgb 255,106,0); Save disabled until closed EOD; PIC+Rider on same row desktop & mobile; gold orange gradient border; no horizontal overflow at 390px; Bento vertical padding halved (desktop 19.2->9.6px, mobile 10.24->5.12px) with no clipping; POS BundleDialog QtySelect options capped at min(need, remaining). Found 3 backend bugs and 2 frontend bugs (below).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/deposits", "issue": "pic_id pointing to a nonexistent user returns 500 (pic=None then pic['id'] TypeError). Should 404/400 or fall back to current user.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/deposits", "issue": "Partial write: menu_stock_tx wastage records are inserted inside the row loop BEFORE all rows are validated, so a request rejected with 400 (later row exceeds stock) still leaves wastage tx docs for earlier rows. Validate all rows first, then write."},
+      {"endpoint": "POST /api/deposits", "issue": "Re-saving the same rider/date deposit (upsert) inserts duplicate wastage menu_stock_tx rows each time (3->4 on identical re-save). Delete/replace previous wastage tx for that rider+date or make idempotent."},
+      {"endpoint": "POST /api/deposits", "issue": "rider_id is not validated to be role=='rider' (any user id accepted if EOD doc exists)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DepositPage Wastage/Sisa QtySelect", "issue": "QtySelect only clamps the DISPLAYED value; parent state keeps the stale higher value. Repro: Americano stock10 sold4, set Sisa=3, Wastage=2, then Sisa=6 -> wastage select shows 0 (1 option) but calc-wastage still '2 cup', orange class stays, and Save sends wastage=2 -> backend 400 'Sisa dan wastage SI AMERICANO melebihi stok tersedia'. Fix: when remaining changes, clamp wastage in setCell (wastage=min(wastage, stock-sold-remaining)).", "selector": "[data-testid^=deposit-wastage-]", "priority": "HIGH"},
+      {"component": "DepositPage data loader useEffect", "issue": "Race condition / no stale-response guard: selecting rider (fetch for today) then quickly changing date (fetch for 2030-01-15) - on mobile the earlier 'today' response arrived last and overwrote state: date input shows 01/15/2030 but table/EOD status show today's data ('Rider belum menutup'). Add an ignore flag/AbortController in the effect cleanup. Also no try/catch -> unhandled rejection on API error.", "selector": "[data-testid=eod-status]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Deposit mobile 390px", "issues": ["PIC input (40px) is taller than Rider select (36px from select.field mobile rule) so the inline pair looks misaligned"]},
+      {"screen": "Deposit form", "issues": ["Date uses native <input type=date> instead of shadcn calendar", "Receipt lists bundle component menus as e.g. 'SI CREAMY LATTE x2 Rp 0' (qty includes bundle components but amount excludes) - confusing"]},
+      {"screen": "POS BundleDialog", "issues": ["Each QtySelect max is min(need, remaining) and is not reduced by other selections, so user can pick 6/4; Save is correctly disabled but options could be capped at need - (sum of others)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_deposit_eod_server_totals.py", "/app/backend/tests/seed_deposit_ui.py", "/app/test_reports/pytest/iteration_30_deposit.xml"],
+  "action_items": [
+    "Handle unknown pic_id in save_deposit (404 or fallback to u) - currently 500",
+    "Validate all rows before inserting wastage menu_stock_tx; make wastage tx idempotent on deposit re-save",
+    "Clamp wastage state in DepositPage when Sisa changes (stale value causes wrong calc + 400 on save)",
+    "Guard DepositPage load effect against out-of-order responses and add error handling",
+    "Optional: validate rider role in save_deposit; align PIC input/Rider select heights on mobile"
+  ],
+  "critical_code_review_comments": [
+    "DepositIn ignores extra fields (pydantic default) - forged cash/qris/stock fields confirmed ignored; consider model_config extra='forbid' to explicitly reject as requested ('ignore or reject' - ignore satisfied)",
+    "Frontend calc 'sold' = cash+qris qty while backend uses eod_row['sold']; equal today but cash_qty/qris_qty use per-item rounding - keep both derived from the same field (sold) to avoid drift",
+    "DepositPage EMPTY/calc fine; DepositPage.jsx and server.py are large (server.py >1500 lines) - consider splitting deposits into its own router"
+  ],
+  "updated_files": ["/app/backend/tests/test_deposit_eod_server_totals.py", "/app/backend/tests/seed_deposit_ui.py"],
+  "success_rate": {"backend": "70% (7/10 tests; all 3 failures are secondary bugs, core server-side totals + EOD gate pass)", "frontend": "85% (all 7 requested checks pass; 2 bugs found in wastage state clamp and load race)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md) - worked",
+  "seed_data_creation": "Temporary rider TEST_rider_<hex> / TEST_rider_ui with rider_stock, sales, eod, deposits, notifications, menu_stock_tx were seeded directly in Mongo and fully hard-deleted after tests (verified baseline counts). No Google Sheets sync configured, so nothing leaked externally.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run backend test SEQUENTIALLY: `pytest /app/backend/tests/test_deposit_eod_server_totals.py -p no:randomly -n0` (xdist/random order breaks the ordered gate->close->save flow). The fixture seeds and cleans its own TEST_ rider. For UI: `python /app/backend/tests/seed_deposit_ui.py seed` (date 2030-01-15 closed EOD), then `... clean`. Browser auth: fetch identify/login in page, set localStorage si4am_token, si4am_legal_2026-06-01=accepted, si4am_session_wib_date=<WIB today>; sessionStorage si4am_pos=1 for POS; owner POS needs clicking 'Absen' button to reveal pos-rider-select. Playbook auth checks (bcrypt/cookies/lockout) not executed this iteration (out of scope).",
+  "rca of the issue": "Wastage stale state: QtySelect's safeValue = min(value, max) only affects rendering; DepositPage.setCell never re-clamps dependent wastage when remaining changes, so rows state/payload retain the old value. pic 500: save_deposit uses `await db.users.find_one(...) if body.pic_id else u` with no None check. Partial/duplicate wastage tx: insert_one is executed inside the per-row validation loop and runs on every upsert save."
+}
