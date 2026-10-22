@@ -225,7 +225,25 @@ export default function RiderDashboard() {
     autoTable(doc, { startY: 22, head: [[t("date"), t("rider"), "Cups", "Cash", "QRIS", "Net"]], body: deps.map((d) => [d.date, d.rider_name, d.total_cups, d.total_cash.toLocaleString("id-ID"), d.total_qris.toLocaleString("id-ID"), d.net_cash.toLocaleString("id-ID")]), styles: { fontSize: 8 }, headStyles: { fillColor: [255, 107, 0] } });
     doc.save("DataDeposit_SIFOURAM.pdf");
   };
-  const printTable = () => { const w = window.open("", "_blank"); w.document.write(`<html><head><title>Print Data</title></head><body style="background:#111;color:#fff;font-family:Arial"><style>table{border-collapse:collapse;width:100%}td,th{border:1px solid #444;padding:6px;font-size:12px}</style>${tableRef.current.innerHTML}</body></html>`); w.document.close(); w.print(); };
+  const printTable = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow || !tableRef.current) {
+      toast.error("Jendela cetak tidak dapat dibuka");
+      return;
+    }
+    const documentRef = printWindow.document;
+    printWindow.opener = null;
+    documentRef.title = "Print Data";
+    documentRef.body.style.background = "#111";
+    documentRef.body.style.color = "#fff";
+    documentRef.body.style.fontFamily = "Arial, sans-serif";
+    const style = documentRef.createElement("style");
+    style.textContent = "table{border-collapse:collapse;width:100%}td,th{border:1px solid #444;padding:6px;font-size:12px}";
+    documentRef.head.appendChild(style);
+    documentRef.body.appendChild(tableRef.current.cloneNode(true));
+    printWindow.focus();
+    printWindow.print();
+  };
 
   return (
     <div data-testid="rider-dashboard">

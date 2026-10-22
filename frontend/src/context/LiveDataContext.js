@@ -43,7 +43,9 @@ export function LiveDataProvider({ children }) {
             refreshRevision();
           }
         }
-      } catch {}
+      } catch (error) {
+        console.warn("Gagal menyinkronkan revision data:", error);
+      }
     };
     sync();
     const intervalId = window.setInterval(sync, 6000);

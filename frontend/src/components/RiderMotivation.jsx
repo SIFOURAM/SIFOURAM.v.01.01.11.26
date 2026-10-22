@@ -42,7 +42,8 @@ export default function RiderMotivation({ user }) {
         const item = messages[Math.floor(now / 1000) % messages.length];
         localStorage.setItem(key, JSON.stringify({ date: data.date, lastShown: now }));
         setMessage(item);
-      } catch {
+      } catch (error) {
+        console.warn("Gagal memuat motivasi Rider:", error);
         setMessage(null);
       }
     };

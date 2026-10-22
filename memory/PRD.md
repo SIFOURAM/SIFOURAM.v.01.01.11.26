@@ -344,3 +344,12 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   When more products exist, an explicit detail action opens a scrollable dialog with every product and
   its central cup stock, sorted from lowest to highest.
 - Frontend production build passed after this update; the Owner-only zero-data baseline is retained.
+
+## Code Quality Fix — Review Critical Items (2026-10)
+- Replaced Rider Dashboard `document.write` printing with a safe print-window DOM construction using a
+  cloned table and programmatic style node; no raw HTML interpolation remains.
+- Confirmed `i18n.js` contains no API keys or credentials. Authentication tokens are not stored in local
+  or session storage; browser storage is only used for non-sensitive UI preferences and cleanup of legacy
+  key names. Added diagnostic warnings for prior silent realtime/motivation load failures.
+- Memoized Dashboard central-stock sorting and aggregation. Frontend production build and backend Python
+  compilation pass after the review fixes.

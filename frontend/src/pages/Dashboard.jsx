@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Coffee, Banknote, QrCode, TrendingDown, MapPin } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { api } from "../lib/api";
@@ -36,8 +36,15 @@ export default function Dashboard() {
     api.get("/menus").then((response) => setCentralStock(response.data)).catch(() => setCentralStock([]));
   }, [revision]);
 
-  const totalCentralStock = centralStock.reduce((total, menu) => total + (menu.stock || 0), 0);
-  const lowStockMenus = [...centralStock].sort((a, b) => a.stock - b.stock).slice(0, 4);
+  const sortedCentralStock = useMemo(
+    () => [...centralStock].sort((a, b) => a.stock - b.stock),
+    [centralStock],
+  );
+  const totalCentralStock = useMemo(
+    () => centralStock.reduce((total, menu) => total + (menu.stock || 0), 0),
+    [centralStock],
+  );
+  const lowStockMenus = sortedCentralStock.slice(0, 4);
 
   return (
     <div data-testid="main-dashboard">
@@ -131,7 +138,7 @@ export default function Dashboard() {
             <DialogTitle>Detail semua stock produk</DialogTitle>
           </DialogHeader>
           <div className="max-h-[55vh] divide-y divide-border/60 overflow-y-auto">
-            {[...centralStock].sort((a, b) => a.stock - b.stock).map((menu) => (
+            {sortedCentralStock.map((menu) => (
               <div key={menu.id} data-testid={`central-stock-detail-${menu.id}`} className="flex items-center justify-between gap-3 py-3 text-sm">
                 <span className="min-w-0 truncate font-medium">{menu.name}</span>
                 <span className={`num shrink-0 font-bold ${menu.stock <= 0 ? "text-red-500" : "text-foreground"}`}>{menu.stock} cup</span>
