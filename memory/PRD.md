@@ -380,3 +380,8 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   moved into the bottom of the card image. The incentive availability line no longer includes the
   withdrawal arrow.
 - Frontend production build passed.
+
+## UX Update — Bar Team POS Navigation (2026-10)
+- Tim Bar now has direct POS access in the mobile bottom navigation. The Tim Bar POS category opens POS
+  first and retains Deposit as its secondary tab.
+- Frontend production build passed.

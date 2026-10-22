@@ -96,7 +96,7 @@ export const NAV = {
     more: [item("/settings", "settings")],
   },
   barteam: {
-    main: [item("/rider-stock", "riderStock"), item("/inventory", "inventory")],
+    main: [item("/rider-stock", "riderStock"), item("/pos", "pos"), item("/inventory", "inventory")],
     more: [item("/settings", "settings")],
   },
   rider: {
@@ -123,7 +123,7 @@ export const CATEGORIES = {
   ],
   barteam: [
     { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
-    { name: "POS", icon: ShoppingCart, to: "/deposit", tabs: [item("/deposit", "deposit")] },
+    { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos"), item("/deposit", "deposit")] },
     { name: "Production", icon: Layers, to: "/inventory", tabs: [{ ...item("/inventory", "inventory"), subtabs: [{ to: "/inventory?tab=stock", label: "Stok" }, { to: "/inventory?tab=recipes", label: "Resep" }, { to: "/inventory?tab=wastage", label: "Wastage" }, { to: "/inventory?tab=history", label: "History" }, { to: "/menu-stock?mode=production", label: "Stock Menu" }] }, item("/purchase-orders", "purchaseOrders")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
