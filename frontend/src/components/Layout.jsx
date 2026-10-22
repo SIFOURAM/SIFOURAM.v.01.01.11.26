@@ -114,6 +114,7 @@ function CategoryTabs({ category, t }) {
   const currentPath = `${location.pathname}${location.search}`;
   const activeTab = category.tabs.find((tab) => tab.to === currentPath || tab.subtabs?.some((subtab) => subtab.to === currentPath)) || category.tabs.find((tab) => location.pathname === tab.to.split("?")[0]) || category.tabs[0];
   const [visible, setVisible] = useState(true);
+  const selectTab = (to) => navigate(to === "/reports" ? "/finance" : to);
 
   useEffect(() => {
     setVisible(true);
@@ -125,7 +126,7 @@ function CategoryTabs({ category, t }) {
     <nav data-testid="category-tabs" className={`category-tab-bar ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
       <div className={`mx-auto flex w-full max-w-[1400px] flex-nowrap items-center gap-1 min-w-0 px-4 transition-[opacity,transform] duration-500 ease-out lg:px-8 ${visible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0 pointer-events-none"}`}>
         <span data-testid="category-current-label" className="flex h-[23px] items-center font-heading text-[11px] font-semibold leading-none text-primary">{category.name}</span>
-        <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => navigate(event.target.value)} className={`category-dropdown h-[23px] px-2 text-[11px] text-primary font-semibold ${activeTab.subtabs?.length ? "max-w-[5.2rem]" : "max-w-[9rem]"}`}>
+        <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => selectTab(event.target.value)} className={`category-dropdown h-[23px] px-2 text-[11px] text-primary font-semibold ${activeTab.subtabs?.length ? "max-w-[5.2rem]" : "max-w-[9rem]"}`}>
           {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{t(tab.key)}</option>)}
         </select>
         {activeTab.subtabs?.length > 0 && (
