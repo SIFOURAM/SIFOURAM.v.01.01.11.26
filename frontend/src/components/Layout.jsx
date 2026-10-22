@@ -83,7 +83,7 @@ function NotifBell() {
   );
 }
 
-const I = { dashboard: LayoutDashboard, inventory: Boxes, menuStock: Layers, pos: ShoppingCart, riderStock: Bike, stockRider: Bike, stockPickup: HandCoins, stockRemaining: Gauge, deposit: Wallet, invoice: FileText, riderDash: Gauge, handover: HandCoins, finance: LineChart, salary: BadgeDollarSign, settings: Cog, customers: Users, userInfo: UserCog, reports: ChartNoAxesCombined, purchaseOrders: FileText, broadcast: MessageCircle, paymentAccounts: Wallet };
+const I = { dashboard: LayoutDashboard, inventory: Boxes, menuStock: Layers, pos: ShoppingCart, riderStock: Bike, stockRider: Bike, stockPickup: HandCoins, stockRemaining: Gauge, deposit: Wallet, invoice: FileText, riderDash: Gauge, handover: HandCoins, finance: LineChart, salary: BadgeDollarSign, settings: Cog, profile: UserCog, customers: Users, userInfo: UserCog, reports: ChartNoAxesCombined, purchaseOrders: FileText, broadcast: MessageCircle, paymentAccounts: Wallet };
 const item = (to, key) => ({ to, key, icon: I[key] });
 
 export const NAV = {
@@ -100,11 +100,11 @@ export const NAV = {
     more: [item("/settings", "settings")],
   },
   rider: {
-    main: [item("/pos", "pos"), item("/rider-dashboard", "riderDash")],
-    more: [item("/settings", "settings")],
+    main: [item("/rider-dashboard", "riderDash"), item("/rider-stock?view=pickup", "stockPickup"), item("/pos", "pos"), item("/profile", "profile"), item("/settings", "settings")],
+    more: [],
   },
 };
-export const HOME = { owner: "/", admin: "/", barteam: "/menu-stock", rider: "/pos" };
+export const HOME = { owner: "/", admin: "/", barteam: "/menu-stock", rider: "/rider-dashboard" };
 
 export const CATEGORIES = {
   owner: [
@@ -131,7 +131,8 @@ export const CATEGORIES = {
     { name: "Dashboard", icon: Gauge, to: "/rider-dashboard", tabs: [item("/rider-dashboard", "riderDash")] },
     { name: "Stock", icon: Boxes, to: "/rider-stock?view=pickup", tabs: [item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining")] },
     { name: "POS", icon: ShoppingCart, to: "/pos", tabs: [item("/pos", "pos")] },
-    { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
+    { name: "Akun", icon: UserCog, to: "/profile", tabs: [item("/profile", "profile")] },
+    { name: "Pengaturan", icon: Cog, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
 };
 
@@ -286,7 +287,7 @@ export default function Layout() {
                 <span className={i.key === "pos" ? "flex w-10 h-10 -mt-3 items-center justify-center rounded-full bg-primary shadow-md" : "flex items-center justify-center"}>
                   <i.icon className={i.key === "pos" ? "w-5 h-5" : "w-[0.95rem] h-[0.95rem]"} />
                 </span>
-                {i.key !== "pos" && <span className="truncate max-w-full">{t(i.key)}</span>}
+                <span className="truncate max-w-full">{t(i.key)}</span>
               </NavLink>))}
             {more.length > 0 && <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${activeCategory?.name === "Lainnya" || moreOpen ? "text-primary" : "text-muted-foreground"}`}><MoreHorizontal className="w-[0.95rem] h-[0.95rem]" /><span>{t("more")}</span></button>}
           </div>

@@ -358,3 +358,9 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Removed the separate Uang Harian withdrawal button from Rider Dashboard.
 - Moved Estimasi Komisi Utama Anda into a readable overlay at the bottom of the Rank card image, directly
   under its commission label. Frontend production build passed.
+
+## UX Update — Rider Bottom Navigation (2026-10)
+- Rider mobile bottom navigation now has five direct destinations in the requested order: Dashboard,
+  Stock, POS, Akun, and Pengaturan. The Lainnya menu is removed for Rider.
+- Rider home now opens Dashboard. POS keeps its highlighted center action while retaining a visible POS
+  label. Frontend production build passed.
