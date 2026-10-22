@@ -6,6 +6,7 @@ import { fmtRp, today } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { PageHeader, Stat, Bento, DateFilter, Empty } from "../components/common";
 import GpsMap from "../components/GpsMap";
+import OwnerOnboarding from "../components/OwnerOnboarding";
 
 const tip = { contentStyle: { borderRadius: 12, border: "1px solid #333", background: "#111", color: "#fff", fontSize: 12 } };
 const menuColors = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74"];
@@ -32,6 +33,7 @@ export default function Dashboard() {
       <PageHeader eyebrow="SI FOUR AM" title={t("dashboard")}><DateFilter onChange={setRange} /></PageHeader>
       {d && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <OwnerOnboarding />
           <Stat gold label="Total Pemasukan" value={fmtRp((d.cash || 0) + (d.qris || 0))} sub={`${d.transactions} POS transactions`} icon={Coffee} testId="stat-total-income" />
           <Stat label={t("expenses")} value={fmtRp(d.expenses)} sub={`Invoices: ${fmtRp(d.invoice_income)}`} icon={TrendingDown} testId="stat-expenses" />
           <Stat label={t("cashRevenue")} value={fmtRp(d.cash)} icon={Banknote} testId="stat-cash" />

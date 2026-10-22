@@ -896,6 +896,28 @@ async def list_users(role: Optional[str] = None, u=Depends(ANY)):
     raise HTTPException(403, "Daftar pengguna hanya tersedia untuk Owner")
 
 
+@api.get("/onboarding/owner")
+async def owner_onboarding_status(u=Depends(SUPER)):
+    riders = await db.users.find(
+        {"role": "rider", "active": {"$ne": False}},
+        {"_id": 0, "id": 1, "name": 1, "created_at": 1},
+    ).sort("created_at", 1).to_list(200)
+    if not riders:
+        return {"show": False, "rider": None, "stock": None, "verified": False}
+    rider = riders[0]
+    date = datetime.now(WIB).strftime("%Y-%m-%d")
+    stock = await db.rider_stock.find_one(
+        {"rider_id": rider["id"], "date": date},
+        NOID,
+    )
+    return {
+        "show": not stock or not stock.get("verified_at"),
+        "rider": rider,
+        "stock": {"id": stock["id"], "total": stock["total"]} if stock else None,
+        "verified": bool(stock and stock.get("verified_at")),
+    }
+
+
 @api.post("/users")
 async def create_user(body: UserCreateIn, u=Depends(SUPER)):
     username = body.username.strip().lower()
