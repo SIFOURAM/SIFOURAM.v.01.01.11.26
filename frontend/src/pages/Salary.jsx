@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Camera } from "lucide-react";
+import { Camera, ChevronDown } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { fmtRp, initials, compressImage } from "../lib/helpers";
@@ -18,8 +18,18 @@ export default function Salary() {
   const [range, setRange] = useState(null);
   const [d, setD] = useState(null);
   const [wds, setWds] = useState([]);
+  const [expandedTier, setExpandedTier] = useState(null);
   const loadWds = () => range && api.get("/withdrawals", { params: range }).then((r) => setWds(r.data)).catch(() => {});
-  useEffect(() => { if (range) { api.get("/salary", { params: { ...range, ...(targetRider ? { rider_id: targetRider } : {}) } }).then((r) => setD(r.data)); loadWds(); } }, [range, targetRider]); // eslint-disable-line
+  useEffect(() => {
+    if (!range) return undefined;
+    const loadSalary = () => {
+      api.get("/salary", { params: { ...range, ...(targetRider ? { rider_id: targetRider } : {}) } }).then((r) => setD(r.data));
+      loadWds();
+    };
+    loadSalary();
+    const polling = window.setInterval(loadSalary, 30000);
+    return () => window.clearInterval(polling);
+  }, [range, targetRider]); // eslint-disable-line
   const accept = async (id) => { try { await api.post(`/withdrawals/${id}/accept`); toast.success("Ditandai diterima ✓"); loadWds(); } catch { toast.error("Gagal menandai"); } };
   const changePhoto = async (rid, file) => {
     try { const photo = await compressImage(file); const { data } = await api.put(`/users/${rid}/photo`, { photo });
@@ -31,9 +41,11 @@ export default function Salary() {
       <PageHeader eyebrow="Target mingguan" title={t("salary")}><DateFilter onChange={setRange} riderPeriods initialPreset="week" /></PageHeader>
       {d && (<>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {d.tiers.map((tr) => <Bento key={tr.name} gold className="fade-up overflow-hidden p-0" testId={`tier-${tr.name.toLowerCase()}`}><img src={RANK_ASSETS[tr.name]} alt={`Kartu ${tr.name}`} className="w-full aspect-[16/8] object-cover" /><div className="p-4"><p className="eyebrow">{tr.name}</p><p className="font-heading font-bold text-lg mt-1">{fmtRp(tr.threshold)}{tr.maximum ? ` – ${fmtRp(tr.maximum - 1)}` : "+"} / minggu</p><p className="text-xs text-muted-foreground">Hadir {fmtRp(tr.attendance_benefit)} / hari · Bonus penjualan {Math.round(tr.pct * 100)}%</p></div></Bento>)}
+          {d.tiers.map((tr) => <Bento key={tr.name} gold className="fade-up overflow-hidden p-0" testId={`tier-${tr.name.toLowerCase()}`}><button data-testid={`tier-open-${tr.name.toLowerCase()}`} onClick={() => setExpandedTier(expandedTier === tr.name ? null : tr.name)} className="w-full text-left"><img src={RANK_ASSETS[tr.name]} alt={`Kartu ${tr.name}`} className="w-full aspect-[16/8] object-cover" /><div className="p-4"><p className="eyebrow">{tr.name}</p><p className="font-heading font-bold text-xs leading-tight sm:text-sm mt-1">{fmtRp(tr.threshold)}{tr.maximum ? ` – ${fmtRp(tr.maximum - 1)}` : "+"} / minggu</p><p className="text-[10px] leading-tight line-clamp-2 text-muted-foreground">Hadir {fmtRp(tr.attendance_benefit)} / hari · Bonus penjualan {Math.round(tr.pct * 100)}%</p></div></button></Bento>)}
         </div>
+        {expandedTier && (() => { const tier = d.tiers.find((item) => item.name === expandedTier); return <Bento gold className="mb-4 fade-up" testId="tier-detail-panel"><div className="flex items-center justify-between gap-3"><div><p className="eyebrow">Detail Target {tier.name}</p><p className="font-heading font-bold text-lg">{fmtRp(tier.threshold)}{tier.maximum ? ` – ${fmtRp(tier.maximum - 1)}` : "+"} / minggu</p></div><ChevronDown className="w-4 h-4 text-primary" /></div><div className="grid grid-cols-2 gap-3 mt-3 text-xs"><div><p className="eyebrow">Kehadiran</p><p className="num font-bold">{fmtRp(tier.attendance_benefit)} / hari</p></div><div><p className="eyebrow">Bonus Penjualan</p><p className="num font-bold">{Math.round(tier.pct * 100)}% dari total penjualan</p></div></div></Bento>; })()}
         <p className="text-xs text-muted-foreground mb-4">Benefit kehadiran dan bonus penjualan mengikuti rank yang tercapai pada periode pilihan.</p>
+        <Bento gold className="mb-4" testId="rider-live-sales-detail"><p className="eyebrow">Rincian Total Penjualan Rider · Real Time</p><p className="text-[10px] text-muted-foreground">Diperbarui otomatis setiap 30 detik sesuai periode yang dipilih.</p><div className="mt-3 space-y-2">{d.riders.map((r) => <div key={r.rider_id} data-testid={`rider-live-sales-${r.rider_id}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-b border-border/50 pb-2 last:border-0 last:pb-0"><div className="min-w-0"><p className="truncate text-xs font-semibold">{r.rider_name}</p><p className="text-[10px] text-primary">{r.tier}{r.next_tier ? ` → ${r.next_tier.name}` : " · Target tercapai"}</p></div><div className="text-right"><p className="num text-xs font-bold">{fmtRp(r.gross)}</p><p className="num text-[10px] text-muted-foreground">{r.next_tier ? `${r.next_tier.progress}% target` : "100% target"}</p></div></div>)}{!d.riders.length && <Empty text={t("noData")} />}</div></Bento>
         <div className="grid md:grid-cols-2 gap-4">
           {d.riders.map((r) => (
             <Bento key={r.rider_id} gold={r.rider_id === targetRider} className="fade-up" testId={`salary-card-${r.rider_id}`}>
