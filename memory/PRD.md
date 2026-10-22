@@ -404,3 +404,7 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Rider commission text moved upward within the Rank image and now uses a white outline with black shadow
   for legibility over any rank artwork.
 - Frontend production build passed.
+
+## UX Update — Rider Rank Position Refinement (2026-10)
+- Commission value returned to its prior vertical center position; progress bar moved upward to ten percent
+  from the bottom of the Rank image. Frontend production build passed.
