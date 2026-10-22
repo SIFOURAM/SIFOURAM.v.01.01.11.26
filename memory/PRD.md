@@ -213,3 +213,9 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Follow-up QA fixed bodyless cron delivery and strict Bearer authorization. Rank cards now always use
   Monday–Sunday independently of history filters; backend restart, bodyless cron call, and frontend
   production build passed.
+
+## Navigation and Visual Polish (2026-10)
+- Header tab navigation now auto-hides after three seconds with a left-slide animation, collapses to a
+  40px area, and can be revealed through a centered `>` action.
+- Shared Bento cards use an orange gradient border. Report actions, WhatsApp summaries, compact mobile
+  filters, and split report payment/order/service cards have also been added during visual refinements.
