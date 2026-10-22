@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { MessageCircle, FileDown, Plus } from "lucide-react";
 import jsPDF from "jspdf";
@@ -14,6 +14,7 @@ const packs = (m) => (m.stock / m.pack_qty).toFixed(2);
 
 export default function Inventory() {
   const { t } = useT();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [mats, setMats] = useState([]);
   const [menus, setMenus] = useState([]);
@@ -99,7 +100,7 @@ export default function Inventory() {
                 <tr key={m.id} data-testid={`material-row-${m.id}`}><td className="font-semibold">{m.name}<span className="block text-[10px] text-muted-foreground uppercase">{m.category}</span></td>
                   <td className="num">{Math.round(m.stock).toLocaleString()} {m.unit}</td><td className="num hide-xs">{packs(m)} {m.pack_label}</td>
                   <td className="num text-muted-foreground hide-sm">{m.pack_qty.toLocaleString()} {m.unit} · {fmtRp(m.pack_price)}</td>
-                  <td>{m.stock <= m.min_stock ? <span className="text-xs font-semibold text-red-500">{t("lowStock")}</span> : <span className="text-xs text-emerald-500">OK</span>}</td></tr>))}</tbody></table>
+                  <td>{m.stock <= m.min_stock ? <button data-testid={`request-purchase-${m.id}`} onClick={() => navigate(`/purchase-orders?material_id=${m.id}`)} className="text-xs font-semibold text-red-500 hover:underline">{t("lowStock")}</button> : <span className="text-xs text-emerald-500">OK</span>}</td></tr>))}</tbody></table>
           </Bento>
         </div>
       )}

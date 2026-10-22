@@ -394,3 +394,8 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - POS was removed from the Bar Team bottom navigation. Deposit is now the highlighted center-style primary
   action with the former POS icon treatment, while Stock, Production, and Settings remain available.
 - Frontend production build passed.
+
+## Feature Added — Low Stock Purchase Request Shortcut (2026-10)
+- Low Stock status in Inventory is now a clickable action. It routes to Purchase Orders with the selected
+  material already prefilled, reducing duplicate manual entry for Bar Team purchase requests.
+- Frontend production build passed.

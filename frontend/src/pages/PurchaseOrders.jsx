@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, errMsg } from "../lib/api";
@@ -6,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { Bento, Empty, Field, PageHeader, Select } from "../components/common";
 
 export default function PurchaseOrders() {
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [materials, setMaterials] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -25,6 +27,12 @@ export default function PurchaseOrders() {
     }
   };
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const materialId = searchParams.get("material_id");
+    if (materialId) {
+      setForm((current) => ({ ...current, material_id: materialId }));
+    }
+  }, [searchParams]);
   const submit = async (event) => {
     event.preventDefault();
     try {
