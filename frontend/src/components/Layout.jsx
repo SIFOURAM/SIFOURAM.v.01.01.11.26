@@ -96,7 +96,7 @@ export const NAV = {
     more: [item("/settings", "settings")],
   },
   barteam: {
-    main: [item("/rider-stock", "riderStock"), item("/pos", "pos"), item("/deposit", "deposit"), item("/inventory", "inventory")],
+    main: [item("/rider-stock", "riderStock"), item("/deposit", "deposit"), item("/inventory", "inventory")],
     more: [item("/settings", "settings")],
   },
   rider: {
@@ -281,14 +281,18 @@ export default function Layout() {
 
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-background/90 backdrop-blur-xl border-t border-border/70" data-testid="bottom-nav">
           <div className="flex justify-around px-1 py-1.5 pb-[max(env(safe-area-inset-bottom),6px)]">
-            {main.map((i) => (
+            {main.map((i) => {
+              const isPrimaryAction = i.key === "pos" || (user.role === "barteam" && i.key === "deposit");
+              return (
               <NavLink key={i.to} to={i.to} end={i.to === "/"} data-testid={`bottomnav-${i.key}`}
-                className={() => `flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${i.key === "pos" ? "text-black" : isBottomItemActive(i) ? "text-primary" : theme === "dark" ? "text-white" : "text-muted-foreground"}`}>
-                <span className={i.key === "pos" ? "flex w-10 h-10 -mt-3 items-center justify-center rounded-full bg-primary shadow-md" : "flex items-center justify-center"}>
-                  <i.icon className={i.key === "pos" ? "w-5 h-5" : "w-[0.95rem] h-[0.95rem]"} />
+                className={() => `flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${isPrimaryAction ? "text-black" : isBottomItemActive(i) ? "text-primary" : theme === "dark" ? "text-white" : "text-muted-foreground"}`}>
+                <span className={isPrimaryAction ? "flex w-10 h-10 -mt-3 items-center justify-center rounded-full bg-primary shadow-md" : "flex items-center justify-center"}>
+                  <i.icon className={isPrimaryAction ? "w-5 h-5" : "w-[0.95rem] h-[0.95rem]"} />
                 </span>
                 <span className="truncate max-w-full">{t(i.key)}</span>
-              </NavLink>))}
+              </NavLink>
+              );
+            })}
             {more.length > 0 && <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${activeCategory?.name === "Lainnya" || moreOpen ? "text-primary" : "text-muted-foreground"}`}><MoreHorizontal className="w-[0.95rem] h-[0.95rem]" /><span>{t("more")}</span></button>}
           </div>
           {moreOpen && <div data-testid="more-menu" className="absolute bottom-full inset-x-2 mb-2 grid grid-cols-2 gap-1 p-2 rounded-xl border border-border bg-card shadow-2xl">{CATEGORIES[user.role].find((category) => category.name === "Lainnya")?.tabs.map((tab) => <NavLink key={tab.to} to={tab.to} data-testid={`more-${tab.key}`} className="flex items-center gap-2 h-10 px-3 rounded-lg text-sm font-semibold hover:bg-muted"><tab.icon className="w-4 h-4" />{t(tab.key)}</NavLink>)}</div>}

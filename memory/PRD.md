@@ -389,3 +389,8 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 ## UX Update — Bar Team Deposit Access (2026-10)
 - Tim Bar mobile bottom navigation now shows Deposit immediately after POS, while retaining the POS category
   tab structure. Frontend production build passed.
+
+## UX Update — Bar Team Primary Deposit Action (2026-10)
+- POS was removed from the Bar Team bottom navigation. Deposit is now the highlighted center-style primary
+  action with the former POS icon treatment, while Stock, Production, and Settings remain available.
+- Frontend production build passed.
