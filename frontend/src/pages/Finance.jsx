@@ -47,8 +47,8 @@ export default function Finance() {
   return (
     <div data-testid="finance-page">
       <PageHeader eyebrow="Dashboard · Laporan" title="Laporan Keuangan">
-        <DateFilter onChange={setRange} />
         {d && <div className="flex gap-2"><button data-testid="fin-excel-button" onClick={excel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />{t("excel")}</button><button data-testid="fin-pdf-button" onClick={pdf} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button><button data-testid="fin-wa-button" onClick={wa} className="btn-wa h-9 px-3 text-xs"><MessageCircle className="w-3.5 h-3.5" />WA</button></div>}
+        <DateFilter onChange={setRange} />
       </PageHeader>
       {d && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">

@@ -77,15 +77,22 @@
 }
 
 @layer components {
-  .bento { @apply rounded-2xl border border-border/70 bg-card p-4 sm:p-[1.2rem] relative overflow-hidden transition-shadow duration-300; }
+  .bento { @apply rounded-2xl border border-transparent bg-card p-4 sm:p-[1.2rem] relative overflow-hidden transition-shadow duration-300; background-clip: padding-box; }
+  .bento::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255, 107, 0, 0.9) 0%, rgba(251, 146, 60, 0.35) 48%, rgba(255, 107, 0, 0.9) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
   .bento:hover { box-shadow: 0 8px 30px -12px rgba(255, 107, 0, 0.18); }
   .gold { position: relative; border-color: transparent !important; background-clip: padding-box; }
-  .gold::before {
-    content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
-    background: linear-gradient(135deg, var(--gold-a) 0%, var(--gold-b) 50%, var(--gold-a) 100%);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
-  }
+  .gold::before { background: linear-gradient(135deg, var(--gold-a) 0%, var(--gold-b) 50%, var(--gold-a) 100%); }
   .eyebrow { @apply text-[11px] uppercase tracking-[0.18em] text-primary font-semibold; }
   .field { @apply w-full min-w-0 h-10 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40 transition-shadow; }
   input.field, select.field {

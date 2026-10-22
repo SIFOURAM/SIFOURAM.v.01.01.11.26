@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Boxes, Layers, ShoppingCart, Bike, Wallet, FileText, HandCoins, LineChart, BadgeDollarSign, Settings as Cog, MoreHorizontal, LogOut, Sun, Moon, Gauge, Users, Bell, UserCog, ChartNoAxesCombined, MessageCircle } from "lucide-react";
+import { LayoutDashboard, Boxes, Layers, ShoppingCart, Bike, Wallet, FileText, HandCoins, LineChart, BadgeDollarSign, Settings as Cog, MoreHorizontal, LogOut, Sun, Moon, Gauge, Users, Bell, UserCog, ChartNoAxesCombined, MessageCircle, ChevronRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useT } from "../lib/i18n";
 import { api } from "../lib/api";
@@ -113,9 +113,17 @@ function CategoryTabs({ category, t }) {
   const navigate = useNavigate();
   const currentPath = `${location.pathname}${location.search}`;
   const activeTab = category.tabs.find((tab) => tab.to === currentPath || tab.subtabs?.some((subtab) => subtab.to === currentPath)) || category.tabs.find((tab) => location.pathname === tab.to.split("?")[0]) || category.tabs[0];
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    setVisible(true);
+    const timer = window.setTimeout(() => setVisible(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [category.name, currentPath]);
+
   return (
     <nav data-testid="category-tabs" className={`category-tab-bar ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
-      <div className="mx-auto flex w-full max-w-[1400px] flex-nowrap items-center gap-1 min-w-0 px-4 lg:px-8">
+      <div className={`mx-auto flex w-full max-w-[1400px] flex-nowrap items-center gap-1 min-w-0 px-4 transition-[opacity,transform] duration-500 ease-out lg:px-8 ${visible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0 pointer-events-none"}`}>
         <span data-testid="category-current-label" className="flex h-[23px] items-center font-heading text-[11px] font-semibold leading-none text-primary">{category.name}</span>
         <select data-testid="category-tabs-dropdown" value={activeTab.to} onChange={(event) => navigate(event.target.value)} className={`category-dropdown h-[23px] px-2 text-[11px] text-primary font-semibold ${activeTab.subtabs?.length ? "max-w-[5.2rem]" : "max-w-[9rem]"}`}>
           {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{t(tab.key)}</option>)}
@@ -131,6 +139,7 @@ function CategoryTabs({ category, t }) {
           </select>
         )}
       </div>
+      {!visible && <button data-testid="category-tabs-reveal-button" onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); setVisible(true); }} onClick={() => setVisible(true)} className="absolute left-4 top-0 z-10 flex h-[23px] w-7 items-center justify-center text-primary" aria-label="Tampilkan navigasi tab"><ChevronRight className="h-4 w-4" /></button>}
     </nav>
   );
 }
