@@ -35,7 +35,7 @@ export default function POSDashboard() {
         <Stat testId="pos-dashboard-qris" label="Total QRIS" value={fmtRp(payment.qris || 0)} />
         <Stat testId="pos-dashboard-sales" gold label="Total Penjualan" value={fmtRp(report.revenue)} />
       </div>
-      <Bento testId="pos-dashboard-history" className="mt-4 overflow-x-auto">
+      <Bento scrollable testId="pos-dashboard-history" className="mt-4 overflow-x-auto">
         <p className="eyebrow mb-4">History Penjualan</p>
         <table className="table-x min-w-[38rem]"><thead><tr><th>Tanggal</th><th className="text-right">Total Penjualan</th></tr></thead>
           <tbody>{report.daily_revenue.length ? report.daily_revenue.map((row) => <tr key={row.date}><td>{row.date}</td><td className="text-right num">{fmtRp(row.revenue)}</td></tr>) : <tr><td colSpan="2" className="text-center text-muted-foreground py-8">Belum ada penjualan pada periode ini.</td></tr>}</tbody>

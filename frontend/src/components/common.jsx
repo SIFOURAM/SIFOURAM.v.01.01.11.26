@@ -9,8 +9,8 @@ export const PageHeader = ({ children }) => (
   children ? <div className="flex flex-wrap gap-2 items-center justify-start mb-5 fade-up">{children}</div> : null
 );
 
-export const Bento = ({ className = "", gold, children, testId, style }) => (
-  <div data-testid={testId} className={`bento ${gold ? "gold" : ""} ${className.includes("overflow-x-auto") ? "bento-scrollable" : ""} ${className}`} style={style}>{children}</div>
+export const Bento = ({ className = "", gold, scrollable = false, children, testId, style }) => (
+  <div data-testid={testId} className={`bento ${gold ? "gold" : ""} ${scrollable ? "bento-scrollable" : ""} ${className}`} style={style}>{children}</div>
 );
 
 export const Stat = ({ label, value, sub, icon: Icon, gold, testId, className = "" }) => (

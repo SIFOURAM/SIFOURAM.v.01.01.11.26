@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only mobile test (390x844) as Owner, with the token added through the API. Operational Reports (wastage, inventory, purchases, opname) PASS: Excel/PDF/Cetak/Kirim WA render above the DateFilter (WA top 117px, date-filter top 161px). Clicking Kirim WA (window.open stubbed, nothing sent) opens a https://wa.me/?text= URL. The message has the uppercase report title, the range, 'Total catatan: N' and at most 10 detail rows (inventory: 27 records, 10 rows shown). No console errors. The bento-scrollable class is applied on report-products-table, operations-table, menu-stock-history and pos-dashboard-history, and the outer ::before gradient is hidden (display:none). Horizontal scroll works. FAIL: the orange gradient border on the scrollable table is NOT rendered. The computed border-image is set on table.table-x, but the table has border-collapse: collapse, and browsers ignore border-image on collapsed tables. Visual check: neither table shows an orange border. Injecting 'border-collapse:separate;border-spacing:0' makes the gradient border appear around the table (verified by screenshot).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "index.css .bento-scrollable .table-x", "issue": "The gradient border-image does not render because .table-x uses border-collapse: collapse (Tailwind preflight). The table has no orange border and the outer bento border is gray, so the scrollable table now has no orange border.", "selector": "[data-testid=operations-table] table, [data-testid=pos-dashboard-history] table, [data-testid=report-products-table] table, [data-testid=menu-stock-history] table", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Operations report empty state", "issues": ["The <Empty> text is outside the <table>, so the border only wraps the header row. The empty text also scrolls horizontally with the content and gets cut off (e.g. 'n ada data pada periode ini' after scrolling)."]},
+      {"screen": "Nilai Persediaan WA message", "issues": ["It includes a date range line even though the inventory view has no DateFilter (it is a snapshot). Consider removing the line or labelling it 'Per tanggal'."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "In index.css, add 'border-collapse: separate; border-spacing: 0;' to the .bento-scrollable .table-x rule so the border-image renders. Optionally add a border-radius, or use a wrapper div with the gradient border around the table.",
+    "Optional: render the empty state inside the bordered area (e.g. a tbody row with colSpan) so the border wraps the whole content.",
+    "Optional: drop the date range from the inventory WA message."
+  ],
+  "critical_code_review_comments": [
+    "Bento adds bento-scrollable by string-matching className.includes('overflow-x-auto'). This is fragile; an explicit prop would be better.",
+    "The .bento-scrollable border-color uses hsl(--border), which is rgb(39,39,42) on the dark theme and almost invisible. That is acceptable, but together with the table border not rendering, the card looks borderless."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "80%"},
+  "seed_data_creation": "None. Only window.open was stubbed; no WA message was sent and no records were created.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Log in via page.request: POST /api/auth/identify, then /api/auth/login. Put the token in localStorage (si4am_token, si4am_legal_2026-06-01=accepted, si4am_session_wib_date=WIB date), then goto /reports?view=wastage|inventory|purchases|opname. Stub window.open with add_init_script to capture the wa.me URL. To check the border visually, take an element screenshot of [data-testid=operations-table] or [data-testid=pos-dashboard-history]; the computed borderImageSource alone is not proof that the border renders."
+}

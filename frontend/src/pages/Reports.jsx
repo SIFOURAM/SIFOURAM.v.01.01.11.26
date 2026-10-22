@@ -118,7 +118,7 @@ export default function Reports() {
       .join("\n");
     openWA(
       `*SI FOUR AM — ${title.toUpperCase()}*\n` +
-      `📅 ${range.start} → ${range.end}\n` +
+      (kind === "inventory" ? "📦 Snapshot persediaan saat ini\n" : `📅 ${range.start} → ${range.end}\n`) +
       "----------------------------------\n" +
       `🧾 Total transaksi: ${report.transactions}\n` +
       `💰 Total revenue: ${fmtRp(report.revenue)}\n` +
@@ -172,7 +172,7 @@ export default function Reports() {
             {report.hourly.length ? <ResponsiveContainer width="100%" height={250}><BarChart data={report.hourly}><XAxis dataKey="hour" tick={{ fontSize: 10 }} /><YAxis hide /><Tooltip {...tooltip} formatter={(value) => fmtRp(value)} /><Bar dataKey="revenue" fill="#FF6B00" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer> : <Empty text="Belum ada transaksi pada periode ini" />}
           </Bento>
         </>}
-        <Bento testId="report-products-table" className="col-span-2 lg:col-span-4 fade-up overflow-x-auto">
+        <Bento testId="report-products-table" scrollable className="col-span-2 lg:col-span-4 fade-up overflow-x-auto">
           <p className="eyebrow mb-4">{view === "sales" ? "Produk terlaris" : "Performa produk"}</p>
           <table className="table-x min-w-[34rem]"><thead><tr><th>Rank</th><th>Produk</th><th className="text-right">Kuantitas</th><th className="text-right">Revenue</th></tr></thead>
             <tbody>{productRows.map((row) => <tr key={row.name}><td className="num">{row.rank}</td><td className="font-semibold">{row.name}</td><td className="num text-right">{row.qty}</td><td className="num text-right">{fmtRp(row.revenue)}</td></tr>)}</tbody>
@@ -303,7 +303,7 @@ function OperationsReport({ kind, setView }) {
         {kind !== "inventory" && <DateFilter onChange={setRange} />}
       </PageHeader>
       {error && <p data-testid="operations-error" className="text-sm text-red-500 py-8">Gagal memuat laporan: {error}</p>}
-      {data && <><div className="grid grid-cols-2 lg:grid-cols-4 gap-4"><OperationsSummary kind={kind} summary={summary} /></div><Bento testId="operations-table" className="mt-4 overflow-x-auto"><table className={kind === "inventory" ? "table-x w-full table-fixed" : "table-x min-w-[28rem]"}>{kind === "inventory" && <colgroup><col className="w-1/2" /><col className="w-1/4" /><col className="w-1/4" /></colgroup>}<thead><tr>{columns.map((column) => <th key={column.key} className={column.right ? "text-right whitespace-nowrap" : ""}>{column.label}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.id || row.name}>{columns.map((column) => <td key={column.key} className={`${column.right ? "text-right num whitespace-nowrap" : ""} ${kind === "inventory" && column.key === "name" ? "truncate" : ""}`}>{column.render ? column.render(row) : column.format(row)}</td>)}</tr>)}</tbody></table>{!rows.length && <Empty text="Belum ada data pada periode ini" />}</Bento></>}
+      {data && <><div className="grid grid-cols-2 lg:grid-cols-4 gap-4"><OperationsSummary kind={kind} summary={summary} /></div><Bento testId="operations-table" scrollable className="mt-4 overflow-x-auto"><table className={kind === "inventory" ? "table-x w-full table-fixed" : "table-x min-w-[28rem]"}>{kind === "inventory" && <colgroup><col className="w-1/2" /><col className="w-1/4" /><col className="w-1/4" /></colgroup>}<thead><tr>{columns.map((column) => <th key={column.key} className={column.right ? "text-right whitespace-nowrap" : ""}>{column.label}</th>)}</tr></thead><tbody>{rows.length ? rows.map((row) => <tr key={row.id || row.name}>{columns.map((column) => <td key={column.key} className={`${column.right ? "text-right num whitespace-nowrap" : ""} ${kind === "inventory" && column.key === "name" ? "truncate" : ""}`}>{column.render ? column.render(row) : column.format(row)}</td>)}</tr>) : <tr><td colSpan={columns.length}><Empty text="Belum ada data pada periode ini" /></td></tr>}</tbody></table></Bento></>}
     </div>
   );
 }
