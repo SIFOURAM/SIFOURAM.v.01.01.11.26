@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { FileDown, FileSpreadsheet, Printer } from "lucide-react";
+import { FileDown, FileSpreadsheet, MessageCircle, Printer } from "lucide-react";
 import { Bar, BarChart, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { api, errMsg } from "../lib/api";
-import { fmtRp } from "../lib/helpers";
+import { fmtRp, openWA } from "../lib/helpers";
 import { Bento, DateFilter, Empty, PageHeader, Stat } from "../components/common";
 
 const COLORS = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74"];
@@ -110,6 +110,24 @@ export default function Reports() {
     const doc = buildPdf();
     if (doc) doc.save(`SIFOURAM_${view}_${range.start}_${range.end}.pdf`);
   };
+  const sendWhatsApp = () => {
+    if (!report) return;
+    const payment = (name) => report.payment_distribution.find((row) => row.name.toLowerCase() === name)?.value || 0;
+    const topProducts = (report.products || []).slice(0, 5)
+      .map((product) => `• ${product.name}: ${product.qty} · ${fmtRp(product.revenue)}`)
+      .join("\n");
+    openWA(
+      `*SI FOUR AM — ${title.toUpperCase()}*\n` +
+      `📅 ${range.start} → ${range.end}\n` +
+      "----------------------------------\n" +
+      `🧾 Total transaksi: ${report.transactions}\n` +
+      `💰 Total revenue: ${fmtRp(report.revenue)}\n` +
+      `💵 Cash: ${fmtRp(payment("cash"))}\n` +
+      `📱 QRIS: ${fmtRp(payment("qris"))}\n` +
+      `📊 Rata-rata order: ${fmtRp(report.average_order)}\n` +
+      (topProducts ? `----------------------------------\n*Produk teratas*\n${topProducts}\n` : "")
+    );
+  };
   const printPdf = () => {
     const doc = buildPdf();
     if (doc) window.open(doc.output("bloburl"), "_blank", "noopener,noreferrer");
@@ -124,6 +142,7 @@ export default function Reports() {
               <button data-testid="report-excel-button" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button>
               <button data-testid="report-pdf-button" onClick={exportPdf} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button>
               <button data-testid="report-print-button" onClick={printPdf} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button>
+              <button data-testid="report-wa-button" onClick={sendWhatsApp} className="btn-wa h-9 px-3 text-xs"><MessageCircle className="w-3.5 h-3.5" />Kirim WA</button>
             </div>}
             <div className="flex flex-wrap items-start gap-2">
               <DateFilter onChange={setRange} />
