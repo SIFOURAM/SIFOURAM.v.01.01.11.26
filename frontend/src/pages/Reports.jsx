@@ -178,19 +178,21 @@ function ReportFilterSummary({ report }) {
   const amount = (rows, name) => rows.find((row) => row.name.toLowerCase() === name)?.value || 0;
   return (
     <div className="grid grid-cols-2 gap-4 mt-4">
-      <Bento testId="report-payment-summary" className="fade-up">
-        <p className="eyebrow">Pembayaran</p>
-        <div className="mt-2 space-y-1 text-xs num">
-          <p className="flex justify-between"><span>Cash</span><span>{fmtRp(amount(report.payment_distribution, "cash"))}</span></p>
-          <p className="flex justify-between"><span>QRIS</span><span>{fmtRp(amount(report.payment_distribution, "qris"))}</span></p>
-        </div>
+      <Bento testId="report-cash-summary" className="fade-up">
+        <p className="eyebrow">Pembayaran Cash</p>
+        <p className="mt-2 num text-sm font-bold">{fmtRp(amount(report.payment_distribution, "cash"))}</p>
       </Bento>
-      <Bento testId="report-order-service-summary" className="fade-up">
-        <p className="eyebrow">Order & Layanan</p>
-        <div className="mt-2 space-y-1 text-xs num">
-          <p className="flex justify-between"><span>Reguler / Bundling</span><span>{fmtRp(amount(report.order_distribution, "regular") + amount(report.order_distribution, "bundling"))}</span></p>
-          <p className="flex justify-between"><span>Dine / Takeaway / Online</span><span>{fmtRp(amount(report.service_distribution, "dine_in") + amount(report.service_distribution, "takeaway") + amount(report.service_distribution, "online"))}</span></p>
-        </div>
+      <Bento testId="report-qris-summary" className="fade-up">
+        <p className="eyebrow">Pembayaran QRIS</p>
+        <p className="mt-2 num text-sm font-bold">{fmtRp(amount(report.payment_distribution, "qris"))}</p>
+      </Bento>
+      <Bento testId="report-order-summary" className="fade-up">
+        <p className="eyebrow">Jenis Order</p>
+        <p className="mt-2 text-xs num">Reguler {fmtRp(amount(report.order_distribution, "regular"))} · Bundling {fmtRp(amount(report.order_distribution, "bundling"))}</p>
+      </Bento>
+      <Bento testId="report-service-summary" className="fade-up">
+        <p className="eyebrow">Layanan</p>
+        <p className="mt-2 text-xs num">Dine {fmtRp(amount(report.service_distribution, "dine_in"))} · Takeaway {fmtRp(amount(report.service_distribution, "takeaway"))} · Online {fmtRp(amount(report.service_distribution, "online"))}</p>
       </Bento>
     </div>
   );
