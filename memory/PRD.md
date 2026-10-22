@@ -310,3 +310,14 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Axios now broadcasts unauthenticated API responses to AuthContext, which clears local session state and
   returns the user to Login. The Stock Remaining tab suppresses the redundant 401 toast. Verified by
   revoking a session and opening the remaining-stock route on mobile: Login appeared cleanly.
+
+## Feature Added — Coach Sessions and Contextual Info (2026-10)
+- CoachChat now has Gemini-style per-user sessions: New Chat, session history, select, rename-capable API,
+  delete, and independent message context. Ownership checks prevent cross-user reads, edits, deletes, and
+  LLM context leakage. An automatically created empty session is removed if the LLM fails.
+- A global floating Info button appears above the active navigation and opens route-aware help for Sisa
+  Stock, Sales/Product reports, POS, Deposit, Inventory, and Stock Rider. Coach remains on the left;
+  Info stays on the right and both clear the mobile bottom navigation.
+- QA passed chat-session backend regression 9/9 and previous frontend session/info flows. Active-session
+  deletion now remains a true blank New Chat; desktop Coach is offset from the sidebar. The final reset
+  confirmed one Owner, zero sessions, zero coach sessions, and zero coach messages.

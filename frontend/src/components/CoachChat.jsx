@@ -35,17 +35,22 @@ export default function CoachChat({ hidden = false }) {
   const setProv = (p) => { setProvider(p); localStorage.setItem("si4am_ai_provider", p); };
   const lastRef = useRef();
   const newChatRef = useRef(false);
+  const selectedSessionRef = useRef(null);
+
+  useEffect(() => {
+    selectedSessionRef.current = sessionId;
+  }, [sessionId]);
 
   const loadSessions = useCallback(async (preferredSessionId = null) => {
     const { data } = await api.get("/coach/sessions");
     setSessions(data);
-    const nextSessionId = preferredSessionId || sessionId || (
+    const nextSessionId = preferredSessionId || selectedSessionRef.current || (
       newChatRef.current ? null : data[0]?.id
     );
     if (nextSessionId) {
       setSessionId(nextSessionId);
     }
-  }, [sessionId]);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -78,22 +83,17 @@ export default function CoachChat({ hidden = false }) {
     let pos = {};
     try { const p = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })); pos = { lat: p.coords.latitude, lng: p.coords.longitude }; } catch { /* no gps */ }
     try {
-      let activeSessionId = sessionId;
-      if (!activeSessionId) {
-        const { data: createdSession } = await api.post("/coach/sessions", { provider });
-        activeSessionId = createdSession.id;
-        newChatRef.current = false;
-        setSessionId(activeSessionId);
-      }
       const { data } = await api.post("/coach/chat", {
         message,
         provider,
-        session_id: activeSessionId,
+        session_id: sessionId,
         ...pos,
       });
+      newChatRef.current = false;
+      setSessionId(data.session_id);
       setMsgs((m) => [...m, data]);
       setPois(data.pois || []);
-      await loadSessions(activeSessionId);
+      await loadSessions(data.session_id);
       playChime();
     } catch (e) { toast.error(errMsg(e)); }
     finally { setBusy(false); }
@@ -122,6 +122,7 @@ export default function CoachChat({ hidden = false }) {
       const remainingSessions = sessions.filter((session) => session.id !== targetSessionId);
       setSessions(remainingSessions);
       if (targetSessionId === sessionId) {
+        newChatRef.current = true;
         setSessionId(null);
         setMsgs([]);
         setPois([]);
@@ -138,7 +139,7 @@ export default function CoachChat({ hidden = false }) {
   return (
     <>
       <button data-testid="coach-open" onClick={() => setOpen(true)} aria-label="Tanya AI"
-        className="fixed left-4 bottom-24 lg:bottom-20 z-40 rounded-full p-[2px] bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)] shadow-xl hover:scale-105 active:scale-95 transition-transform">
+        className="fixed left-4 bottom-24 lg:bottom-6 lg:left-[250px] z-40 rounded-full p-[2px] bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)] shadow-xl hover:scale-105 active:scale-95 transition-transform">
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)]">
           <Sparkles className="w-4 h-4 text-white" />
         </span>
