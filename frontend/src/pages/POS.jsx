@@ -198,7 +198,7 @@ export default function POS() {
     } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
   };
   const openEod = () => api.get("/sales/eod", { params: { rider_id: riderId, date: today() } }).then((r) => setEod(r.data));
-  const closeEod = async () => { try { const { data } = await api.post("/sales/eod/close", { rider_id: riderId, date: today() }); if (user.role === "rider") { localStorage.setItem("si4am_eod_closed", String(Date.now())); window.dispatchEvent(new Event("si4am-eod-closed")); } setEod(data); loadStock(); toast.success(t("eodDone")); } catch (e) { toast.error(errMsg(e)); } };
+  const closeEod = async () => { try { const { data } = await api.post("/sales/eod/close", { rider_id: riderId, date: today() }); if (user.role === "rider") { window.dispatchEvent(new CustomEvent("si4am-eod-closed", { detail: { sessionEndsAt: data.session_ends_at } })); } setEod(data); loadStock(); toast.success(t("eodDone")); } catch (e) { toast.error(errMsg(e)); } };
   const openHist = () => api.get("/sales", { params: { start: histDate, end: histDate, rider_id: riderId } }).then((r) => setHist(r.data));
   useEffect(() => { if (hist) openHist(); }, [histDate]); // eslint-disable-line
 

@@ -1,10 +1,11 @@
 import "@/App.css";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { RotateCcw } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
 import { applyAppearance, getAppearance } from "./lib/appearance";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { api } from "./lib/api";
 import { LangProvider } from "./lib/i18n";
 import Layout, { HOME } from "./components/Layout";
 import Login from "./pages/Login";
@@ -79,12 +80,48 @@ function Shell() {
   );
 }
 
+function LiveShell() {
+  const { user, setUser } = useAuth();
+  const [revision, setRevision] = useState(0);
+  const knownRevision = useRef(null);
+
+  useEffect(() => {
+    if (!user) {
+      return undefined;
+    }
+    const sync = async () => {
+      try {
+        const { data } = await api.get("/sync/revision");
+        if (data.session_ends_at && data.session_ends_at !== user.session_ends_at) {
+          setUser((currentUser) => currentUser ? { ...currentUser, session_ends_at: data.session_ends_at } : currentUser);
+        }
+        if (knownRevision.current === null) {
+          knownRevision.current = data.revision;
+        } else if (knownRevision.current !== data.revision) {
+          knownRevision.current = data.revision;
+          setRevision((currentRevision) => currentRevision + 1);
+        }
+      } catch {}
+    };
+    const handleLocalChange = () => setRevision((currentRevision) => currentRevision + 1);
+    sync();
+    const intervalId = window.setInterval(sync, 6000);
+    window.addEventListener("si4am:data-changed", handleLocalChange);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("si4am:data-changed", handleLocalChange);
+    };
+  }, [user, setUser]);
+
+  return <Shell key={revision} />;
+}
+
 export default function App() {
   useEffect(() => { applyAppearance(getAppearance()); }, []);
   return (
     <LangProvider>
       <AuthProvider>
-        <BrowserRouter><Shell /></BrowserRouter>
+        <BrowserRouter><LiveShell /></BrowserRouter>
         <Toaster position="top-right" richColors />
         <div className="rotate-lock" data-testid="rotate-lock">
           <RotateCcw className="w-12 h-12 text-primary" />

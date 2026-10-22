@@ -7,8 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // null = checking, false = anon
   const [theme, setThemeState] = useState(localStorage.getItem("si4am_theme") || "dark");
   const [posUnlocked, setPosUnlocked] = useState(sessionStorage.getItem("si4am_pos") === "1");
-  const inactivityTimer = useRef(null);
-  const wibDate = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta" }).format(new Date());
+  const sessionTimer = useRef(null);
   const clearSessionState = useCallback(() => {
     localStorage.removeItem("si4am_token");
     sessionStorage.removeItem("si4am_token");
@@ -18,13 +17,6 @@ export function AuthProvider({ children }) {
     setUser(false);
     setPosUnlocked(false);
   }, []);
-  const millisToWibMidnight = () => {
-    const now = new Date();
-    const wib = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-    const next = new Date(wib);
-    next.setHours(24, 0, 0, 0);
-    return next.getTime() - wib.getTime();
-  };
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -32,22 +24,7 @@ export function AuthProvider({ children }) {
   }, [theme]);
 
   useEffect(() => {
-    api.get("/auth/me").then((r) => {
-      const closedAt = Number(localStorage.getItem("si4am_eod_closed") || 0);
-      if (r.data.role === "rider" && closedAt && Date.now() - closedAt >= 3 * 60 * 60 * 1000) {
-        api.post("/auth/logout").catch(() => {});
-        localStorage.removeItem("si4am_eod_closed");
-        setUser(false);
-        return;
-      }
-      if (r.data.role !== "rider") localStorage.removeItem("si4am_eod_closed");
-      if (r.data.role !== "rider" && localStorage.getItem("si4am_session_wib_date") !== wibDate()) {
-        api.post("/auth/logout").catch(() => {});
-        setUser(false);
-        return;
-      }
-      setUser(r.data);
-    }).catch(() => setUser(false));
+    api.get("/auth/me").then((response) => setUser(response.data)).catch(() => setUser(false));
   }, []);
 
   useEffect(() => {
@@ -71,7 +48,6 @@ export function AuthProvider({ children }) {
       pin,
       remember,
     });
-    if (data.user.role !== "rider") localStorage.setItem("si4am_session_wib_date", wibDate());
     setUser(data.user);
     return data.user;
   }, []);
@@ -83,22 +59,25 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!user) return undefined;
-    const schedule = () => {
-      window.clearTimeout(inactivityTimer.current);
-      if (user.role === "rider") {
-        const closedAt = Number(localStorage.getItem("si4am_eod_closed") || 0);
-        if (closedAt) inactivityTimer.current = window.setTimeout(logout, Math.max(0, closedAt + 3 * 60 * 60 * 1000 - Date.now()));
-        return;
-      }
-      inactivityTimer.current = window.setTimeout(logout, millisToWibMidnight());
-    };
-    window.addEventListener("si4am-eod-closed", schedule);
-    schedule();
+    window.clearTimeout(sessionTimer.current);
+    const sessionEnd = Date.parse(user.session_ends_at || "");
+    if (Number.isFinite(sessionEnd)) {
+      sessionTimer.current = window.setTimeout(logout, Math.max(0, sessionEnd - Date.now()));
+    }
     return () => {
-      window.clearTimeout(inactivityTimer.current);
-      window.removeEventListener("si4am-eod-closed", schedule);
+      window.clearTimeout(sessionTimer.current);
     };
   }, [user, logout]);
+  useEffect(() => {
+    const updateRiderDeadline = (event) => {
+      const sessionEndsAt = event.detail?.sessionEndsAt;
+      if (sessionEndsAt) {
+        setUser((currentUser) => currentUser ? { ...currentUser, session_ends_at: sessionEndsAt } : currentUser);
+      }
+    };
+    window.addEventListener("si4am-eod-closed", updateRiderDeadline);
+    return () => window.removeEventListener("si4am-eod-closed", updateRiderDeadline);
+  }, []);
   const unlockPos = () => { sessionStorage.setItem("si4am_pos", "1"); setPosUnlocked(true); };
   const setTheme = (t) => setThemeState(t);
 

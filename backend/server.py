@@ -30,6 +30,7 @@ VALID_ROLES = {"owner", "admin", "barteam", "rider"}
 AUTH_COOKIE = "si4am_session"
 MAX_REQUEST_BYTES = 5 * 1024 * 1024
 RATE_BUCKETS: Dict[str, deque] = defaultdict(deque)
+APP_DATA_REVISION = 0
 
 
 async def audit_event(
@@ -63,6 +64,7 @@ def enforce_rate_limit(request: Request, scope: str, limit: int, window_seconds:
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        global APP_DATA_REVISION
         content_length = request.headers.get("content-length")
         if request.url.path.startswith("/api") and content_length:
             try:
@@ -71,6 +73,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             except ValueError:
                 return Response("Content-Length tidak valid", status_code=400)
         response = await call_next(request)
+        if request.url.path.startswith("/api") and request.method in {"POST", "PUT", "DELETE"}:
+            if 200 <= response.status_code < 300 and not request.url.path.startswith("/api/auth/"):
+                APP_DATA_REVISION += 1
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -265,6 +270,37 @@ def public_user(u: dict) -> dict:
     return {k: v for k, v in u.items() if k not in ("_id", "password_hash", "pin_hash")}
 
 
+def next_wib_midnight() -> datetime:
+    now = datetime.now(WIB)
+    return (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+
+
+def as_utc(value: Any) -> Optional[datetime]:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value.astimezone(timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+async def rider_session_deadline(user_id: str) -> Optional[datetime]:
+    date = datetime.now(WIB).strftime("%Y-%m-%d")
+    eod = await db.eod.find_one({"rider_id": user_id, "date": date}, NOID)
+    closed_at = as_utc(eod.get("closed_at")) if eod else None
+    return closed_at + timedelta(hours=4) if closed_at else None
+
+
+async def session_expiry_for(user: dict) -> datetime:
+    if user["role"] in {"owner", "admin", "barteam"}:
+        return next_wib_midnight()
+    rider_deadline = await rider_session_deadline(user["id"])
+    return rider_deadline or (datetime.now(timezone.utc) + timedelta(days=30))
+
+
 async def get_user(request: Request) -> dict:
     token = request.cookies.get(AUTH_COOKIE)
     auth = request.headers.get("Authorization", "")
@@ -296,6 +332,19 @@ async def get_user(request: Request) -> dict:
     u = await db.users.find_one({"id": payload["sub"]})
     if not u or u.get("active", True) is False:
         raise HTTPException(401, "User not found")
+    expires_at = as_utc(session.get("expires_at"))
+    if u["role"] == "rider":
+        rider_deadline = await rider_session_deadline(u["id"])
+        if rider_deadline and (not expires_at or expires_at != rider_deadline):
+            expires_at = rider_deadline
+            await db.sessions.update_one({"id": session_id}, {"$set": {"expires_at": expires_at}})
+    if expires_at and datetime.now(timezone.utc) >= expires_at:
+        await db.sessions.update_one(
+            {"id": session_id},
+            {"$set": {"revoked": True, "revoked_at": now_iso()}},
+        )
+        raise HTTPException(401, "Sesi sudah berakhir")
+    u["session_ends_at"] = expires_at.isoformat() if expires_at else None
     return u
 
 
@@ -757,7 +806,7 @@ async def login(body: LoginIn, request: Request, response: Response):
         )
     await db.login_attempts.delete_one({"identifier": key})
     session_id = uid()
-    expires_at = datetime.now(timezone.utc) + timedelta(days=1)
+    expires_at = await session_expiry_for(u)
     token = make_token(u["id"], session_id, expires_at)
     await db.sessions.insert_one({
         "id": session_id,
@@ -773,7 +822,7 @@ async def login(body: LoginIn, request: Request, response: Response):
         httponly=True,
         secure=True,
         samesite="lax",
-        max_age=24 * 60 * 60,
+        max_age=max(1, int((expires_at - datetime.now(timezone.utc)).total_seconds())),
         path="/",
     )
     await audit_event("auth.login", request, u["id"])
@@ -801,6 +850,11 @@ async def logout(request: Request, response: Response, u=Depends(ANY)):
 @api.get("/auth/me")
 async def me(u=Depends(ANY)):
     return public_user(u)
+
+
+@api.get("/sync/revision")
+async def sync_revision(u=Depends(ANY)):
+    return {"revision": APP_DATA_REVISION, "session_ends_at": u.get("session_ends_at")}
 
 
 @api.post("/auth/verify-pin")
@@ -1602,8 +1656,15 @@ async def close_eod(body: EodIn, u=Depends(ANY)):
     s = await eod_summary(body.rider_id, body.date)
     doc = {"rider_id": body.rider_id, "date": body.date, "time": now_wib(), "closed_by": u["name"], "total_cups": s["total_cups"], "total_cash": s["total_cash"], "total_qris": s["total_qris"], "closed_at": now_iso()}
     await db.eod.update_one({"rider_id": body.rider_id, "date": body.date}, {"$set": doc}, upsert=True)
+    session_ends_at = None
+    if body.date == datetime.now(WIB).strftime("%Y-%m-%d"):
+        session_ends_at = as_utc(doc["closed_at"]) + timedelta(hours=4)
+        await db.sessions.update_many(
+            {"user_id": body.rider_id, "revoked": {"$ne": True}},
+            {"$set": {"expires_at": session_ends_at, "logout_policy": "rider_eod_plus_4h"}},
+        )
     await gs_sync("eod", doc)
-    return {**s, "closed": True}
+    return {**s, "closed": True, "session_ends_at": session_ends_at.isoformat() if session_ends_at else None}
 
 
 @api.get("/customers")

@@ -8,7 +8,14 @@ export const api = axios.create({
 let sessionExpirySent = false;
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const method = response.config?.method?.toLowerCase();
+    const url = response.config?.url || "";
+    if (["post", "put", "delete"].includes(method) && !url.startsWith("/auth/")) {
+      window.dispatchEvent(new Event("si4am:data-changed"));
+    }
+    return response;
+  },
   (error) => {
     const isUnauthorized = error.response?.status === 401;
     const url = error.config?.url || "";

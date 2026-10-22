@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [range, setRange] = useState(null);
   const [d, setD] = useState(null);
   const [gps, setGps] = useState([]);
+  const [centralStock, setCentralStock] = useState([]);
   const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
@@ -27,6 +28,12 @@ export default function Dashboard() {
     const load = () => api.get("/gps/active", { params: { date: today() } }).then((r) => setGps(r.data)).catch(() => {});
     load(); const id = setInterval(load, 20000); return () => clearInterval(id);
   }, []);
+  useEffect(() => {
+    api.get("/menus").then((response) => setCentralStock(response.data)).catch(() => setCentralStock([]));
+  }, []);
+
+  const totalCentralStock = centralStock.reduce((total, menu) => total + (menu.stock || 0), 0);
+  const lowStockMenus = [...centralStock].sort((a, b) => a.stock - b.stock).slice(0, 4);
 
   return (
     <div data-testid="main-dashboard">
@@ -38,6 +45,24 @@ export default function Dashboard() {
           <Stat label={t("expenses")} value={fmtRp(d.expenses)} sub={`Invoices: ${fmtRp(d.invoice_income)}`} icon={TrendingDown} testId="stat-expenses" />
           <Stat label={t("cashRevenue")} value={fmtRp(d.cash)} icon={Banknote} testId="stat-cash" />
           <Stat label={t("qrisRevenue")} value={fmtRp(d.qris)} icon={QrCode} testId="stat-qris" />
+
+          <Bento gold className="col-span-2 lg:col-span-4 fade-up" testId="central-product-stock">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="eyebrow mb-1">Stock Center Produk</p>
+                <p data-testid="central-product-stock-total" className="num text-2xl font-bold text-primary">{totalCentralStock} cup</p>
+              </div>
+              <div className="grid grid-cols-2 gap-x-5 gap-y-2 text-xs sm:grid-cols-4">
+                {lowStockMenus.map((menu) => (
+                  <div key={menu.id} data-testid={`central-stock-${menu.id}`} className="min-w-0">
+                    <p className="truncate text-muted-foreground">{menu.name.replace("SI ", "")}</p>
+                    <p className={`num font-bold ${menu.stock <= 0 ? "text-red-500" : "text-foreground"}`}>{menu.stock} cup</p>
+                  </div>
+                ))}
+                {!lowStockMenus.length && <p className="col-span-2 text-muted-foreground sm:col-span-4">Belum ada menu produk.</p>}
+              </div>
+            </div>
+          </Bento>
 
           <Bento className="col-span-2 lg:col-span-2 fade-up" testId="chart-rider-sales">
             <p className="eyebrow mb-4">5 Penjualan Rider Tertinggi</p>
