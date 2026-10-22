@@ -375,18 +375,8 @@ class SaleIn(BaseModel):
 
 class DepositRow(BaseModel):
     menu_id: str
-    stock: int
-    remaining: int
-    cash: int
-    qris: int
-    wastage: int
-
-
-class BundleIn(BaseModel):
-    bundle: int
-    method: str  # cash | qris
-    qty: int
-    items: Dict[str, int]
+    remaining: int = 0
+    wastage: int = 0
 
 
 class DepositIn(BaseModel):
@@ -394,10 +384,6 @@ class DepositIn(BaseModel):
     date: str
     pic_id: Optional[str] = None
     rows: List[DepositRow]
-    bundles: List[BundleIn] = []
-    debt_payment: float = 0
-    expenses: float = 0
-    expense_note: str = ""
 
 
 class InvoiceRow(BaseModel):
@@ -1446,52 +1432,94 @@ async def list_deposits(start: str, end: str, rider_id: Optional[str] = None, u=
 @api.post("/deposits")
 async def save_deposit(body: DepositIn, u=Depends(STAFF)):
     rider = await db.users.find_one({"id": body.rider_id}, NOID)
+    if not rider:
+        raise HTTPException(404, "Rider tidak ditemukan")
     pic = await db.users.find_one({"id": body.pic_id}, NOID) if body.pic_id else u
     menus = {m["id"]: m for m in await db.menus.find({}, NOID).to_list(100)}
-    # bundle cups per menu & method
-    b_cups: Dict[str, Dict[str, int]] = {}
-    b_cash = b_qris = 0
-    bundles_out = []
-    for b in body.bundles:
-        spec = BUNDLES.get(b.bundle)
-        if not spec or b.qty <= 0:
-            continue
-        if sum(b.items.values()) != spec["cups"] * b.qty:
-            raise HTTPException(400, f"Bundling {b.bundle}: total cups must be {spec['cups'] * b.qty}")
-        for mid, q in b.items.items():
-            if menus.get(mid, {}).get("price") != 12000:
-                raise HTTPException(400, "Only Rp 12.000 menus can be bundled")
-            b_cups.setdefault(mid, {"cash": 0, "qris": 0})[b.method] += q
-        amt = spec["price"] * b.qty
-        if b.method == "cash":
-            b_cash += amt
-        else:
-            b_qris += amt
-        bundles_out.append({"bundle": b.bundle, "name": spec["name"], "method": b.method, "qty": b.qty, "amount": amt, "items": {menus[m]["name"]: q for m, q in b.items.items() if m in menus}})
-    rows, cups, cash, qris, minus, wastage_total = [], 0, b_cash, b_qris, 0, 0
-    for r in body.rows:
-        m = menus.get(r.menu_id)
+    summary = await eod_summary(body.rider_id, body.date)
+    if not summary["closed"]:
+        raise HTTPException(400, "Rider harus menutup EOD sebelum setoran dibuat")
+
+    input_rows = {row.menu_id: row for row in body.rows}
+    eod_rows = {row["menu_id"]: row for row in summary["rows"]}
+    rows, minus, wastage_total = [], 0, 0
+    for menu_id, eod_row in eod_rows.items():
+        m = menus.get(menu_id)
         if not m:
             continue
-        bc = b_cups.get(r.menu_id, {"cash": 0, "qris": 0})
-        cash_q, qris_q = r.cash + bc["cash"], r.qris + bc["qris"]
-        total_sold = cash_q + qris_q
-        diff = r.stock - (total_sold + r.remaining + r.wastage)
+        submitted = input_rows.get(menu_id, DepositRow(menu_id=menu_id))
+        if submitted.remaining < 0 or submitted.wastage < 0:
+            raise HTTPException(400, "Sisa dan wastage tidak boleh bernilai negatif")
+        stock = int(eod_row["initial"])
+        sold = int(eod_row["sold"])
+        maximum_accounted = max(0, stock - sold)
+        if submitted.remaining + submitted.wastage > maximum_accounted:
+            raise HTTPException(400, f"Sisa dan wastage {m['name']} melebihi stok tersedia")
+        cash_qty = int(eod_row["cash_qty"])
+        qris_qty = int(eod_row["qris_qty"])
+        diff = stock - (sold + submitted.remaining + submitted.wastage)
         row_minus = max(0, diff) * m["price"]
-        rows.append({"menu_id": m["id"], "name": m["name"], "price": m["price"], "stock": r.stock, "remaining": r.remaining, "cash": cash_q, "qris": qris_q, "cash_manual": r.cash, "qris_manual": r.qris,
-                     "bundle_cash": bc["cash"], "bundle_qris": bc["qris"], "wastage": r.wastage, "total_sold": total_sold, "diff": diff, "cash_amt": r.cash * m["price"], "qris_amt": r.qris * m["price"], "minus": row_minus})
-        cups += total_sold
-        cash += r.cash * m["price"]
-        qris += r.qris * m["price"]
+        rows.append({
+            "menu_id": m["id"],
+            "name": m["name"],
+            "price": m["price"],
+            "stock": stock,
+            "remaining": submitted.remaining,
+            "cash": cash_qty,
+            "qris": qris_qty,
+            "cash_auto": True,
+            "qris_auto": True,
+            "wastage": submitted.wastage,
+            "total_sold": sold,
+            "diff": diff,
+            "cash_amt": eod_row["cash_amt"],
+            "qris_amt": eod_row["qris_amt"],
+            "minus": row_minus,
+        })
         minus += row_minus
-        wastage_total += r.wastage
-        if r.wastage:
-            await db.menu_stock_tx.insert_one({"id": uid(), "menu_id": m["id"], "menu_name": m["name"], "type": "wastage", "qty": r.wastage, "before": m["stock"], "after": m["stock"],
-                                               "note": f"Wastage rider {rider['name']}", "date": body.date, "user": u["name"], "created_at": now_iso()})
+        wastage_total += submitted.wastage
+        if submitted.wastage:
+            await db.menu_stock_tx.insert_one({
+                "id": uid(),
+                "menu_id": m["id"],
+                "menu_name": m["name"],
+                "type": "wastage",
+                "qty": submitted.wastage,
+                "before": m["stock"],
+                "after": m["stock"],
+                "note": f"Wastage rider {rider['name']}",
+                "date": body.date,
+                "user": u["name"],
+                "created_at": now_iso(),
+            })
+    bundles_out = []
+    for bundle in summary["bundles"]:
+        item_names = {
+            menus[menu_id]["name"]: qty
+            for menu_id, qty in bundle["items"].items()
+            if menu_id in menus
+        }
+        cash_amount = bundle["cash_amount"]
+        qris_amount = bundle["qris_amount"]
+        method = "split" if cash_amount and qris_amount else "cash" if cash_amount else "qris"
+        bundles_out.append({
+            "bundle": bundle["bundle"],
+            "name": BUNDLES[bundle["bundle"]]["name"],
+            "method": method,
+            "qty": bundle["qty"],
+            "amount": cash_amount + qris_amount,
+            "items": item_names,
+        })
+    cups = summary["total_cups"]
+    cash = summary["total_cash"]
+    qris = summary["total_qris"]
     initial_debt = await rider_debt(body.rider_id, body.date)
-    remaining_debt = initial_debt + minus - body.debt_payment
+    debt_payment = 0
+    expenses = 0
+    expense_note = ""
+    remaining_debt = initial_debt + minus
     commission = ALLOWANCE if cups > 0 else 0
-    net_cash = cash - body.expenses + body.debt_payment
+    net_cash = cash
     if cups <= 30:
         motiv = "Keep up the spirit! Let's tackle tomorrow's route with full energy! 💪🔥"
     elif cups <= 49:
@@ -1503,8 +1531,8 @@ async def save_deposit(body: DepositIn, u=Depends(STAFF)):
     doc = {"id": prev["id"] if prev else uid(), "receipt_no": prev["receipt_no"] if prev else f"DEP-{body.date.replace('-', '')}-{cnt + 1:03d}",
            "rider_id": body.rider_id, "rider_name": rider["name"], "pic_id": pic["id"], "pic_name": pic["name"], "date": body.date, "time": now_wib(), "rows": rows, "bundles": bundles_out,
            "total_cups": cups, "total_cash": cash, "total_qris": qris, "total_income": cash + qris, "minus": minus, "total_wastage": wastage_total,
-           "initial_debt": initial_debt, "new_debt": minus, "debt_payment": body.debt_payment, "remaining_debt": remaining_debt, "commission": commission,
-           "expenses": body.expenses, "expense_note": body.expense_note, "net_cash": net_cash, "motivation": motiv, "updated_at": now_iso()}
+           "initial_debt": initial_debt, "new_debt": minus, "debt_payment": debt_payment, "remaining_debt": remaining_debt, "commission": commission,
+           "expenses": expenses, "expense_note": expense_note, "net_cash": net_cash, "motivation": motiv, "updated_at": now_iso()}
     await db.deposits.update_one({"rider_id": body.rider_id, "date": body.date}, {"$set": doc}, upsert=True)
     await gs_sync("deposits", {**doc, "rows": "; ".join(f"{r['name']}: stock {r['stock']} sisa {r['remaining']} cash {r['cash']} qris {r['qris']} waste {r['wastage']}" for r in rows), "bundles": str(bundles_out)})
     await db.notifications.insert_one({"id": uid(), "for_role": "owner", "type": "deposit", "title": f"Setoran · {rider['name']}",

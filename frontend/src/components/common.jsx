@@ -38,11 +38,25 @@ export const Select = ({ value, onChange, options, testId, className = "", place
   </select>
 );
 
-export const QtySelect = ({ value, onChange, max = 30, testId, className = "" }) => (
-  <select data-testid={testId} value={value} onChange={(e) => onChange(Number(e.target.value))} className={`qty my-0 leading-none ${className}`}>
-    {Array.from({ length: max + 1 }, (_, i) => <option key={i} value={i}>{i}</option>)}
-  </select>
-);
+export const QtySelect = ({ value, onChange, max = 30, testId, className = "" }) => {
+  const safeMax = Math.max(0, Number(max) || 0);
+  const safeValue = Math.min(Math.max(0, Number(value) || 0), safeMax);
+
+  return (
+    <select
+      data-testid={testId}
+      value={safeValue}
+      onChange={(event) => onChange(Number(event.target.value))}
+      className={`qty my-0 leading-none ${className}`}
+    >
+      {Array.from({ length: safeMax + 1 }, (_, index) => (
+        <option key={index} value={index}>
+          {index}
+        </option>
+      ))}
+    </select>
+  );
+};
 
 export function DateFilter({ onChange, showCustom = true, riderPeriods = false, initialPreset = "today" }) {
   const { t } = useT();
