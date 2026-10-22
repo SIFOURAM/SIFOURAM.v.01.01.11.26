@@ -70,7 +70,7 @@ export default function Settings() {
         <Bento className="fade-up lg:col-span-2" testId="settings-permissions">
           <p className="eyebrow mb-2">{t("permissions")} · {user.role}</p>
           <Row icon={ShieldCheck} title="Modules" sub={`${perms.length} modules`} />
-          <div className="flex flex-wrap gap-2 mt-3">{perms.map((p) => <span key={p} className="text-xs font-semibold rounded-full bg-muted px-3 py-1">{p}</span>)}</div>
+          <div className="flex flex-wrap gap-2 mt-3">{perms.map((p, index) => <span key={`${p}-${index}`} className="text-xs font-semibold rounded-full bg-muted px-3 py-1">{p}</span>)}</div>
           {user.role === "owner" && <div className="mt-6 pt-4 border-t border-border/50">
             <p className="eyebrow mb-2">{t("appsScript")} (Google Sheets + Drive)</p>
             <div className="flex gap-2"><input data-testid="apps-script-url-input" className="field text-xs" placeholder="https://script.google.com/macros/s/.../exec" value={gsUrl} onChange={(e) => setGsUrl(e.target.value)} />

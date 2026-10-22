@@ -222,3 +222,7 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Scrollable report and stock tables use the gradient border on the inner table that actually moves,
   while their outer Bento wrapper remains neutral. QA iteration 27 verified scrolling, WA summaries,
   and empty states; the final mobile Products empty-state width was also fixed and smoke-tested.
+- Notification items now route to their matching operational tabs, while incoming Broadcast messages
+  open a responsive detail dialog. QA iteration 28 passed 14/14 notification routing and popup checks.
+- Report table headers are centered for visual consistency; Settings permission keys are unique and
+  message dialogs retain mobile side margins.

@@ -26,6 +26,7 @@ function playTriTone() {
 }
 
 function NotifBell() {
+  const { user } = useAuth();
   const [list, setList] = useState([]);
   const [open, setOpen] = useState(false);
   const [messageDetail, setMessageDetail] = useState(null);
@@ -52,7 +53,8 @@ function NotifBell() {
       order: "/invoice",
       withdrawal: "/salary",
     };
-    navigate(targets[notification.type] || "/");
+    const fallback = user?.role === "rider" ? "/rider-dashboard" : user?.role === "barteam" ? "/menu-stock?mode=production" : "/";
+    navigate(targets[notification.type] || fallback);
   };
   return (
     <div className="relative">
@@ -70,7 +72,7 @@ function NotifBell() {
           </div>
         </div></>}
       <Dialog open={!!messageDetail} onOpenChange={(isOpen) => !isOpen && setMessageDetail(null)}>
-        <DialogContent data-testid="incoming-message-dialog" className="max-w-sm">
+        <DialogContent data-testid="incoming-message-dialog" className="w-[92vw] max-w-sm">
           <DialogHeader><DialogTitle>{messageDetail?.title || "Pesan masuk"}</DialogTitle></DialogHeader>
           <p data-testid="incoming-message-body" className="whitespace-pre-wrap text-sm leading-relaxed">{messageDetail?.body}</p>
           <button data-testid="incoming-message-close" onClick={() => setMessageDetail(null)} className="btn-primary w-full">Tutup</button>

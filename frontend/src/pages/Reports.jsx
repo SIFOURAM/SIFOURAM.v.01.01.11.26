@@ -174,7 +174,7 @@ export default function Reports() {
         </>}
         <Bento testId="report-products-table" scrollable className="col-span-2 lg:col-span-4 fade-up overflow-x-auto">
           <p className="eyebrow mb-4">{view === "sales" ? "Produk terlaris" : "Performa produk"}</p>
-          <table className={productRows.length ? "table-x min-w-[34rem]" : "table-x w-full"}><thead><tr><th>Rank</th><th>Produk</th><th className="text-right">Kuantitas</th><th className="text-right">Revenue</th></tr></thead>
+          <table className={productRows.length ? "table-x min-w-[34rem]" : "table-x w-full"}><thead><tr><th className="text-center">Rank</th><th className="text-center">Produk</th><th className="text-center">Kuantitas</th><th className="text-center">Revenue</th></tr></thead>
             <tbody>{productRows.length ? productRows.map((row) => <tr key={row.name}><td className="num">{row.rank}</td><td className="font-semibold">{row.name}</td><td className="num text-right">{row.qty}</td><td className="num text-right">{fmtRp(row.revenue)}</td></tr>) : <tr><td colSpan="4"><Empty text="Belum ada produk terjual pada periode ini" /></td></tr>}</tbody>
           </table>
         </Bento>
@@ -302,7 +302,7 @@ function OperationsReport({ kind, setView }) {
         {kind !== "inventory" && <DateFilter onChange={setRange} />}
       </PageHeader>
       {error && <p data-testid="operations-error" className="text-sm text-red-500 py-8">Gagal memuat laporan: {error}</p>}
-      {data && <><div className="grid grid-cols-2 lg:grid-cols-4 gap-4"><OperationsSummary kind={kind} summary={summary} /></div><Bento testId="operations-table" scrollable className="mt-4 overflow-x-auto"><table className={kind === "inventory" ? "table-x w-full table-fixed" : "table-x min-w-[28rem]"}>{kind === "inventory" && <colgroup><col className="w-1/2" /><col className="w-1/4" /><col className="w-1/4" /></colgroup>}<thead><tr>{columns.map((column) => <th key={column.key} className={column.right ? "text-right whitespace-nowrap" : ""}>{column.label}</th>)}</tr></thead><tbody>{rows.length ? rows.map((row) => <tr key={row.id || row.name}>{columns.map((column) => <td key={column.key} className={`${column.right ? "text-right num whitespace-nowrap" : ""} ${kind === "inventory" && column.key === "name" ? "truncate" : ""}`}>{column.render ? column.render(row) : column.format(row)}</td>)}</tr>) : <tr><td colSpan={columns.length}><Empty text="Belum ada data pada periode ini" /></td></tr>}</tbody></table></Bento></>}
+      {data && <><div className="grid grid-cols-2 lg:grid-cols-4 gap-4"><OperationsSummary kind={kind} summary={summary} /></div><Bento testId="operations-table" scrollable className="mt-4 overflow-x-auto"><table className={kind === "inventory" ? "table-x w-full table-fixed" : "table-x min-w-[28rem]"}>{kind === "inventory" && <colgroup><col className="w-1/2" /><col className="w-1/4" /><col className="w-1/4" /></colgroup>}<thead><tr>{columns.map((column) => <th key={column.key} className="text-center whitespace-nowrap">{column.label}</th>)}</tr></thead><tbody>{rows.length ? rows.map((row) => <tr key={row.id || row.name}>{columns.map((column) => <td key={column.key} className={`${column.right ? "text-right num whitespace-nowrap" : ""} ${kind === "inventory" && column.key === "name" ? "truncate" : ""}`}>{column.render ? column.render(row) : column.format(row)}</td>)}</tr>) : <tr><td colSpan={columns.length}><Empty text="Belum ada data pada periode ini" /></td></tr>}</tbody></table></Bento></>}
     </div>
   );
 }

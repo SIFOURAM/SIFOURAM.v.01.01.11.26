@@ -1,0 +1,29 @@
+{
+  "summary": "Tested notification click routing and the broadcast detail popup as owner baa on the preview URL (desktop 1920x1080 and mobile 390x844). I added 5 temporary owner notifications (purchase_order, deposit, order, withdrawal, broadcast; ids TEST_*) straight into the notifications collection and removed them afterwards. No operational data was created and no WhatsApp messages were sent. All mapped routes, the dialog, the read state and the mobile layout work.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Settings > Hak Akses Modules chips (Settings.jsx line 73)", "issue": "React duplicate key warning: 'Stock Menu Production' appears twice in perms and key={p} is used. This was already there and has nothing to do with notifications.", "selector": "Settings perms span list", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Mobile incoming-message-dialog", "issues": ["Dialog is 384px wide on a 390px viewport (3px side margin). It works with no overflow, but it touches the screen edges. Consider max-w-[92vw]."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/qa_iter28_notif_fixture.py"],
+  "action_items": [
+    "Optional: dedupe the perms list or use key={`${p}-${i}`} in Settings.jsx to stop the duplicate-key console error",
+    "Optional: give the mobile message dialog some side margin"
+  ],
+  "critical_code_review_comments": [
+    "openNotification falls back to '/' for unknown types. For barteam (HOME=/menu-stock) and rider (/pos), '/' may redirect or be guarded, so a role-aware HOME fallback would be safer.",
+    "Routing only opens the tab. ref_id is not passed (e.g. ?highlight=<ref_id>), so the user still has to find the specific PO, deposit or order.",
+    "PO notifications sent to a rider requester would route to /purchase-orders, which is guarded to SB. Currently only barteam/admin create POs, so this is OK."
+  ],
+  "updated_files": ["/app/backend/tests/qa_iter28_notif_fixture.py (new fixture helper only)"],
+  "success_rate": {"backend": "100% (GET /notifications 200 with auth, 401 without; read endpoint clears the unread badge)", "frontend": "100% (14/14 checks)"},
+  "seed_data_creation": "5 TEST_* notification docs for the owner user, deleted afterwards with qa_iter28_notif_fixture.py clean",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Notification fixtures: `python /app/backend/tests/qa_iter28_notif_fixture.py seed|clean` inserts or removes TEST_<type> notifications for owner baa. Testids are notification-TEST_<type>. Log in through page.request (identify, then login) and set localStorage si4am_token, si4am_legal_2026-06-01=accepted, si4am_session_wib_date. Verified: list items are BUTTONs with unique testids; purchase_order->/purchase-orders, deposit->/deposit, order->/invoice, withdrawal->/salary, and the list closes on each; broadcast opens the dialog (title and multi-line body), the URL does not change, and the close button, Escape and backdrop all close it; unread badge shows 5 and goes to 0 after the bell is clicked; mobile list is 359px with scrollWidth 390 (no overflow); dialog body has no horizontal overflow."
+}
