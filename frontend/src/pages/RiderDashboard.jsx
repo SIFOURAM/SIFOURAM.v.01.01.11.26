@@ -29,11 +29,11 @@ function RankCard({ data, onOpen }) {
       <Bento gold className="fade-up h-full overflow-hidden">
         <div className="mb-2 flex items-center justify-between gap-3">
           <p className="eyebrow">Rank Mingguan</p>
-          <p className="font-heading text-xl font-bold">{rank.name}</p>
+          <p className="eyebrow">{rank.name}</p>
         </div>
         <div className="relative">
           <img src={RANK_ASSETS[rank.name]} alt={`Rank ${rank.name}`} className="w-full aspect-[16/7] object-cover rounded-lg" />
-          <div className="absolute inset-y-0 left-0 flex items-center px-4">
+          <div className="absolute inset-x-0 top-[40%] flex -translate-y-1/2 items-center px-4">
             <p className="num text-2xl font-bold text-primary">{fmtRp(data.main_estimated_commission)}</p>
           </div>
         </div>

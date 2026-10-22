@@ -369,3 +369,8 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Rank Mingguan and rank name now sit above the card image on one row. The commission value is displayed
   at the image's left center in a larger font, without the former dark overlay or commission label.
 - Frontend production build passed.
+
+## UX Update — Rider Rank Alignment (2026-10)
+- Rank name uses the same eyebrow font/color treatment as Rank Mingguan. The commission overlay moved ten
+  percent upward and now spans the image width while preserving its left-aligned value.
+- Frontend production build passed.
