@@ -5,6 +5,7 @@ import { api, errMsg } from "../lib/api";
 import { fmtRp, today, fmtTime, waNumber } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { useAuth } from "../context/AuthContext";
+import { useLiveRevision } from "../context/LiveDataContext";
 import { PageHeader, Bento, Field, Select, PhotoCapture, ReceiptModal, RLine, Empty, QtySelect } from "../components/common";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import CoachChat from "../components/CoachChat";
@@ -123,10 +124,11 @@ export default function POS() {
   const [busy, setBusy] = useState(false);
   const [showAbsen, setShowAbsen] = useState(false);
   const [clientId, setClientId] = useState(crypto.randomUUID());
+  const revision = useLiveRevision();
 
-  useEffect(() => { if (!isRider) api.get("/users", { params: { role: "rider" } }).then((r) => setRiders(r.data)); }, [isRider]);
+  useEffect(() => { if (!isRider) api.get("/users", { params: { role: "rider" } }).then((r) => setRiders(r.data)); }, [isRider, revision]);
   const loadStock = () => riderId && api.get("/pos/stock", { params: { rider_id: riderId, date: today() } }).then((r) => setStock(r.data));
-  useEffect(() => { loadStock(); }, [riderId]); // eslint-disable-line
+  useEffect(() => { loadStock(); }, [riderId, revision]); // eslint-disable-line
   useEffect(() => {
     api.get("/payment-accounts/public", { params: riderId ? { rider_id: riderId } : {} })
       .then((response) => setQrisAccounts(response.data))

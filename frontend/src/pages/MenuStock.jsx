@@ -5,6 +5,7 @@ import { api, errMsg } from "../lib/api";
 import { fmtRp, today, compressImage } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { useAuth } from "../context/AuthContext";
+import { useLiveRevision } from "../context/LiveDataContext";
 import { PageHeader, Bento, Field, Select, Empty } from "../components/common";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
@@ -16,9 +17,10 @@ export default function MenuStock() {
   const [tx, setTx] = useState([]);
   const [form, setForm] = useState({ menu_id: "", qty: "", type: "produce", date: today(), note: "" });
   const [edit, setEdit] = useState(null);
+  const revision = useLiveRevision();
 
   const load = () => Promise.all([api.get("/menus"), api.get("/menu-stock/tx"), api.get("/materials")]).then(([a, b, c]) => { setMenus(a.data); setTx(b.data); setMats(c.data); });
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [revision]);
 
   const submit = async (e) => {
     e.preventDefault();

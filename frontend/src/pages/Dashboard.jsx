@@ -7,6 +7,7 @@ import { useT } from "../lib/i18n";
 import { PageHeader, Stat, Bento, DateFilter, Empty } from "../components/common";
 import GpsMap from "../components/GpsMap";
 import OwnerOnboarding from "../components/OwnerOnboarding";
+import { useLiveRevision } from "../context/LiveDataContext";
 
 const tip = { contentStyle: { borderRadius: 12, border: "1px solid #333", background: "#111", color: "#fff", fontSize: 12 } };
 const menuColors = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74"];
@@ -18,19 +19,20 @@ export default function Dashboard() {
   const [gps, setGps] = useState([]);
   const [centralStock, setCentralStock] = useState([]);
   const [showMap, setShowMap] = useState(false);
+  const revision = useLiveRevision();
 
   useEffect(() => {
     if (!range) return;
     const load = () => api.get("/dashboard/summary", { params: range }).then((r) => setD(r.data)).catch(() => {});
     load(); const id = setInterval(load, 15000); return () => clearInterval(id);
-  }, [range]);
+  }, [range, revision]);
   useEffect(() => {
     const load = () => api.get("/gps/active", { params: { date: today() } }).then((r) => setGps(r.data)).catch(() => {});
     load(); const id = setInterval(load, 20000); return () => clearInterval(id);
-  }, []);
+  }, [revision]);
   useEffect(() => {
     api.get("/menus").then((response) => setCentralStock(response.data)).catch(() => setCentralStock([]));
-  }, []);
+  }, [revision]);
 
   const totalCentralStock = centralStock.reduce((total, menu) => total + (menu.stock || 0), 0);
   const lowStockMenus = [...centralStock].sort((a, b) => a.stock - b.stock).slice(0, 4);

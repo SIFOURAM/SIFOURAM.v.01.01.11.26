@@ -4,6 +4,7 @@ import { api, errMsg } from "../lib/api";
 import { fmtRp, today, fmtDate, waNumber } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { PageHeader, Bento, Field, Select, ReceiptModal, RLine, Empty } from "../components/common";
+import { useLiveRevision } from "../context/LiveDataContext";
 
 const Badge = ({ s }) => <span data-testid="invoice-status" className={`text-[10px] font-black tracking-wider px-2 py-0.5 rounded-full ${s === "paid" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}>{s === "paid" ? "PAID" : "UNPAID"}</span>;
 
@@ -18,8 +19,9 @@ export default function Invoice() {
   const [payAmt, setPayAmt] = useState("");
   const [busy, setBusy] = useState(false);
   const [clientId, setClientId] = useState(crypto.randomUUID());
+  const revision = useLiveRevision();
   const load = () => api.get("/invoices").then((r) => setList(r.data));
-  useEffect(() => { api.get("/menus").then((r) => setMenus(r.data)); load(); }, []);
+  useEffect(() => { api.get("/menus").then((r) => setMenus(r.data)); load(); }, [revision]);
   useEffect(() => {
     const p = f.customer_phone.replace(/\D/g, "");
     if (p.length >= 5) api.get("/customers/lookup", { params: { phone: p } }).then((r) => { setUnpaid(r.data.unpaid_invoice); const c = r.data.customers[0]; if (c?.name && !f.customer_name) setF((x) => ({ ...x, customer_name: c.name })); });

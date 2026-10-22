@@ -1,0 +1,57 @@
+{
+  "summary": "Iteration 38: tested fixed logout policy (Owner/Admin/Bar Team at 00:00 WIB, Rider at EOD close + 4h), server-side session expiry and revocation, /api/sync/revision, cross-client realtime refresh, the Dashboard Stock Center Produk card and auth regressions. Backend: 13 of 14 pytest checks pass. The session policy works on the server. Realtime works: a local mutation refreshed the view in 0.39s and another client updated in 3.8s. Found 1 CRITICAL auth bug in /auth/identify, which I fixed. Also found 1 HIGH UX regression: each revision change remounts the whole app, which wipes open dialogs, typed form input and result/receipt modals. Found 2 minor backend gaps.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/auth/identify", "issue": "FIXED BY T1. The $or query always included {whatsapp: phone}. When the identifier has no digits, phone is an empty string, so ANY identifier (including unknown ones like 'nonexistent_user_xyz' or the real 'test_ui_rid') resolved to the first user with an empty whatsapp. That user is any account created without a WhatsApp number. Effects: identity confusion, legitimate users unable to log in, and a PIN brute-force target. Fix: build the clauses conditionally (username always; email/whatsapp when ident is non-empty; whatsapp=phone only when phone is non-empty). Verified: unknown identifier now returns 401 and each user resolves to itself.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/auth/login", "issue": "The response user object does not include session_ends_at (it is only on /auth/me and /sync/revision). The frontend sets no logout timer until the first LiveShell sync. Add u['session_ends_at']=expires_at.isoformat() to the login response."},
+      {"endpoint": "POST /api/auth/login (rider after deadline)", "issue": "If a Rider logs in again after EOD close + 4h on the same WIB day, login returns 200 and sets a cookie with max_age=1, then /auth/me returns 401 right away. The user sees a 'Selamat datang' toast followed by an instant logout. Return a clear 401/403 such as 'Sesi Rider hari ini telah berakhir' when expires_at <= now."},
+      {"endpoint": "APP_DATA_REVISION (middleware)", "issue": "The revision counter lives in process memory. It resets to 0 on every restart or hot reload (observed revision 0 after reload), and it would diverge with more than one worker. The frontend compares with !==, so it still works on one worker, but the counter is not authoritative. Persist it in Mongo (findOneAndUpdate $inc on counters)."},
+      {"endpoint": "POST /api/sales/eod/close", "issue": "Re-closing an already closed EOD upserts a new closed_at, which moves the Rider deadline later each time. Consider keeping the first closed_at."},
+      {"endpoint": "as_utc()", "issue": "Naive datetimes from Mongo are converted with .astimezone(), which assumes the server's local timezone. This is correct only because the container runs in UTC. Use replace(tzinfo=utc) or MongoClient(tz_aware=True)."},
+      {"endpoint": "startup", "issue": "Backend log: 'Storage init failed: 401 Unauthorized' from objstore/storage/init. This is probably pre-existing; file uploads may be affected."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "App.js LiveShell (<Shell key={revision}/>)", "issue": "Every revision change (local or remote) unmounts and remounts the entire router tree, so all local React state is lost. Reproduced: (1) Owner on /menu-stock had typed 55 in produce-qty-input and opened the edit-menu dialog. A Bar Team mutation from another browser closed the dialog and cleared the input within 8s. (2) Owner created an invoice: the toast INV-20261022-001 showed, but the invoice result/receipt modal never appeared, because the api.js interceptor fires si4am:data-changed before setResult runs. The modal does appear when an existing invoice is clicked. Same pattern by code inspection: POS checkout receipt (setReceipt), POS cart (cart/bcart in useState are wiped whenever ANY other user mutates), POS EOD summary after closeEod, RiderDashboard withdrawal done modal, Customers promo idea result, notification bell dropdown (POST /notifications/read remounts and closes it). Rider GPS POST /gps every 30s also bumps the revision, so while any rider is on duty every client remounts at least every 30s. Recommend: replace the key-remount with a revision context/hook that pages use to refetch their data (e.g. useLiveRevision() added to useEffect deps), keeping UI state intact. Also skip the revision bump for /gps and /notifications/read.", "selector": "[data-testid=produce-qty-input], edit-menu dialog, invoice-pay-row, POS receipt", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard Stock Center Produk (mobile 390px)", "issues": ["No horizontal overflow (scrollWidth=390). The floating help (?) button overlaps the right side of the card content. The card lists only the 4 lowest-stock menus, so a menu that was just restocked drops out of the list; consider labelling it 'Stok terendah'."]}
+    ]
+  },
+  "passed_items": [
+    "Owner/Admin/Bar Team: session_ends_at on /auth/me and /sync/revision == next 00:00 Asia/Jakarta (17:00Z), db.sessions.expires_at matches, cookie HttpOnly+Secure, cookie expiry 16:59:59Z",
+    "Forced-expired staff session -> /auth/me 401, session marked revoked=true, /sync/revision 401",
+    "Rider before EOD: long session. After close EOD: both active rider sessions expires_at == closed_at + 4h (within ms), EOD response session_ends_at matches, me/revision report it",
+    "Rider deadline forced past -> 401. In the UI the rider was logged out to the login screen at 12:29:49Z for a deadline of 12:29:48.7Z (frontend timer driven by server session_ends_at)",
+    "No localStorage eod/session keys (only legal consent, theme, posthog); no 3h logout logic in source (the 3h value in RiderMotivation is unrelated message throttling)",
+    "/sync/revision: 401 when unauthenticated; auth POSTs and failed (4xx) mutations do not increment; a successful PUT increments by exactly 1",
+    "Cross-client realtime: Bar Team set stock via the UI -> refreshed locally in 0.39s; Owner Dashboard central-product-stock-total updated 7->9 within 3.8s",
+    "Auto six-digit PIN login, manual logout (revokes session, me 401), brute-force lockout 429 after 5 wrong PINs, pin_hash $2b$"
+  ],
+  "test_report_links": ["/app/backend/tests/test_iter38_session_realtime.py", "/app/test_reports/pytest/iter38.xml"],
+  "action_items": [
+    "HIGH: Replace the <Shell key={revision}> full remount with targeted refetch (a revision context consumed by page data-loading effects) so dialogs, forms, POS cart and receipt/result modals survive local and remote revisions; exclude /gps and /notifications/read from bumping the revision",
+    "Return session_ends_at in the POST /auth/login user payload",
+    "Reject Rider login with a clear message when today's EOD close + 4h has already passed (avoid 200 followed by an instant 401)",
+    "Persist APP_DATA_REVISION in Mongo instead of a process global",
+    "Review the T1 fix in /auth/identify (conditional $or clauses) and keep it"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 2860 lines and should be split into routers (auth, sales, stock, users)",
+    "The api.js interceptor dispatches si4am:data-changed synchronously inside the response handler, before the caller's await continues. Any setState after a mutation runs on an unmounted tree",
+    "get_user compares expires_at != rider_deadline at microsecond precision while Mongo stores milliseconds, so it writes a session update on every Rider request after EOD. Compare with a tolerance",
+    "close_eod lets any authenticated role close any rider's EOD (only riders are restricted to themselves). Confirm this is intended"
+  ],
+  "updated_files": ["/app/backend/server.py (auth/identify $or clause fix)", "/app/backend/tests/test_iter38_session_realtime.py"],
+  "success_rate": {"backend": "93% (13/14; the remaining failure is the rider re-login-after-deadline UX)", "frontend": "80% (session timer, realtime refresh, central stock, PIN login/logout pass; state loss on remount fails)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md). Temp users test_ui_bar/424242 and test_ui_rid/535353 plus pytest test_* users were created and then removed",
+  "seed_data_creation": "Temporary users, sessions, EOD docs, 1 invoice and menu stock adjustments were created during testing. reset_final_revision.py was run at the end. Verified baseline: users=['baa'], sessions=0, eod=0, invoices=0, menu stock sum=0",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use the cookie session (identify -> login). The auth-login rate limit is 10/60s per IP; the pytest file sleeps 61s on 429. CSP blocks page.wait_for_function strings, so poll with inner_text in Python. Native <select> elements: use select_option. Retest the state preservation after remount is replaced: open edit-menu dialog + remote mutation, invoice create shows the result modal, POS cart survives another user's mutation. Always run backend/reset_final_revision.py at the end.",
+  "rca of the issue": "Identify bug: phone=re.sub(r'\\D','',ident) yields '' for usernames, and {'whatsapp': ''} matches every user created without WhatsApp, so find_one returned the first such user. Remount bug: LiveShell increments the key on any revision or local mutation event, which tears down the whole React tree, including component state that has not been persisted."
+}

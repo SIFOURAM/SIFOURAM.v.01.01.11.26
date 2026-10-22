@@ -30,7 +30,6 @@ VALID_ROLES = {"owner", "admin", "barteam", "rider"}
 AUTH_COOKIE = "si4am_session"
 MAX_REQUEST_BYTES = 5 * 1024 * 1024
 RATE_BUCKETS: Dict[str, deque] = defaultdict(deque)
-APP_DATA_REVISION = 0
 
 
 async def audit_event(
@@ -64,7 +63,6 @@ def enforce_rate_limit(request: Request, scope: str, limit: int, window_seconds:
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        global APP_DATA_REVISION
         content_length = request.headers.get("content-length")
         if request.url.path.startswith("/api") and content_length:
             try:
@@ -73,9 +71,18 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             except ValueError:
                 return Response("Content-Length tidak valid", status_code=400)
         response = await call_next(request)
+        ignored_realtime_paths = {"/api/gps", "/api/notifications/read"}
         if request.url.path.startswith("/api") and request.method in {"POST", "PUT", "DELETE"}:
-            if 200 <= response.status_code < 300 and not request.url.path.startswith("/api/auth/"):
-                APP_DATA_REVISION += 1
+            if (
+                200 <= response.status_code < 300
+                and not request.url.path.startswith("/api/auth/")
+                and request.url.path not in ignored_realtime_paths
+            ):
+                await db.counters.update_one(
+                    {"key": "app_revision"},
+                    {"$inc": {"value": 1}},
+                    upsert=True,
+                )
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -279,7 +286,7 @@ def as_utc(value: Any) -> Optional[datetime]:
     if not value:
         return None
     if isinstance(value, datetime):
-        return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
     try:
         parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
         return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
@@ -335,9 +342,11 @@ async def get_user(request: Request) -> dict:
     expires_at = as_utc(session.get("expires_at"))
     if u["role"] == "rider":
         rider_deadline = await rider_session_deadline(u["id"])
-        if rider_deadline and (not expires_at or expires_at != rider_deadline):
-            expires_at = rider_deadline
-            await db.sessions.update_one({"id": session_id}, {"$set": {"expires_at": expires_at}})
+        if rider_deadline:
+            deadline_changed = not expires_at or abs((expires_at - rider_deadline).total_seconds()) > 1
+            if deadline_changed:
+                expires_at = rider_deadline
+                await db.sessions.update_one({"id": session_id}, {"$set": {"expires_at": expires_at}})
     if expires_at and datetime.now(timezone.utc) >= expires_at:
         await db.sessions.update_one(
             {"id": session_id},
@@ -753,16 +762,12 @@ async def identify_account(body: IdentifyIn, request: Request):
         raise HTTPException(400, "Syarat & Ketentuan serta Kebijakan Privasi harus disetujui.")
     ident = body.identifier.strip().lower()
     phone = re.sub(r"\D", "", ident)
-    u = await db.users.find_one(
-        {
-            "$or": [
-                {"username": ident},
-                {"email": ident},
-                {"whatsapp": ident},
-                {"whatsapp": phone},
-            ]
-        }
-    )
+    clauses = [{"username": ident}]
+    if ident:
+        clauses += [{"email": ident}, {"whatsapp": ident}]
+    if phone:
+        clauses.append({"whatsapp": phone})
+    u = await db.users.find_one({"$or": clauses})
     if not u or u.get("active", True) is False:
         await audit_event("auth.identify", request, outcome="denied", detail="unknown account")
         raise HTTPException(401, "Akun atau status akun tidak valid.")
@@ -807,6 +812,9 @@ async def login(body: LoginIn, request: Request, response: Response):
     await db.login_attempts.delete_one({"identifier": key})
     session_id = uid()
     expires_at = await session_expiry_for(u)
+    if u["role"] == "rider" and expires_at <= datetime.now(timezone.utc):
+        await audit_event("auth.login", request, u["id"], "denied", "rider EOD deadline passed")
+        raise HTTPException(403, "Sesi Rider hari ini telah berakhir setelah batas empat jam EOD.")
     token = make_token(u["id"], session_id, expires_at)
     await db.sessions.insert_one({
         "id": session_id,
@@ -826,6 +834,7 @@ async def login(body: LoginIn, request: Request, response: Response):
         path="/",
     )
     await audit_event("auth.login", request, u["id"])
+    u["session_ends_at"] = expires_at.isoformat()
     return {"user": public_user(u)}
 
 
@@ -854,7 +863,8 @@ async def me(u=Depends(ANY)):
 
 @api.get("/sync/revision")
 async def sync_revision(u=Depends(ANY)):
-    return {"revision": APP_DATA_REVISION, "session_ends_at": u.get("session_ends_at")}
+    counter = await db.counters.find_one({"key": "app_revision"}, NOID)
+    return {"revision": counter.get("value", 0) if counter else 0, "session_ends_at": u.get("session_ends_at")}
 
 
 @api.post("/auth/verify-pin")
@@ -1654,7 +1664,8 @@ async def close_eod(body: EodIn, u=Depends(ANY)):
     if u["role"] == "rider" and body.rider_id != u["id"]:
         raise HTTPException(403, "Forbidden")
     s = await eod_summary(body.rider_id, body.date)
-    doc = {"rider_id": body.rider_id, "date": body.date, "time": now_wib(), "closed_by": u["name"], "total_cups": s["total_cups"], "total_cash": s["total_cash"], "total_qris": s["total_qris"], "closed_at": now_iso()}
+    existing_eod = await db.eod.find_one({"rider_id": body.rider_id, "date": body.date}, NOID)
+    doc = {"rider_id": body.rider_id, "date": body.date, "time": now_wib(), "closed_by": u["name"], "total_cups": s["total_cups"], "total_cash": s["total_cash"], "total_qris": s["total_qris"], "closed_at": existing_eod.get("closed_at") if existing_eod else now_iso()}
     await db.eod.update_one({"rider_id": body.rider_id, "date": body.date}, {"$set": doc}, upsert=True)
     session_ends_at = None
     if body.date == datetime.now(WIB).strftime("%Y-%m-%d"):
