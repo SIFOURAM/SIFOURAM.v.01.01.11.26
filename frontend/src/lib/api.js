@@ -11,7 +11,9 @@ api.interceptors.response.use(
   (response) => {
     const method = response.config?.method?.toLowerCase();
     const url = response.config?.url || "";
-    if (["post", "put", "delete"].includes(method) && !url.startsWith("/auth/")) {
+    const ignoredRealtimePaths = ["/gps", "/notifications/read"];
+    const skipsRealtime = ignoredRealtimePaths.some((path) => url.startsWith(path));
+    if (["post", "put", "delete"].includes(method) && !url.startsWith("/auth/") && !skipsRealtime) {
       window.dispatchEvent(new Event("si4am:data-changed"));
     }
     return response;

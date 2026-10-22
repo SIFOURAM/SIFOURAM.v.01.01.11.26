@@ -62,7 +62,9 @@ export function AuthProvider({ children }) {
     window.clearTimeout(sessionTimer.current);
     const sessionEnd = Date.parse(user.session_ends_at || "");
     if (Number.isFinite(sessionEnd)) {
-      sessionTimer.current = window.setTimeout(logout, Math.max(0, sessionEnd - Date.now()));
+      // setTimeout overflows (fires immediately) for delays > 2^31-1 ms (~24.8 days), e.g. Rider 30-day pre-EOD sessions
+      const delay = Math.min(Math.max(0, sessionEnd - Date.now()), 2147483647);
+      sessionTimer.current = window.setTimeout(() => { if (Date.now() >= sessionEnd) logout(); }, delay);
     }
     return () => {
       window.clearTimeout(sessionTimer.current);

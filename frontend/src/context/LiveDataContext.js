@@ -8,20 +8,27 @@ export function LiveDataProvider({ children }) {
   const { user, setUser } = useAuth();
   const [revision, setRevision] = useState(0);
   const knownRevision = useRef(null);
+  const localRefreshPending = useRef(false);
+  const userRef = useRef(user);
+  const userId = user?.id;
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const refreshRevision = useCallback(() => {
     setRevision((currentRevision) => currentRevision + 1);
   }, []);
 
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       knownRevision.current = null;
       return undefined;
     }
     const sync = async () => {
       try {
         const { data } = await api.get("/sync/revision");
-        if (data.session_ends_at && data.session_ends_at !== user.session_ends_at) {
+        if (data.session_ends_at && data.session_ends_at !== userRef.current?.session_ends_at) {
           setUser((currentUser) => (
             currentUser ? { ...currentUser, session_ends_at: data.session_ends_at } : currentUser
           ));
@@ -30,18 +37,26 @@ export function LiveDataProvider({ children }) {
           knownRevision.current = data.revision;
         } else if (knownRevision.current !== data.revision) {
           knownRevision.current = data.revision;
-          refreshRevision();
+          if (localRefreshPending.current) {
+            localRefreshPending.current = false;
+          } else {
+            refreshRevision();
+          }
         }
       } catch {}
     };
     sync();
     const intervalId = window.setInterval(sync, 6000);
-    window.addEventListener("si4am:data-changed", refreshRevision);
+    const handleLocalChange = () => {
+      localRefreshPending.current = true;
+      refreshRevision();
+    };
+    window.addEventListener("si4am:data-changed", handleLocalChange);
     return () => {
       window.clearInterval(intervalId);
-      window.removeEventListener("si4am:data-changed", refreshRevision);
+      window.removeEventListener("si4am:data-changed", handleLocalChange);
     };
-  }, [refreshRevision, setUser, user]);
+  }, [refreshRevision, setUser, userId]);
 
   return <LiveDataContext.Provider value={revision}>{children}</LiveDataContext.Provider>;
 }

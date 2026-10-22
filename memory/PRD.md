@@ -321,3 +321,20 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - QA passed chat-session backend regression 9/9 and previous frontend session/info flows. Active-session
   deletion now remains a true blank New Chat; desktop Coach is offset from the sidebar. The final reset
   confirmed one Owner, zero sessions, zero coach sessions, and zero coach messages.
+
+## Feature Added — Fixed Session Policy and Targeted Realtime (2026-10)
+- Automatic logout now follows server-issued `session_ends_at`: Owner/Admin/Bar Team expire at the next
+  00:00 WIB; Rider expires four hours after EOD. The Rider deadline persists across midnight when a
+  previous EOD window is still active, cannot be extended by closing EOD again, and blocks relogin after
+  the current-day deadline passes.
+- MongoDB-backed `app_revision` drives six-second cross-client refreshes. A LiveData context updates
+  Dashboard, Menu Stock, Invoice, and POS without remounting routes, preserving unsaved forms, carts, and
+  receipt dialogs. GPS and notification-read events are excluded from refresh noise.
+- Dashboard now contains Stock Center Produk with total cup count and the lowest-stock products. QA
+  regression passed 11/11; frontend build passed; reset restored the Owner-only zero-data baseline.
+
+## Next P0 — Procurement and Expense Automation
+- Build multi-material purchase orders from selected low-stock materials; Admin review then Owner final
+  approval; shipping/received states, received-photo evidence, and WA sharing with the specified recipient.
+- Add Purchases subtab with price/payment detail and add manual/photo/digital-proof expense creation using
+  Gemini 3.1 Pro Vision extraction with mandatory editable review.

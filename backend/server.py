@@ -295,10 +295,19 @@ def as_utc(value: Any) -> Optional[datetime]:
 
 
 async def rider_session_deadline(user_id: str) -> Optional[datetime]:
-    date = datetime.now(WIB).strftime("%Y-%m-%d")
-    eod = await db.eod.find_one({"rider_id": user_id, "date": date}, NOID)
+    today_date = datetime.now(WIB).strftime("%Y-%m-%d")
+    eod = await db.eod.find_one({"rider_id": user_id, "date": today_date}, NOID)
+    if not eod:
+        eod = await db.eod.find_one(
+            {"rider_id": user_id, "closed_at": {"$exists": True}},
+            NOID,
+            sort=[("closed_at", -1)],
+        )
     closed_at = as_utc(eod.get("closed_at")) if eod else None
-    return closed_at + timedelta(hours=4) if closed_at else None
+    deadline = closed_at + timedelta(hours=4) if closed_at else None
+    if eod and eod.get("date") == today_date:
+        return deadline
+    return deadline if deadline and deadline > datetime.now(timezone.utc) else None
 
 
 async def session_expiry_for(user: dict) -> datetime:

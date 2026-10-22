@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 39: validated the fixed logout policies and targeted realtime refresh. Backend: 11/11 pytest pass (run with -n 0, because xdist parallelism makes the shared revision counter race between tests). Owner/Admin/Bar Team login response, session doc, cookie, /auth/me and /sync/revision all equal next 00:00 WIB. Rider EOD close sets exactly +4h (not 3h), and re-closing keeps the first closed_at. Rider login after the deadline returns 403 'Sesi Rider hari ini telah berakhir setelah batas empat jam EOD.' with no cookie. app_revision lives in Mongo counters, survives a backend restart (16 -> 16), increments +1 per successful mutation, and does NOT increment for /gps, /notifications/read, /auth/* or failed mutations. Frontend: FOUND AND FIXED 1 CRITICAL bug: every Rider was logged out instantly on load before EOD, because the 30-day session overflowed setTimeout. After the fix, all realtime and state-preservation flows pass. Cross-context central stock change: Dashboard updated in 2.2s and MenuStock in 3.8s, while MenuStock's open Edit Menu dialog kept the unsaved typed name. Invoice: an external stock change refetched /menus once while qty, customer, phone and note were kept. The invoice result modal stayed open after another external mutation. POS (Rider, mobile): another user's sale updated remaining stock (10 -> 9) while the cart (2x, Rp 16.000) and customer name were kept. The sale receipt modal stayed open after 2 external mutations. Rider UI auto-logout fired exactly at the session_ends_at (EOD+4h) deadline. DB was reset with reset_final_revision.py and the baseline verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "session_expiry_for (rider)", "issue": "A Rider session before EOD is now+30 days. If EOD is never closed, the session stays valid for up to 30 days. A Rider who logs in after WIB midnight (new date, no EOD yet) also gets a fresh 30-day session even when the previous day's EOD+4h window is still running. Confirm this is the intended policy."},
+      {"endpoint": "startup", "issue": "Pre-existing: 'Storage init failed: 401 Unauthorized' from objstore/storage/init on every restart. Photo uploads may be affected."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AuthContext.js session timer", "issue": "FIXED BY T1. window.setTimeout(logout, session_ends_at - now) was used with a Rider pre-EOD session_ends_at about 30 days ahead. Delays above 2^31-1 ms (about 24.8 days) overflow, so the timer fired immediately. Every Rider was logged out right after login (seen in network: /auth/me 200, then /auth/logout). Fix: clamp the delay to 2147483647 and only call logout if Date.now() >= sessionEnd.", "selector": "n/a", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Local revision event", "issue": "In lib/api.js the interceptor dispatches si4am:data-changed for EVERY non-auth POST/PUT/DELETE, including /gps and /notifications/read. So the Rider's own GPS pings and notification reads still trigger a local refetch on Dashboard/MenuStock/Invoice/POS, even though the server correctly ignores them. Also, every local mutation refetches twice: once from the local event and again when the next 6s poll sees the new server revision.", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "POS mobile (390px)", "issues": ["The floating help '?' button overlaps the 'Online' order-type button", "The sale receipt modal touches the viewport edges with no horizontal margin"]},
+      {"screen": "Dashboard Stock Center Produk", "issues": ["Shows the total plus only the 4 lowest-stock menus. Accurate, but a menu with higher stock (e.g. AMERICANO 37) is not visible, so the label could say 'stok terendah'"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter39_session_revision.py", "/app/backend/tests/ui_seed_iter39.py", "/app/test_reports/pytest/iter39_results.xml"],
+  "action_items": [
+    "Review the T1 fix in frontend/src/context/AuthContext.js (setTimeout overflow clamp) and keep it",
+    "Skip dispatching si4am:data-changed for /gps and /notifications/read in lib/api.js, matching the server's ignored paths",
+    "Optionally de-duplicate the refetch: after a local mutation, set knownRevision from the next poll without bumping again",
+    "Confirm the Rider pre-EOD 30-day session policy and the behaviour across WIB midnight",
+    "Fix the POS mobile help-button overlap"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 2870 lines; split it into routers (auth, stock, pos, invoices, sync)",
+    "LiveDataProvider effect depends on the whole `user` object, so the interval and listener are torn down and recreated on every session_ends_at update. Harmless, but depend on user?.id instead",
+    "The SecurityHeadersMiddleware revision bump runs on every 2xx POST/PUT/DELETE, including read-only POSTs such as /auth/verify-pin (excluded by the /api/auth prefix) and any future idempotent POST lookups. Keep the ignore list in sync with the frontend"
+  ],
+  "updated_files": ["/app/frontend/src/context/AuthContext.js", "/app/backend/tests/test_iter39_session_revision.py", "/app/backend/tests/ui_seed_iter39.py"],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% after T1 fix (Rider instant logout was 100% broken before)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md). Temporary users were created by the tests and removed by reset.",
+  "seed_data_creation": "Temporary admin/barteam/rider users, a test UI rider (test_ui_rid39), rider_stock, EOD, attendance, sales, 1 invoice and menu stock adjustments. All were removed by reset_final_revision.py. Verified baseline: users=['baa'], sessions=0, eod=0, invoices=0, sales=0, rider_stock=0, counters=0, menu_stock_tx=0, attendance=0, gps=0, customers=0, menu stock sum=0, materials non-zero=0.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run the backend pytest with `-n 0` (pytest.ini enables xdist, and parallel workers race on app_revision). Browser login: use ctx.request.post identify/login to set the cookie; no UI login is needed. Rider contexts need permissions=['geolocation'] or a GPS gate blocks the POS; the POS PIN gate uses pin-key-N buttons. Dashboard central card shows only the 4 lowest menus; use central-product-stock-total. PO/expense features have not been tested yet (next phase). Always run backend/reset_final_revision.py at the end.",
+  "rca of the issue": "Rider instant logout: session_expiry_for returns now+30d for a Rider without an EOD today. AuthContext set setTimeout(logout, ~2.59e9 ms). Browsers store the delay as a signed 32-bit int, so values above 2147483647 overflow and fire about immediately. Reproduction: create a rider, log in, open any page; you are back on the login page within about 1s. Mitigation (applied): clamp the delay and re-check Date.now() >= sessionEnd before logging out. Verified the Rider stays logged in, and the UI still logs out exactly at a near deadline (EOD+4h test: logout fired at 12:54:32 for a session_ends_at of 12:54:31.98)."
+}

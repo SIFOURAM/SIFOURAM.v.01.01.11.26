@@ -138,7 +138,7 @@ export function ReceiptModal({ open, onClose, title, waText, waPhone, filename =
   };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md p-0 border-0 bg-transparent shadow-none [&>button]:hidden" data-testid={testId}>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md p-0 border-0 bg-transparent shadow-none [&>button]:hidden" data-testid={testId}>
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <div className="relative">
           <button onClick={onClose} data-testid="receipt-close" className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center"><X className="w-4 h-4" /></button>

@@ -51,7 +51,7 @@ export default function Dashboard() {
           <Bento gold className="col-span-2 lg:col-span-4 fade-up" testId="central-product-stock">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="eyebrow mb-1">Stock Center Produk</p>
+                <p className="eyebrow mb-1">Stock Center Produk · Stok Terendah</p>
                 <p data-testid="central-product-stock-total" className="num text-2xl font-bold text-primary">{totalCentralStock} cup</p>
               </div>
               <div className="grid grid-cols-2 gap-x-5 gap-y-2 text-xs sm:grid-cols-4">

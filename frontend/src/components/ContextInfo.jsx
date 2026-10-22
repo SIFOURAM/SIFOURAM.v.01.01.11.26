@@ -55,13 +55,14 @@ const pageInfo = (location, category) => {
 export default function ContextInfo({ location, category }) {
   const [open, setOpen] = useState(false);
   const info = pageInfo(location, category);
+  const isPos = location.pathname === "/pos";
 
   return (
     <>
       <button
         data-testid="context-info-button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-24 right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-card text-primary shadow-lg transition-transform hover:scale-105 active:scale-95 lg:bottom-6"
+        className={`fixed right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-card text-primary shadow-lg transition-transform hover:scale-105 active:scale-95 lg:bottom-6 ${isPos ? "bottom-40" : "bottom-24"}`}
         aria-label={`Info ${info.title}`}
       >
         <CircleHelp className="h-5 w-5" />
