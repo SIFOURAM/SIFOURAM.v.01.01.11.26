@@ -225,6 +225,10 @@ export default function Layout() {
   )) || categories[0];
   useEffect(() => setMoreOpen(false), [loc.pathname, loc.search]);
   const linkCls = (isActive) => `flex items-center gap-3 px-4 h-11 rounded-xl text-sm font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`;
+  const isBottomItemActive = (item) => {
+    const category = categories.find((entry) => entry.tabs.some((tab) => tab.key === item.key));
+    return category?.name === activeCategory?.name;
+  };
 
   const Avatar = ({ size = "w-9 h-9" }) => (
     <button data-testid="nav-profile-button" onClick={() => nav("/profile")} className={`${size} rounded-full border-2 overflow-hidden bg-primary font-bold text-sm flex items-center justify-center shrink-0 ${theme === "dark" ? "border-white text-white" : "border-black text-black"}`}>
@@ -276,11 +280,11 @@ export default function Layout() {
           <div className="flex justify-around px-1 py-1.5 pb-[max(env(safe-area-inset-bottom),6px)]">
             {main.map((i) => (
               <NavLink key={i.to} to={i.to} end={i.to === "/"} data-testid={`bottomnav-${i.key}`}
-                className={({ isActive }) => `flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${i.key === "pos" ? "text-black" : theme === "dark" ? "text-white" : isActive ? "text-primary" : "text-muted-foreground"}`}>
-                <span className={i.key === "pos" ? "flex w-10 h-10 -mt-3 items-center justify-center rounded-full bg-primary shadow-md" : `flex items-center justify-center ${theme === "dark" ? "text-white" : ""}`}>
+                className={() => `flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${i.key === "pos" ? "text-black" : isBottomItemActive(i) ? "text-primary" : theme === "dark" ? "text-white" : "text-muted-foreground"}`}>
+                <span className={i.key === "pos" ? "flex w-10 h-10 -mt-3 items-center justify-center rounded-full bg-primary shadow-md" : "flex items-center justify-center"}>
                   <i.icon className={i.key === "pos" ? "w-5 h-5" : "w-[0.95rem] h-[0.95rem]"} />
                 </span>
-                {i.key !== "pos" && <span className={`truncate max-w-full ${theme === "dark" ? "text-white" : ""}`}>{t(i.key)}</span>}
+                {i.key !== "pos" && <span className="truncate max-w-full">{t(i.key)}</span>}
               </NavLink>))}
             {more.length > 0 && <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${activeCategory?.name === "Lainnya" || moreOpen ? "text-primary" : "text-muted-foreground"}`}><MoreHorizontal className="w-[0.95rem] h-[0.95rem]" /><span>{t("more")}</span></button>}
           </div>

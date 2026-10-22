@@ -296,3 +296,9 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   pasted. A ref-based submit guard prevents concurrent duplicate login calls; incorrect PIN behavior
   remains unchanged.
 - Verified on mobile Owner login without pressing the Continue button; frontend production build passed.
+
+## UX Update — Active Mobile Navigation (2026-10)
+- Bottom navigation now derives its active state from the containing category, so Dashboard, Stock, POS,
+  and Production stay orange while any of their tabs or subtabs is open. This overrides inactive dark-mode
+  text while retaining the POS action treatment.
+- Verified on mobile from the Produk report subtab: the Dashboard navigation item stayed orange.
