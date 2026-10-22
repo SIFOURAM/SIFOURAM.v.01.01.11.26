@@ -7,7 +7,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { api, errMsg } from "../lib/api";
 import { fmtRp, openWA } from "../lib/helpers";
-import { Bento, DateFilter, Empty, PageHeader, Stat } from "../components/common";
+import { Bento, DateFilter, Empty, Field, PageHeader, Select, Stat } from "../components/common";
 
 const COLORS = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74"];
 const tooltip = { contentStyle: { borderRadius: 8, border: "1px solid #444", fontSize: 12 } };
@@ -27,21 +27,34 @@ export default function Reports() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [riders, setRiders] = useState([]);
+  const [filters, setFilters] = useState({
+    payment_method: "all",
+    sale_kind: "all",
+    service_type: "all",
+    rider_id: "all",
+  });
   useEffect(() => { setView(searchParams.get("view") || "sales"); }, [searchParams]);
   const selectView = (nextView) => { setView(nextView); setSearchParams({ view: nextView }); };
+
+  useEffect(() => {
+    api.get("/users", { params: { role: "rider" } })
+      .then((response) => setRiders(response.data))
+      .catch(() => setRiders([]));
+  }, []);
 
   useEffect(() => {
     if (!range || !["sales", "products"].includes(view)) return;
     setLoading(true);
     setError("");
-    api.get("/reports/sales", { params: range })
+    api.get("/reports/sales", { params: { ...range, ...filters } })
       .then((response) => setReport(response.data))
       .catch((requestError) => {
         setReport(null);
         setError(errMsg(requestError));
       })
       .finally(() => setLoading(false));
-  }, [range, view]);
+  }, [range, view, filters]);
 
   const title = view === "sales" ? "Laporan Penjualan" : "Performa Produk";
   const productRows = useMemo(() => report?.products || [], [report]);
@@ -67,8 +80,27 @@ export default function Reports() {
         Produk: row.name,
         Kuantitas: row.qty,
         Revenue: row.revenue,
+        HPP: row.hpp,
+        Laba: row.profit,
+        Kontribusi: `${row.share}%`,
       }))),
       "Produk",
+    );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet((report.transaction_rows || []).map((row) => ({
+        Tanggal: row.date,
+        Jam: row.time,
+        Struk: row.receipt_no,
+        Rider: row.rider_name,
+        Cup: row.cups,
+        Layanan: row.order_type,
+        Pembayaran: row.payment_method,
+        Cash: row.cash,
+        QRIS: row.qris,
+        Total: row.total,
+      }))),
+      "Transaksi",
     );
     XLSX.utils.book_append_sheet(
       workbook,
@@ -98,8 +130,16 @@ export default function Reports() {
       theme: "grid",
     });
     autoTable(doc, {
-      head: [["Rank", "Produk", "Kuantitas", "Revenue"]],
-      body: productRows.map((row) => [row.rank, row.name, row.qty, fmtRp(row.revenue)]),
+      head: [["Rank", "Produk", "Cup", "Revenue", "HPP", "Laba", "Kontribusi"]],
+      body: productRows.map((row) => [
+        row.rank,
+        row.name,
+        row.qty,
+        fmtRp(row.revenue),
+        fmtRp(row.hpp),
+        fmtRp(row.profit),
+        `${row.share}%`,
+      ]),
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [255, 107, 0], textColor: [255, 255, 255] },
       theme: "grid",
@@ -144,8 +184,64 @@ export default function Reports() {
               <button data-testid="report-print-button" onClick={printPdf} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button>
               <button data-testid="report-wa-button" onClick={sendWhatsApp} className="btn-wa h-9 px-3 text-xs"><MessageCircle className="w-3.5 h-3.5" />Kirim WA</button>
             </div>}
-            <div className="flex flex-wrap items-start gap-2">
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
+              <Field label="Jenis laporan">
+                <Select
+                  testId="report-view-select"
+                  value={view}
+                  onChange={selectView}
+                  options={REPORT_TABS.map(([value, label]) => ({ value, label }))}
+                />
+              </Field>
               <DateFilter onChange={setRange} />
+              <Field label="Pembayaran">
+                <Select
+                  testId="report-payment-filter"
+                  value={filters.payment_method}
+                  onChange={(value) => setFilters({ ...filters, payment_method: value })}
+                  options={[
+                    { value: "all", label: "Semua" },
+                    { value: "cash", label: "Cash" },
+                    { value: "qris", label: "QRIS" },
+                  ]}
+                />
+              </Field>
+              <Field label="Jenis pesanan">
+                <Select
+                  testId="report-sale-kind-filter"
+                  value={filters.sale_kind}
+                  onChange={(value) => setFilters({ ...filters, sale_kind: value })}
+                  options={[
+                    { value: "all", label: "Semua" },
+                    { value: "regular", label: "Reguler" },
+                    { value: "bundling", label: "Bundling" },
+                  ]}
+                />
+              </Field>
+              <Field label="Layanan">
+                <Select
+                  testId="report-service-filter"
+                  value={filters.service_type}
+                  onChange={(value) => setFilters({ ...filters, service_type: value })}
+                  options={[
+                    { value: "all", label: "Semua" },
+                    { value: "takeaway", label: "Takeaway" },
+                    { value: "dine_in", label: "Dine In" },
+                    { value: "online", label: "Online" },
+                  ]}
+                />
+              </Field>
+              <Field label="Rider">
+                <Select
+                  testId="report-rider-filter"
+                  value={filters.rider_id}
+                  onChange={(value) => setFilters({ ...filters, rider_id: value })}
+                  options={[
+                    { value: "all", label: "Semua Rider" },
+                    ...riders.map((rider) => ({ value: rider.id, label: rider.name })),
+                  ]}
+                />
+              </Field>
             </div>
           </div>
         </div>
@@ -157,7 +253,7 @@ export default function Reports() {
         <Stat testId="report-revenue" gold label="Total revenue" value={fmtRp(report.revenue)} />
       </div><ReportFilterSummary report={report} /><div className="grid grid-cols-2 gap-4 mt-4">
         <Stat testId="report-average" label="Rata-rata order" value={fmtRp(report.average_order)} />
-        <Stat testId="report-discount" label="Total diskon" value={fmtRp(report.discount)} />
+        <Stat testId="report-cups" label="Cup terjual" value={report.total_cups} />
       </div><div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
         {view === "sales" && <>
           <Bento testId="report-revenue-trend" className="col-span-2 fade-up">
@@ -174,10 +270,16 @@ export default function Reports() {
         </>}
         <Bento testId="report-products-table" scrollable className="col-span-2 lg:col-span-4 fade-up overflow-x-auto">
           <p className="eyebrow mb-4">{view === "sales" ? "Produk terlaris" : "Performa produk"}</p>
-          <table className={productRows.length ? "table-x min-w-[34rem]" : "table-x w-full"}><thead><tr><th className="text-center">Rank</th><th className="text-center">Produk</th><th className="text-center">Kuantitas</th><th className="text-center">Revenue</th></tr></thead>
-            <tbody>{productRows.length ? productRows.map((row) => <tr key={row.name}><td className="num">{row.rank}</td><td className="font-semibold">{row.name}</td><td className="num text-right">{row.qty}</td><td className="num text-right">{fmtRp(row.revenue)}</td></tr>) : <tr><td colSpan="4"><Empty text="Belum ada produk terjual pada periode ini" /></td></tr>}</tbody>
+          <table className={productRows.length ? "table-x min-w-[44rem]" : "table-x w-full"}><thead><tr><th className="text-center">Rank</th><th className="text-center">Produk</th><th className="text-center">Cup</th><th className="text-center">Revenue</th><th className="text-center">HPP</th><th className="text-center">Laba</th><th className="text-center">Kontribusi</th></tr></thead>
+            <tbody>{productRows.length ? productRows.map((row) => <tr key={row.name}><td className="num">{row.rank}</td><td className="font-semibold">{row.name}</td><td className="num text-right">{row.qty}</td><td className="num text-right">{fmtRp(row.revenue)}</td><td className="num text-right">{fmtRp(row.hpp)}</td><td className="num text-right">{fmtRp(row.profit)}</td><td className="num text-right">{row.share}%</td></tr>) : <tr><td colSpan="7"><Empty text="Belum ada produk terjual pada periode ini" /></td></tr>}</tbody>
           </table>
         </Bento>
+        {view === "sales" && <Bento testId="report-transactions-table" scrollable className="col-span-2 lg:col-span-4 fade-up overflow-x-auto">
+          <p className="eyebrow mb-4">Detail transaksi</p>
+          <table className={report.transaction_rows.length ? "table-x min-w-[52rem]" : "table-x w-full"}><thead><tr><th>Tanggal</th><th>Struk</th><th>Rider</th><th>Service</th><th>Pembayaran</th><th className="text-right">Cup</th><th className="text-right">Cash</th><th className="text-right">QRIS</th><th className="text-right">Total</th></tr></thead>
+            <tbody>{report.transaction_rows.length ? report.transaction_rows.map((row) => <tr key={row.id} data-testid={`report-transaction-${row.id}`}><td className="num whitespace-nowrap">{row.date} {row.time}</td><td className="num whitespace-nowrap">{row.receipt_no}</td><td>{row.rider_name}</td><td className="capitalize">{row.order_type.replace("_", " ")}</td><td className="uppercase">{row.payment_method}</td><td className="num text-right">{row.cups}</td><td className="num text-right">{fmtRp(row.cash)}</td><td className="num text-right">{fmtRp(row.qris)}</td><td className="num text-right font-bold">{fmtRp(row.total)}</td></tr>) : <tr><td colSpan="9"><Empty text="Belum ada transaksi pada periode ini" /></td></tr>}</tbody>
+          </table>
+        </Bento>}
       </div></>}
     </div>
   );
@@ -298,6 +400,14 @@ function OperationsReport({ kind, setView }) {
   return (
     <div data-testid={`operations-report-${kind}`}>
       <PageHeader title={labels[kind]}>
+        <Field label="Jenis laporan" className="w-full sm:w-52">
+          <Select
+            testId="report-view-select"
+            value={kind}
+            onChange={setView}
+            options={REPORT_TABS.map(([value, label]) => ({ value, label }))}
+          />
+        </Field>
         {data && <div className="flex gap-1"><button data-testid="operations-excel" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button><button data-testid="operations-pdf" onClick={() => printPdf(true)} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button><button data-testid="operations-print" onClick={() => printPdf(false)} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button><button data-testid="operations-wa" onClick={sendOperationsWhatsApp} className="btn-wa h-9 px-3 text-xs"><MessageCircle className="w-3.5 h-3.5" />Kirim WA</button></div>}
         {kind !== "inventory" && <DateFilter onChange={setRange} />}
       </PageHeader>

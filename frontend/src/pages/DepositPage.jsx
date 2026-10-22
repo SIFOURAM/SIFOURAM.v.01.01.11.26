@@ -103,15 +103,14 @@ export default function DepositPage() {
   const setCell = (mid, key, value) => {
     const current = rows[mid] || EMPTY;
     const next = { ...current, [key]: value };
+    next.stock = Math.max(0, next.stock);
+    next.cash = Math.min(Math.max(0, next.cash), next.stock);
+    next.qris = Math.min(Math.max(0, next.qris), next.stock - next.cash);
     const sold = next.cash + next.qris;
     const maxRemaining = Math.max(0, next.stock - sold);
-    if (key !== "remaining") {
-      next.remaining = Math.min(next.remaining, maxRemaining);
-    }
+    next.remaining = Math.min(Math.max(0, next.remaining), maxRemaining);
     const available = Math.max(0, next.stock - sold - next.remaining);
-    if (key !== "wastage") {
-      next.wastage = Math.min(next.wastage, available);
-    }
+    next.wastage = Math.min(Math.max(0, next.wastage), available);
     setRows({ ...rows, [mid]: next });
   };
 
@@ -193,9 +192,17 @@ export default function DepositPage() {
             }`}
           >
             {eod.closed
-              ? `✓ ${t("eodDone")} — ${eod.transactions} ${t("transactions")}, ${
-                  eod.total_cups
-                } cups (${t("cash")} ${fmtRp(eod.total_cash)}, QRIS ${fmtRp(eod.total_qris)})`
+              ? L
+                ? `✓ EOD selesai pada ${fmtDate(date)} — ${eod.transactions} ${
+                    t("transactions")
+                  }, ${eod.total_cups} cups (${t("cash")} ${fmtRp(eod.total_cash)}, QRIS ${
+                    fmtRp(eod.total_qris)
+                  })`
+                : `✓ EOD closed for ${fmtDate(date)} — ${eod.transactions} ${
+                    t("transactions")
+                  }, ${eod.total_cups} cups (${t("cash")} ${fmtRp(eod.total_cash)}, QRIS ${
+                    fmtRp(eod.total_qris)
+                  })`
               : L
                 ? "Rider belum menutup penjualan di POS. Setoran baru dapat disimpan setelah EOD selesai."
                 : "Rider must end sales in POS before the deposit can be saved."}
@@ -224,6 +231,9 @@ export default function DepositPage() {
                     </p>
                     <p className="text-[10px] text-muted-foreground num">
                       {fmtRp(line.price)}
+                    </p>
+                    <p className="num text-[10px] sm:hidden">
+                      {t("sold")} {line.sold} · {t("diff")} {line.diff}
                     </p>
                   </td>
                   <td>

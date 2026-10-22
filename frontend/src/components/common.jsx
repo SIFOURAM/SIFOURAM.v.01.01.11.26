@@ -26,7 +26,7 @@ export const Stat = ({ label, value, sub, icon: Icon, gold, testId, className = 
 
 export const Field = ({ label, children, className = "" }) => (
   <label className={`block ${className}`}>
-    {label && <span className="eyebrow block mb-1.5">{label}</span>}
+    {label && <span className="eyebrow block mb-1.5 whitespace-nowrap">{label}</span>}
     {children}
   </label>
 );

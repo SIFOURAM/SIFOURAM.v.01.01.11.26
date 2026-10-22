@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 31: tested the manual-input Deposit/Setoran contract (backend and UI), the iteration-30 hardening fixes, Invoice compact layout and calculation, and Bento padding on desktop (1920) and mobile (390). Backend: 13/13 pytest passed when run sequentially (-n 0). Manually submitted stock/cash/qris/remaining/wastage values are saved, and the totals are computed from them: cash 34000, qris 68000, cups 11, minus/new_debt 16000, net 34000. Saving before EOD is closed returns 400. Unknown pic_id falls back to the current user (no 500). A non-rider id gets 404. An invalid later row (negative value) makes no partial writes. Re-saving does not duplicate wastage tx, and changed wastage replaces the old tx. Frontend: all 5 deposit controls are editable QtySelects. Save is disabled until a closed-EOD rider is selected and is disabled again for an unclosed date. Wastage >0 turns rgb(255,106,0) bold. PIC and Rider share one row and are both 36px tall on mobile (40px on desktop). Mobile page width is 390 with no overflow. Bento padding is 7.68px desktop and 4.096px mobile (20% less than 9.6/5.12). Invoice: phone/name and date/method share rows, the qty input is a centered 32x32 circle, and a UI-created invoice calculated correctly (48000 - 4000 = 44000, minus DP 20000 leaves 24000 UNPAID). One HIGH frontend bug: when Stock is lowered, cash/qris keep stale values and get saved. Several Invoice layout misses. All temporary data was hard-deleted; every collection count matches the baseline exactly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/deposits", "issue": "No sanity validation that cash+qris+remaining+wastage <= stock. A payload with stock 2, cash 3, qris 2, remaining 4, wastage 1 returns 200 with diff -9, minus 0 and income counted for 5 cups. With manual inputs the server is now the only guard, so reject it (400) or at least flag it. The frontend bug below sends exactly this kind of payload."},
+      {"endpoint": "POST /api/deposits", "issue": "Each re-save (upsert) inserts a new owner notification. One deposit re-saved 6 times left 6 notifications. Upsert the notification by ref_id instead."},
+      {"endpoint": "POST /api/deposits", "issue": "Rows still store cash_auto:true / qris_auto:true even though the values are now manual. These flags are misleading; remove them or set them to false."},
+      {"endpoint": "startup", "issue": "Backend log repeats 'Storage init failed: 401 Unauthorized' for objstore (unrelated to this feature)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DepositPage setCell", "issue": "Lowering Stock does not clamp cash/qris in state; only the displayed QtySelect value is clamped. Repro: Americano stock 12, cash 5, qris 3, then set stock 6. The selects show cash 3 / qris 1, but calc-cash stays Rp 40.000 (5x8000), calc-qris Rp 24.000, sold 8, and Save sends {stock:6, cash:5, qris:3}. The backend accepts it (receipt shows 'SI AMERICANO x8 Rp 64.000' against stock 6). Fix: in setCell when key==='stock', clamp cash=min(cash,stock) and qris=min(qris,stock-cash), then clamp remaining and wastage. Cash/qris also need a mutual clamp in the same handler.", "selector": "[data-testid^=deposit-stock-], [data-testid^=deposit-cash-], [data-testid^=deposit-qris-]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Invoice desktop", "issues": ["Invoice table header vertical padding is still 12px top/bottom (.invoice-table th 0.75rem equals the default table-x py-3), so the 50% reduction was NOT applied on desktop. Mobile is 4px vs the default 8px, so mobile is correct.", "SUBTOTAL header is left-aligned while its values are right-aligned (the th text-right class is overridden by .table-x th text-left).", "The '0' in the number-type circular qty input sits off-center because of the native number spinner; hide the spin buttons."]},
+      {"screen": "Invoice mobile 390px", "issues": ["Method select is 36px tall while the phone/name/date inputs are 20px. The mobile 'select.field {height:2.25rem}' rule overrides h-5, so the date/method row looks uneven.", "The 'PELANGGAN WHATSAPP' label wraps to 2 lines, pushing the phone input to y=165 while the name input sits at y=148, so the phone/name row is misaligned. Shorten the label or use whitespace-nowrap/truncate.", "20px-tall top inputs are well below the 44px touch-target guideline (done at user request, but note it)."]},
+      {"screen": "Deposit", "issues": ["The EOD status text says 'Penjualan hari ini sudah ditutup' even when a non-today date is selected.", "Date still uses native input type=date instead of the shadcn calendar.", "Terjual/Selisih columns are hidden on mobile, so a rider/PIC cannot see the per-menu diff on a phone."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter31_deposit_manual.py", "/app/backend/tests/seed_iter31_deposit_ui.py", "/app/test_reports/pytest/iteration_31_deposit.xml"],
+  "action_items": [
+    "HIGH: DepositPage setCell - when Stock (or cash/qris) changes, clamp cash, qris, remaining and wastage in state so the calc and the payload match the displayed values",
+    "Backend save_deposit: reject (400) rows where cash+qris+remaining+wastage > stock; validate all rows before any write",
+    "Invoice desktop: reduce .invoice-table th padding to 0.375rem (50% of 0.75rem); right-align the Subtotal header",
+    "Invoice mobile: make the method select match the 20px inputs (override select.field height for .invoice-detail-fields) and stop the WhatsApp label wrapping so phone/name align",
+    "Upsert the deposit notification on re-save instead of inserting a duplicate; drop the cash_auto/qris_auto flags"
+  ],
+  "critical_code_review_comments": [
+    "QtySelect clamps only what it displays (safeValue). Any parent that relies on it for validation will keep stale state. Better: call onChange with the clamped value when max drops below value, or always clamp in the parent setters.",
+    "save_deposit computes remaining_debt = initial_debt + minus. If cash+qris > stock is allowed, a negative diff silently hides a real shortfall in other rows.",
+    "server.py is 2373 lines; split routers (deposits, invoices, pos) into modules.",
+    "Old /app/backend/tests/test_deposit_eod_server_totals.py (iteration 30) tests the superseded auto-only contract and now fails by design. Delete or archive it."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter31_deposit_manual.py", "/app/backend/tests/seed_iter31_deposit_ui.py"],
+  "success_rate": {"backend": "100% (13/13); 1 validation gap reported", "frontend": "~80% (deposit manual controls, gating, orange wastage, PIC/Rider alignment, Bento padding and invoice calc pass; stale cash/qris on stock decrease and invoice desktop header padding/mobile row alignment fail)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md). Browser login: inject si4am_token plus si4am_session_wib_date (WIB YYYY-MM-DD) plus si4am_legal_2026-06-01=accepted in localStorage.",
+  "seed_data_creation": "Temporary TEST_ riders/stock/sales/EOD/deposits/invoices were created and hard-deleted. Final collection counts match the pre-test baseline exactly (users 1, notifications 7, deposits/sales/eod/rider_stock/menu_stock_tx/invoices/customers 0).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run backend tests with '-n 0' (xdist is on by default and breaks the ordered class flow). Seed UI data with 'python /app/backend/tests/seed_iter31_deposit_ui.py seed' (rider TEST_rider_ui31, date 2030-01-15, Americano stock 10 / 2 cash sold, EOD closed) and clean with '... clean'. Retest: stock decrease from 12 to 6 with cash 5 / qris 3 must update calc-cash and the payload; invoice th padding on desktop; invoice mobile field heights.",
+  "rca of the issue": "Stale cash/qris: DepositPage.setCell only clamps 'remaining' and 'wastage' after any change and never clamps cash/qris when stock shrinks. QtySelect renders min(value,max), which hides the stale state in the UI while calc (useMemo over rows) and save() use the unclamped values. The backend has no stock-sum validation, so the inconsistent deposit is persisted."
+}

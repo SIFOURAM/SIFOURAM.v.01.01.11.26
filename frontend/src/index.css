@@ -128,7 +128,11 @@
   .table-x { @apply w-full text-sm; table-layout: auto; }
   .table-x th { @apply text-left eyebrow py-3 px-2 border-b border-border; }
   .table-x td { @apply py-2.5 px-2 border-b border-border/50; }
-  .invoice-table th { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+  .invoice-table th { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+  .invoice-table th:last-child { text-align: right; }
+  .invoice-qty-input::-webkit-inner-spin-button,
+  .invoice-qty-input::-webkit-outer-spin-button { margin: 0; appearance: none; }
+  .invoice-qty-input { appearance: textfield; }
   .hide-sm { @apply hidden md:table-cell; }
   .hide-xs { @apply hidden sm:table-cell; }
   .qty { @apply h-[29px] rounded-lg border border-input bg-background text-xs outline-none focus:ring-2 focus:ring-primary/40 num; width: 1.76rem; padding: 0; text-align: center; appearance: none; -webkit-appearance: none; }
@@ -151,6 +155,7 @@
     .table-x td p { font-size: 11px; }
     .bento { padding: 0.256rem 0.64rem; }
     .invoice-table th { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+    .invoice-detail-fields select.field { height: 1.25rem; }
   }
   @media (max-width: 360px) { .table-x { font-size: 10px; } .qty { width: 1.9rem; height: 2rem; } .table-x td p { font-size: 10px; } }
   .num { @apply font-mono tabular-nums; }

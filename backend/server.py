@@ -1459,6 +1459,9 @@ async def save_deposit(body: DepositIn, u=Depends(STAFF)):
         cash_qty = submitted.cash
         qris_qty = submitted.qris
         sold = cash_qty + qris_qty
+        accounted = sold + submitted.remaining + submitted.wastage
+        if accounted > stock:
+            raise HTTPException(400, f"Jumlah {m['name']} melebihi stok")
         diff = stock - (sold + submitted.remaining + submitted.wastage)
         row_minus = max(0, diff) * m["price"]
         rows.append({
@@ -1469,8 +1472,6 @@ async def save_deposit(body: DepositIn, u=Depends(STAFF)):
             "remaining": submitted.remaining,
             "cash": cash_qty,
             "qris": qris_qty,
-            "cash_auto": True,
-            "qris_auto": True,
             "wastage": submitted.wastage,
             "total_sold": sold,
             "diff": diff,
@@ -1531,9 +1532,23 @@ async def save_deposit(body: DepositIn, u=Depends(STAFF)):
             "created_at": now_iso(),
         })
     await gs_sync("deposits", {**doc, "rows": "; ".join(f"{r['name']}: stock {r['stock']} sisa {r['remaining']} cash {r['cash']} qris {r['qris']} waste {r['wastage']}" for r in rows), "bundles": str(bundles_out)})
-    await db.notifications.insert_one({"id": uid(), "for_role": "owner", "type": "deposit", "title": f"Setoran · {rider['name']}",
-                                       "body": f"{cups} cups · Cash Rp {int(cash):,} · QRIS Rp {int(qris):,} · Net Rp {int(net_cash):,}".replace(",", "."),
-                                       "ref_id": doc["id"], "read": False, "created_at": now_iso()})
+    notification = {
+        "for_role": "owner",
+        "type": "deposit",
+        "title": f"Setoran · {rider['name']}",
+        "body": (
+            f"{cups} cups · Cash Rp {int(cash):,} · QRIS Rp {int(qris):,} · "
+            f"Net Rp {int(net_cash):,}"
+        ).replace(",", "."),
+        "ref_id": doc["id"],
+        "read": False,
+        "created_at": now_iso(),
+    }
+    await db.notifications.update_one(
+        {"for_role": "owner", "type": "deposit", "ref_id": doc["id"]},
+        {"$set": notification, "$setOnInsert": {"id": uid()}},
+        upsert=True,
+    )
     return doc
 
 
@@ -1972,10 +1987,15 @@ async def sales_report(
     order_type: Optional[str] = None,
     sale_kind: Optional[str] = None,
     service_type: Optional[str] = None,
+    rider_id: Optional[str] = None,
     u=Depends(REPORTS),
 ):
     query: Dict[str, Any] = {"date": {"$gte": start, "$lte": end}}
+    if rider_id and rider_id != "all":
+        query["rider_id"] = rider_id
     rows = await db.sales.find(query, NOID).sort([("date", 1), ("time", 1)]).to_list(5000)
+    menu_info = {menu["id"]: menu for menu in await menus_full()}
+    menu_costs = {menu_id: menu.get("cost", 0) for menu_id, menu in menu_info.items()}
     filtered = []
     for sale in rows:
         current_sale_kind = "bundling" if any(item.get("bundle") for item in sale["items"]) else "regular"
@@ -1999,6 +2019,7 @@ async def sales_report(
     by_service: Dict[str, float] = {}
     by_hour: Dict[str, dict] = {}
     products: Dict[str, dict] = {}
+    transactions = []
     for sale in filtered:
         amount = sale["report_amount"]
         allocation = amount / sale["total"] if sale["total"] else 0
@@ -2014,21 +2035,49 @@ async def sales_report(
         hour_row = by_hour.setdefault(hour, {"hour": f"{hour}:00", "transactions": 0, "revenue": 0})
         hour_row["transactions"] += 1
         hour_row["revenue"] += amount
+        transactions.append({
+            "id": sale["id"],
+            "date": sale["date"],
+            "time": sale.get("time", "-"),
+            "rider_id": sale.get("rider_id", ""),
+            "rider_name": sale.get("rider_name", "-"),
+            "receipt_no": sale.get("receipt_no", "-"),
+            "cups": sale.get("cups", 0),
+            "payment_method": sale.get("payment_method", "-"),
+            "order_type": service,
+            "sale_kind": kind,
+            "cash": payments["cash"],
+            "qris": payments["qris"],
+            "total": amount,
+        })
         for item in sale["items"]:
             if item.get("bundle"):
                 names = item.get("component_names", {})
                 cup_total = sum(names.values()) or 1
-                for name, quantity in names.items():
-                    item_row = products.setdefault(name, {"name": name, "qty": 0, "revenue": 0})
+                components = item.get("components", {})
+                for menu_id, quantity in components.items():
+                    name = menu_info.get(menu_id, {}).get("name", menu_id)
+                    item_row = products.setdefault(
+                        name,
+                        {"name": name, "qty": 0, "revenue": 0, "hpp": 0},
+                    )
                     item_row["qty"] += quantity
                     item_row["revenue"] += item["subtotal"] * quantity / cup_total * allocation
+                    item_row["hpp"] += menu_costs.get(menu_id, 0) * quantity
             else:
-                item_row = products.setdefault(item["name"], {"name": item["name"], "qty": 0, "revenue": 0})
+                item_row = products.setdefault(
+                    item["name"],
+                    {"name": item["name"], "qty": 0, "revenue": 0, "hpp": 0},
+                )
                 item_row["qty"] += item["qty"]
                 item_row["revenue"] += item["subtotal"] * allocation
+                item_row["hpp"] += menu_costs.get(item.get("menu_id"), 0) * item["qty"]
     total_revenue = sum(sale["report_amount"] for sale in filtered)
     for item in products.values():
         item["revenue"] = round(item["revenue"])
+        item["hpp"] = round(item["hpp"])
+        item["profit"] = item["revenue"] - item["hpp"]
+        item["share"] = round(item["revenue"] / total_revenue * 100, 1) if total_revenue else 0
     product_rows = sorted(products.values(), key=lambda item: (-item["revenue"], -item["qty"]))
     for index, item in enumerate(product_rows, start=1):
         item["rank"] = index
@@ -2039,8 +2088,10 @@ async def sales_report(
             "payment_method": payment_method,
             "sale_kind": sale_kind or order_type,
             "service_type": service_type,
+            "rider_id": rider_id,
         },
         "transactions": len(filtered),
+        "total_cups": sum(sale.get("cups", 0) for sale in filtered),
         "revenue": total_revenue,
         "average_order": round(total_revenue / len(filtered)) if filtered else 0,
         "discount": 0,
@@ -2050,6 +2101,8 @@ async def sales_report(
         "service_distribution": [{"name": key, "value": value} for key, value in by_service.items()],
         "hourly": [by_hour[key] for key in sorted(by_hour)],
         "products": product_rows,
+        "top_product": product_rows[0] if product_rows else None,
+        "transaction_rows": transactions,
     }
 
 

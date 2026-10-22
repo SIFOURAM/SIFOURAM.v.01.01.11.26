@@ -114,7 +114,7 @@ export default function Invoice() {
                         data-testid={`invoice-qty-${menu.id}`}
                         type="number"
                         min="0"
-                        className="field h-8 w-8 rounded-full p-0 text-center text-xs num"
+                        className="field invoice-qty-input h-8 w-8 rounded-full p-0 text-center text-xs num"
                         value={qty[menu.id] || ""}
                         placeholder="0"
                         onChange={(event) => {
@@ -135,7 +135,7 @@ export default function Invoice() {
             <Field label={`${t("downPayment")} (Rp)`}><input data-testid="invoice-dp-input" type="number" className="field num" value={f.down_payment} onChange={(e) => setF({ ...f, down_payment: e.target.value })} /></Field>
             <Field label={t("note")}><input data-testid="invoice-note-input" className="field" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
           </div>
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mt-6 pt-6 border-t border-border/60">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-[0.9rem] mt-[1.35rem] pt-[1.35rem] border-t border-border/60">
             <div><p className="text-xs text-muted-foreground">Subtotal {fmtRp(subtotal)} · Total {fmtRp(total)} · DP {fmtRp(f.down_payment)}</p><p className="eyebrow mt-2">{t("remainingPayment")}</p><p data-testid="invoice-remaining" className="text-3xl font-black num font-heading text-primary">{fmtRp(remaining)}</p></div>
             <button data-testid="invoice-save-button" onClick={save} disabled={!f.customer_name || subtotal <= 0 || busy} className="btn-primary h-12 px-8">{t("createInvoice")}</button>
           </div>
