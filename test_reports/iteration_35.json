@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 35: Rider first-login guide + Web Bluetooth ESC/POS thermal printing. Backend: 6/6 pytest pass (identify returns rider role+id used by guide, rider/owner login, wrong PIN rejected, owner logout -> 401). Frontend (Playwright, mocked navigator.bluetooth since no physical printer): Rider guide auto-opens at PIN stage on 390px with 3 steps, rider-guide-complete closes + sets si4am_rider_guide_<id>=seen, no auto-open on return, rider-guide-open reopens manually, Escape closes, Rider PIN login succeeds; Owner sees no guide/link. Settings without Bluetooth: guidance text, connect+test disabled, no page errors, 0px overflow. Mock: NotFoundError cancel -> no toast/no crash; connect -> 'Tersambung: MockPrinter58', label 'Ganti Printer'; Test Print sends ESC @ / ESC a 0 / text / GS V 0; second print reuses characteristic (no new requestDevice); Disconnect calls gatt.disconnect and resets status. Invoice receipt with mock shows receipt-print-bt, sends 340 bytes in 100-byte chunks [100,100,100,40], 2nd print reuses connection; without Bluetooth the button is hidden (PNG/WhatsApp remain). One functional bug: 'Ganti Printer' does NOT open the device chooser while connected. PHYSICAL PRINTER VERIFICATION STILL REQUIRED (all BT results are mock-based). DB reset to Owner-only baseline afterwards.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BluetoothPrinter 'Ganti Printer'", "issue": "When connected, clicking Connect (label 'Ganti Printer') calls connectBluetoothPrinter which returns early because btChar && gatt.connected; requestDevice is never called (verified: requests count unchanged) and a misleading 'Printer X tersambung' toast is shown. User cannot change printer without first disconnecting.", "selector": "[data-testid='bluetooth-printer-connect']", "priority": "MEDIUM"},
+      {"component": "ReceiptModal Print", "issue": "receipt-print-bt catch shows toast for every error incl. NotFoundError (user cancelled chooser) – inconsistent with Settings card which suppresses it. Also no busy/disabled state or success toast; double clicks can send duplicate prints.", "selector": "[data-testid='receipt-print-bt']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Settings printer card (390px)", "issues": ["Disabled 'Test Print' (btn-ghost) looks fully enabled (white text, no opacity) – only Sambungkan shows disabled styling"]},
+      {"screen": "Settings appearance card (390px, pre-existing)", "issues": ["Notifikasi toggle knob sits on/over right card border (appears clipped at card edge)"]},
+      {"screen": "Login PIN stage", "issues": ["'Panduan Rider baru' link tap target is only ~111x16px; recommend min 44px height for mobile"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter35_rider_guide_auth.py", "/app/backend/tests/ui_seed_iter35.py", "/app/test_reports/pytest/pytest_iter35.xml"],
+  "action_items": [
+    "Add a force/change option: connectBluetoothPrinter({ force: true }) that disconnects current device and calls requestDevice when the button label is 'Ganti Printer'",
+    "In ReceiptModal print handler, ignore NotFoundError and add busy state + success toast",
+    "Consider smaller BLE chunks (e.g. 20-180 bytes depending on characteristic) and writeValueWithoutResponse/writeValueWithResponse instead of deprecated writeValue; many cheap 58mm printers fail with 100-byte writeWithoutResponse chunks unless MTU negotiated – verify on real hardware",
+    "Add disabled styling to btn-ghost (opacity-50/cursor-not-allowed)",
+    "Increase rider-guide-open tap target height"
+  ],
+  "critical_code_review_comments": [
+    "helpers.js connectBluetoothPrinter early-return makes 'Ganti Printer' a no-op (see ui_bugs)",
+    "gattserverdisconnected only clears btChar; next print calls requestDevice again instead of reconnecting btDevice.gatt.connect() – acceptable (user gesture) but a silent reconnect would be better UX",
+    "printBluetooth strips all non-ASCII (emoji/accents) – fine for ESC/POS, but '—' and '📅' disappear leaving leading spaces in lines",
+    "Rider guide 'seen' flag is localStorage-only, so it re-appears on every new device/browser for the same rider (by design per request, but not truly 'first login')"
+  ],
+  "updated_files": ["/app/backend/tests/test_iter35_rider_guide_auth.py", "/app/backend/tests/ui_seed_iter35.py"],
+  "success_rate": {"backend": "100%", "frontend": "92% (1 functional bug: change printer)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md). Temp rider test_ui35rider / 468024 created and removed.",
+  "seed_data_creation": "Temp rider + one invoice INV-...-001 + customer created during test; removed via ui_seed_iter35.py cleanup and /app/backend/reset_final_revision.py. Verified DB: users=[baa owner], invoices/customers/sessions/sales/rider_stock=0, only reset audit marker.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Mock navigator.bluetooth via page.add_init_script defining Navigator.prototype.bluetooth with requestDevice->device{gatt.connect()->server.getPrimaryServices()->[service.getCharacteristics()->[{properties:{write:true}, writeValue}]]}. Track window.__bt.requests to verify Ganti Printer fix. Invoice page /invoice is the easiest ReceiptModal trigger (menus seeded, no stock required). Run reset_final_revision.py after tests.",
+  "rca of the issue": "Ganti Printer: BluetoothPrinter.connect() always calls connectBluetoothPrinter(); helpers.js line ~92 returns current status when btChar && btDevice.gatt.connected, so requestDevice chooser never opens. Repro: connect mock printer, click Connect again -> requests stays 1. Fix: pass a force flag from the card when status.connected and disconnect before requestDevice."
+}

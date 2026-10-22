@@ -21,7 +21,7 @@ export default function BluetoothPrinter() {
   const connect = async () => {
     setBusy(true);
     try {
-      const nextStatus = await connectBluetoothPrinter();
+      const nextStatus = await connectBluetoothPrinter({ force: status.connected });
       setStatus(nextStatus);
       toast.success(`Printer ${nextStatus.name} tersambung`);
     } catch (error) {
@@ -80,7 +80,7 @@ export default function BluetoothPrinter() {
           data-testid="bluetooth-printer-test"
           onClick={testPrint}
           disabled={!status.connected || busy}
-          className="btn-ghost h-11 px-3 text-xs"
+          className="btn-ghost h-11 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Printer className="h-4 w-4" />Test Print
         </button>

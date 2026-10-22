@@ -85,11 +85,14 @@ export const disconnectBluetoothPrinter = () => {
   btChar = null;
 };
 
-export const connectBluetoothPrinter = async () => {
+export const connectBluetoothPrinter = async ({ force = false } = {}) => {
   if (!navigator.bluetooth) {
     throw new Error("Web Bluetooth tidak didukung di browser ini");
   }
-  if (btChar && btDevice?.gatt?.connected) {
+  if (force && btDevice?.gatt?.connected) {
+    disconnectBluetoothPrinter();
+  }
+  if (!force && btChar && btDevice?.gatt?.connected) {
     return bluetoothPrinterStatus();
   }
   const device = await navigator.bluetooth.requestDevice({
@@ -131,7 +134,12 @@ export const printBluetooth = async (text) => {
   const clean = text.replace(/\*/g, "").replace(/[^\x00-\x7F\n]/g, "");
   const enc = new TextEncoder();
   const bytes = new Uint8Array([0x1b, 0x40, 0x1b, 0x61, 0x00, ...enc.encode(clean + "\n\n\n\n"), 0x1d, 0x56, 0x00]);
-  for (let i = 0; i < bytes.length; i += 100) await btChar.writeValue(bytes.slice(i, i + 100));
+  const write = btChar.writeValueWithoutResponse
+    || btChar.writeValueWithResponse
+    || btChar.writeValue;
+  for (let index = 0; index < bytes.length; index += 20) {
+    await write.call(btChar, bytes.slice(index, index + 20));
+  }
 };
 
 export const compressImage = (file, max = 640) =>

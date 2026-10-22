@@ -239,7 +239,7 @@ export default function Login() {
                   data-testid="rider-guide-open"
                   type="button"
                   onClick={() => setShowRiderGuide(true)}
-                  className="mt-3 text-xs font-semibold text-primary"
+                  className="mt-2 inline-flex h-11 items-center text-xs font-semibold text-primary"
                 >
                   Panduan Rider baru
                 </button>
