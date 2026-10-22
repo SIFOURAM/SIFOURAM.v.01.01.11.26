@@ -8,6 +8,7 @@ import { PageHeader, Stat, Bento, DateFilter, Empty } from "../components/common
 import GpsMap from "../components/GpsMap";
 import OwnerOnboarding from "../components/OwnerOnboarding";
 import { useLiveRevision } from "../context/LiveDataContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
 const tip = { contentStyle: { borderRadius: 12, border: "1px solid #333", background: "#111", color: "#fff", fontSize: 12 } };
 const menuColors = ["#FF6B00", "#F97316", "#EA580C", "#FB923C", "#C2410C", "#FDBA74"];
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [gps, setGps] = useState([]);
   const [centralStock, setCentralStock] = useState([]);
   const [showMap, setShowMap] = useState(false);
+  const [showAllCentralStock, setShowAllCentralStock] = useState(false);
   const revision = useLiveRevision();
 
   useEffect(() => {
@@ -64,6 +66,15 @@ export default function Dashboard() {
                 {!lowStockMenus.length && <p className="col-span-2 text-muted-foreground sm:col-span-4">Belum ada menu produk.</p>}
               </div>
             </div>
+            {centralStock.length > lowStockMenus.length && (
+              <button
+                data-testid="central-product-stock-detail-button"
+                onClick={() => setShowAllCentralStock(true)}
+                className="mt-3 text-xs font-semibold text-primary hover:underline"
+              >
+                Lihat semua detail stock produk ({centralStock.length})
+              </button>
+            )}
           </Bento>
 
           <Bento className="col-span-2 lg:col-span-2 fade-up" testId="chart-rider-sales">
@@ -113,6 +124,22 @@ export default function Dashboard() {
           </Bento>
         </div>
       )}
+      <Dialog open={showAllCentralStock} onOpenChange={setShowAllCentralStock}>
+        <DialogContent data-testid="central-product-stock-dialog" className="w-[92vw] max-w-md">
+          <DialogHeader>
+            <p className="eyebrow">Stock Center Produk</p>
+            <DialogTitle>Detail semua stock produk</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[55vh] divide-y divide-border/60 overflow-y-auto">
+            {[...centralStock].sort((a, b) => a.stock - b.stock).map((menu) => (
+              <div key={menu.id} data-testid={`central-stock-detail-${menu.id}`} className="flex items-center justify-between gap-3 py-3 text-sm">
+                <span className="min-w-0 truncate font-medium">{menu.name}</span>
+                <span className={`num shrink-0 font-bold ${menu.stock <= 0 ? "text-red-500" : "text-foreground"}`}>{menu.stock} cup</span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

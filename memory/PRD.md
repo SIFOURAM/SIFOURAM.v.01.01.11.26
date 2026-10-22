@@ -338,3 +338,9 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   approval; shipping/received states, received-photo evidence, and WA sharing with the specified recipient.
 - Add Purchases subtab with price/payment detail and add manual/photo/digital-proof expense creation using
   Gemini 3.1 Pro Vision extraction with mandatory editable review.
+
+## UX Update — Central Stock Detail (2026-10)
+- Dashboard Stock Center Produk remains limited to the four lowest-stock products for fast scanning.
+  When more products exist, an explicit detail action opens a scrollable dialog with every product and
+  its central cup stock, sorted from lowest to highest.
+- Frontend production build passed after this update; the Owner-only zero-data baseline is retained.
