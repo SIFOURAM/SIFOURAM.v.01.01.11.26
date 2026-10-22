@@ -10,7 +10,7 @@ export const PageHeader = ({ children }) => (
 );
 
 export const Bento = ({ className = "", gold, children, testId, style }) => (
-  <div data-testid={testId} className={`bento ${gold ? "gold" : ""} ${className}`} style={style}>{children}</div>
+  <div data-testid={testId} className={`bento ${gold ? "gold" : ""} ${className.includes("overflow-x-auto") ? "bento-scrollable" : ""} ${className}`} style={style}>{children}</div>
 );
 
 export const Stat = ({ label, value, sub, icon: Icon, gold, testId, className = "" }) => (

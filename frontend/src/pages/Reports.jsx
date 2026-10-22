@@ -284,12 +284,23 @@ function OperationsReport({ kind, setView }) {
     if (save) doc.save(`SIFOURAM_${kind}_${range.start}_${range.end}.pdf`);
     else window.open(doc.output("bloburl"), "_blank", "noopener,noreferrer");
   };
+  const sendOperationsWhatsApp = () => {
+    if (!data) return;
+    const detail = rows.slice(0, 10).map((row) => `• ${columns.map((column) => `${column.label}: ${column.format(row)}`).join(" | ")}`).join("\n");
+    openWA(
+      `*SI FOUR AM — ${labels[kind].toUpperCase()}*\n` +
+      `📅 ${range.start} → ${range.end}\n` +
+      "----------------------------------\n" +
+      `Total catatan: ${rows.length}\n` +
+      (detail ? `----------------------------------\n${detail}\n` : "")
+    );
+  };
 
   return (
     <div data-testid={`operations-report-${kind}`}>
       <PageHeader title={labels[kind]}>
+        {data && <div className="flex gap-1"><button data-testid="operations-excel" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button><button data-testid="operations-pdf" onClick={() => printPdf(true)} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button><button data-testid="operations-print" onClick={() => printPdf(false)} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button><button data-testid="operations-wa" onClick={sendOperationsWhatsApp} className="btn-wa h-9 px-3 text-xs"><MessageCircle className="w-3.5 h-3.5" />Kirim WA</button></div>}
         {kind !== "inventory" && <DateFilter onChange={setRange} />}
-        {data && <div className="flex gap-1"><button data-testid="operations-excel" onClick={exportExcel} className="btn-ghost h-9 px-3 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />Excel</button><button data-testid="operations-pdf" onClick={() => printPdf(true)} className="btn-ghost h-9 px-3 text-xs"><FileDown className="w-3.5 h-3.5" />PDF</button><button data-testid="operations-print" onClick={() => printPdf(false)} className="btn-ghost h-9 px-3 text-xs"><Printer className="w-3.5 h-3.5" />Cetak</button></div>}
       </PageHeader>
       {error && <p data-testid="operations-error" className="text-sm text-red-500 py-8">Gagal memuat laporan: {error}</p>}
       {data && <><div className="grid grid-cols-2 lg:grid-cols-4 gap-4"><OperationsSummary kind={kind} summary={summary} /></div><Bento testId="operations-table" className="mt-4 overflow-x-auto"><table className={kind === "inventory" ? "table-x w-full table-fixed" : "table-x min-w-[28rem]"}>{kind === "inventory" && <colgroup><col className="w-1/2" /><col className="w-1/4" /><col className="w-1/4" /></colgroup>}<thead><tr>{columns.map((column) => <th key={column.key} className={column.right ? "text-right whitespace-nowrap" : ""}>{column.label}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.id || row.name}>{columns.map((column) => <td key={column.key} className={`${column.right ? "text-right num whitespace-nowrap" : ""} ${kind === "inventory" && column.key === "name" ? "truncate" : ""}`}>{column.render ? column.render(row) : column.format(row)}</td>)}</tr>)}</tbody></table>{!rows.length && <Empty text="Belum ada data pada periode ini" />}</Bento></>}
