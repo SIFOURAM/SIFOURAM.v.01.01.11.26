@@ -58,7 +58,17 @@
   }
   * { @apply border-border; }
   html { -webkit-font-smoothing: antialiased; }
-  body { @apply bg-background text-foreground; font-family: 'Plus Jakarta Sans', sans-serif; }
+  body {
+    @apply bg-background text-foreground;
+    background-image: url('https://customer-assets-lqy194kg.emergentagent.net/job_advanced-pos-system/artifacts/1a104c8f25c865ab_background%20theme%20light.png');
+    background-position: center top;
+    background-size: cover;
+    background-attachment: fixed;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .dark body {
+    background-image: url('https://customer-assets-lqy194kg.emergentagent.net/job_advanced-pos-system/artifacts/e476cb60a903a0d7_background%20theme%20dark.png');
+  }
   p { margin-bottom: 0; }
   p:last-child { margin-bottom: 0; }
   h1, h2, h3, h4, .font-heading { font-family: 'Outfit', sans-serif; }
