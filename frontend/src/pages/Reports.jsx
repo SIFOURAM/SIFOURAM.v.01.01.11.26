@@ -186,13 +186,25 @@ function ReportFilterSummary({ report }) {
         <p className="eyebrow">Pembayaran QRIS</p>
         <p className="mt-2 num text-sm font-bold">{fmtRp(amount(report.payment_distribution, "qris"))}</p>
       </Bento>
-      <Bento testId="report-order-summary" className="fade-up">
-        <p className="eyebrow">Jenis Order</p>
-        <p className="mt-2 text-xs num">Reguler {fmtRp(amount(report.order_distribution, "regular"))} · Bundling {fmtRp(amount(report.order_distribution, "bundling"))}</p>
+      <Bento testId="report-regular-summary" className="fade-up">
+        <p className="eyebrow">Reguler</p>
+        <p className="mt-2 num text-sm font-bold">{fmtRp(amount(report.order_distribution, "regular"))}</p>
       </Bento>
-      <Bento testId="report-service-summary" className="fade-up">
-        <p className="eyebrow">Layanan</p>
-        <p className="mt-2 text-xs num">Dine {fmtRp(amount(report.service_distribution, "dine_in"))} · Takeaway {fmtRp(amount(report.service_distribution, "takeaway"))} · Online {fmtRp(amount(report.service_distribution, "online"))}</p>
+      <Bento testId="report-bundling-summary" className="fade-up">
+        <p className="eyebrow">Bundling</p>
+        <p className="mt-2 num text-sm font-bold">{fmtRp(amount(report.order_distribution, "bundling"))}</p>
+      </Bento>
+      <Bento testId="report-dine-in-summary" className="fade-up">
+        <p className="eyebrow">Dine In</p>
+        <p className="mt-2 num text-sm font-bold">{fmtRp(amount(report.service_distribution, "dine_in"))}</p>
+      </Bento>
+      <Bento testId="report-takeaway-summary" className="fade-up">
+        <p className="eyebrow">Takeaway</p>
+        <p className="mt-2 num text-sm font-bold">{fmtRp(amount(report.service_distribution, "takeaway"))}</p>
+      </Bento>
+      <Bento testId="report-online-summary" className="fade-up">
+        <p className="eyebrow">Online</p>
+        <p className="mt-2 num text-sm font-bold">{fmtRp(amount(report.service_distribution, "online"))}</p>
       </Bento>
     </div>
   );
