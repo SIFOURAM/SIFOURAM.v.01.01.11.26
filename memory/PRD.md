@@ -385,3 +385,7 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Tim Bar now has direct POS access in the mobile bottom navigation. The Tim Bar POS category opens POS
   first and retains Deposit as its secondary tab.
 - Frontend production build passed.
+
+## UX Update — Bar Team Deposit Access (2026-10)
+- Tim Bar mobile bottom navigation now shows Deposit immediately after POS, while retaining the POS category
+  tab structure. Frontend production build passed.
