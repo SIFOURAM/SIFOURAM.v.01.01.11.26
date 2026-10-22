@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bluetooth, Link2, Printer, Unplug } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -12,6 +12,7 @@ import { Bento } from "./common";
 export default function BluetoothPrinter() {
   const [status, setStatus] = useState(() => bluetoothPrinterStatus());
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
 
   useEffect(() => {
     const intervalId = setInterval(() => setStatus(bluetoothPrinterStatus()), 2000);
@@ -19,6 +20,10 @@ export default function BluetoothPrinter() {
   }, []);
 
   const connect = async () => {
+    if (busyRef.current) {
+      return;
+    }
+    busyRef.current = true;
     setBusy(true);
     try {
       const nextStatus = await connectBluetoothPrinter({ force: status.connected });
@@ -29,11 +34,16 @@ export default function BluetoothPrinter() {
         toast.error(error?.message || "Printer tidak dapat disambungkan");
       }
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
 
   const testPrint = async () => {
+    if (busyRef.current) {
+      return;
+    }
+    busyRef.current = true;
     setBusy(true);
     try {
       await printBluetooth("SI FOUR AM\nTEST PRINT\nPrinter tersambung\n");
@@ -41,6 +51,7 @@ export default function BluetoothPrinter() {
     } catch (error) {
       toast.error(error?.message || "Test print gagal");
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };

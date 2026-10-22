@@ -89,12 +89,10 @@ export const connectBluetoothPrinter = async ({ force = false } = {}) => {
   if (!navigator.bluetooth) {
     throw new Error("Web Bluetooth tidak didukung di browser ini");
   }
-  if (force && btDevice?.gatt?.connected) {
-    disconnectBluetoothPrinter();
-  }
   if (!force && btChar && btDevice?.gatt?.connected) {
     return bluetoothPrinterStatus();
   }
+  const previousDevice = btDevice;
   const device = await navigator.bluetooth.requestDevice({
     acceptAllDevices: true,
     optionalServices: [
@@ -103,7 +101,10 @@ export const connectBluetoothPrinter = async ({ force = false } = {}) => {
       "49535343-fe7d-4ae5-8fa9-9fafd205e455",
     ],
   });
-  const server = await device.gatt.connect();
+  if (force && previousDevice?.gatt?.connected && previousDevice !== device) {
+    previousDevice.gatt.disconnect();
+  }
+  const server = device.gatt.connected ? device.gatt : await device.gatt.connect();
   const services = await server.getPrimaryServices();
   let writableCharacteristic = null;
   for (const service of services) {
@@ -122,7 +123,9 @@ export const connectBluetoothPrinter = async ({ force = false } = {}) => {
   btDevice = device;
   btChar = writableCharacteristic;
   device.addEventListener("gattserverdisconnected", () => {
-    btChar = null;
+    if (btDevice === device) {
+      btChar = null;
+    }
   });
   return bluetoothPrinterStatus();
 };
@@ -134,9 +137,14 @@ export const printBluetooth = async (text) => {
   const clean = text.replace(/\*/g, "").replace(/[^\x00-\x7F\n]/g, "");
   const enc = new TextEncoder();
   const bytes = new Uint8Array([0x1b, 0x40, 0x1b, 0x61, 0x00, ...enc.encode(clean + "\n\n\n\n"), 0x1d, 0x56, 0x00]);
-  const write = btChar.writeValueWithoutResponse
-    || btChar.writeValueWithResponse
-    || btChar.writeValue;
+  const write = btChar.properties.writeWithoutResponse && btChar.writeValueWithoutResponse
+    ? btChar.writeValueWithoutResponse
+    : btChar.properties.write && btChar.writeValueWithResponse
+      ? btChar.writeValueWithResponse
+      : btChar.writeValue;
+  if (!write) {
+    throw new Error("Karakteristik printer tidak mendukung penulisan");
+  }
   for (let index = 0; index < bytes.length; index += 20) {
     await write.call(btChar, bytes.slice(index, index + 20));
   }

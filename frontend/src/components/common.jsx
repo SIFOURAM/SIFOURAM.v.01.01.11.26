@@ -109,6 +109,7 @@ export function PhotoCapture({ value, onChange, label, testId, capture = true })
 export function ReceiptModal({ open, onClose, title, waText, waPhone, filename = "receipt.png", autoShot = true, children, testId = "receipt-modal" }) {
   const ref = useRef();
   const shot = useRef(false);
+  const printingRef = useRef(false);
   const [printing, setPrinting] = useState(false);
   useEffect(() => {
     if (open && autoShot && !shot.current) {
@@ -118,9 +119,10 @@ export function ReceiptModal({ open, onClose, title, waText, waPhone, filename =
     if (!open) shot.current = false;
   }, [open, autoShot, filename]);
   const handleBluetoothPrint = async () => {
-    if (printing) {
+    if (printingRef.current) {
       return;
     }
+    printingRef.current = true;
     setPrinting(true);
     try {
       await printBluetooth(waText);
@@ -130,6 +132,7 @@ export function ReceiptModal({ open, onClose, title, waText, waPhone, filename =
         toast.error(String(error?.message || error));
       }
     } finally {
+      printingRef.current = false;
       setPrinting(false);
     }
   };
@@ -138,7 +141,7 @@ export function ReceiptModal({ open, onClose, title, waText, waPhone, filename =
       <DialogContent className="max-w-md p-0 border-0 bg-transparent shadow-none [&>button]:hidden" data-testid={testId}>
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <div className="relative">
-          <button onClick={onClose} data-testid="receipt-close" className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} data-testid="receipt-close" className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center"><X className="w-4 h-4" /></button>
           <div ref={ref} className="rounded-3xl bg-white text-black p-6 gold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
             <div className="text-center mb-4">
               <img src="/logo.png" alt="SI FOUR AM" className="mx-auto w-14 h-14 object-contain" />
@@ -148,7 +151,7 @@ export function ReceiptModal({ open, onClose, title, waText, waPhone, filename =
             <div className="border-t border-dashed border-gray-300 my-3" />
             {children}
           </div>
-          <div className="flex gap-2 mt-4">
+          <div className="grid grid-cols-3 gap-2 mt-4">
             <button data-testid="receipt-download" onClick={() => screenshotEl(ref.current, filename)} className="btn-ghost flex-1"><Download className="w-4 h-4" />PNG</button>
             {navigator.bluetooth && waText && <button data-testid="receipt-print-bt" onClick={handleBluetoothPrint} disabled={printing} className="btn-ghost flex-1 disabled:cursor-not-allowed disabled:opacity-50"><Printer className="w-4 h-4" />{printing ? "Mencetak..." : "Print"}</button>}
             {waText && <button data-testid="receipt-whatsapp" onClick={() => shareReceipt(ref.current, waText, filename, waPhone)} className="btn-wa flex-1"><MessageCircle className="w-4 h-4" />WhatsApp</button>}

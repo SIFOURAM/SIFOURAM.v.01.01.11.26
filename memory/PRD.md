@@ -276,3 +276,17 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - QA passed 8/8 across API RBAC, first-Rider targeting, stock state, Rider verification, POS readiness,
   desktop/mobile rendering, and navigation. The approved operational reset was rerun after QA: one
   Owner remains, all operational collections and stock quantities are zero, and onboarding is ready.
+
+## Features Added — Rider Guide and Web Bluetooth Printing (2026-10)
+- Rider login now presents a concise three-step guide before PIN entry on a new browser/device: verify
+  stock awal, complete attendance, then use POS and close EOD. The guide can always be reopened from
+  the Rider PIN screen and has a mobile-sized tap target.
+- Settings now includes a Web Bluetooth ESC/POS thermal printer panel with connection status, connect or
+  change-printer flow, test print, disconnect, and a safe unsupported-browser state. Receipt print
+  reuses the active printer session and prevents duplicate same-tick print submissions.
+- Bluetooth write flow selects the characteristic-supported response mode, sends compatible 20-byte BLE
+  chunks, keeps a new printer connection safe from stale old-device disconnect events, and preserves the
+  existing printer when a replacement chooser is cancelled.
+- QA: Rider-guide/auth suite passed 6/6; mocked browser Bluetooth QA validated connect, change printer,
+  test print, receipt print, disconnect, cancellation, and mobile fallback. PHYSICAL PRINTER PAIRING IS
+  STILL MOCKED: verify it with the actual 58 mm BLE printer using Chrome on Android/desktop.

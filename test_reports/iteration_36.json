@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 36 retest (frontend only, mocked navigator.bluetooth with 2+ devices). Most iter35 fixes work. (1) Ganti Printer: connected to MockPrinter A, clicked Ganti -> gatt.disconnect called on A, requestDevice ran a second time, status 'Tersambung: MockPrinter B' and stayed that way after the 2s poll (tested with a realistic 500ms chooser delay). (2) Test Print sent ESC @ + ESC a 0 + text + GS V 0 in chunks [20,20,13] using writeValueWithoutResponse. When only writeValue was mocked it fell back to writeValue; the 311-byte receipt went out in <=20-byte chunks. (3) Receipt print: during a print the button shows 'Mencetak...' and is disabled. A Playwright dblclick sent only 1 print, and the 'Struk dikirim ke printer' toast appeared. NotFoundError cancel showed no toast and the button came back enabled. (4) Disabled Test Print has opacity 0.5 and cursor not-allowed before connecting and after disconnecting, and opacity 1 with a pointer cursor when connected. Cancelling in Settings shows no toast. (5) Rider guide link measures 111x44px. Auto-open on first PIN stage, the 'seen' localStorage flag, no re-open on return, manual open, Escape close and Rider PIN login all work. Owner sees no link. (6) No new console or page errors; only the existing pre-login 401 (/auth/me) and CSP infra messages. Remaining issues: two edge cases (a stale disconnect listener, and two clicks in the same tick bypassing the busy lock) plus one code-review risk on real hardware (choosing the write method). All BT results come from a mock, so a physical printer check is still needed. Cleanup done: temp rider removed, reset_final_revision.py run, DB verified as Owner baa only, 0 sessions/invoices/customers/sales/rider_stock/attendance/eod, 1 audit log (the reset marker).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "helpers.js connectBluetoothPrinter gattserverdisconnected listener", "issue": "The listener sets btChar=null without checking that the event comes from the current device. With force, the old device's async disconnect event can fire after the new device is assigned and wipe the new connection. Reproduced when requestDevice resolves at once (chooser delay 0ms): after Ganti, status showed 'Belum ada printer yang tersambung' even though MockPrinter C connected. With a 500ms chooser delay it works. Fix: `device.addEventListener('gattserverdisconnected', () => { if (btDevice === device) btChar = null; })`.", "selector": "[data-testid='bluetooth-printer-connect']", "priority": "LOW"},
+      {"component": "ReceiptModal handleBluetoothPrint busy lock", "issue": "The lock uses React state (a stale closure). Two synthetic clicks in the same JS tick (b.click(); b.click()) sent 2 prints and 2 requestDevice calls. A real double click (Playwright dblclick) sent only 1. Use a useRef lock for full protection.", "selector": "[data-testid='receipt-print-bt']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ReceiptModal (390px, pre-existing)", "issues": ["Close X at top right is cut off at the viewport edge, and the WhatsApp button touches the right edge"]},
+      {"screen": "Settings appearance card (390px, pre-existing)", "issues": ["Notifikasi toggle knob still overflows the right card border"]}
+    ]
+  },
+  "test_report_links": ["/app/tests/bt_mock_iter36.js", "/app/backend/tests/ui_seed_iter36.py"],
+  "action_items": [
+    "printBluetooth: choose the write method from btChar.properties (writeWithoutResponse -> writeValueWithoutResponse, else write -> writeValueWithResponse), not from whether the method exists. In real Chrome all three methods exist on every characteristic, so the current fallback always picks writeValueWithoutResponse and can throw NotSupportedError on printers that only support write-with-response.",
+    "Scope the gattserverdisconnected handler to the current device (if btDevice === device)",
+    "Use a useRef lock in ReceiptModal.handleBluetoothPrint (and BluetoothPrinter connect/testPrint)",
+    "Optional: when Ganti Printer is cancelled, the old printer stays disconnected. Consider disconnecting the old printer only after a new device is chosen.",
+    "Verify on a physical 58mm BLE printer"
+  ],
+  "critical_code_review_comments": [
+    "helpers.js printBluetooth: the method-existence fallback chain does nothing in real browsers (see action items)",
+    "connectBluetoothPrinter force disconnects before requestDevice, so cancelling the chooser leaves the user with no printer (verified in iter testing: status goes to 'Belum ada printer')",
+    "The stale gattserverdisconnected listener can null the new characteristic (race)"
+  ],
+  "updated_files": ["/app/tests/bt_mock_iter36.js", "/app/backend/tests/ui_seed_iter36.py"],
+  "success_rate": {"backend": "skipped (frontend only)", "frontend": "~95% (all 6 requested checks pass under realistic timing; 2 low-priority edge cases + 1 code-review risk)"},
+  "test_credentials": "Owner baa / PIN 130994. Temp rider test_ui36rider / 468024 created and removed.",
+  "seed_data_creation": "Temp rider + invoice INV-20261022-001 + customer TEST_Cust36. Removed via ui_seed_iter36.py cleanup + reset_final_revision.py. Final DB: users=[baa owner], sessions/invoices/customers/sales/rider_stock/attendance/eod=0, audit_logs=1 (reset marker).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The mock in /app/tests/bt_mock_iter36.js is loaded via page.add_init_script(open(path).read()). Controls on window.__bt: mode ('wwr' | 'wr' | 'wv'), cancelNext, chooserDelay, delay, writes, requests, names, disconnects. A page.goto reload resets the module-level printer state. Invoice: fill invoice-customer-input and the first invoice-qty-*, then click invoice-save-button to open the receipt with receipt-print-bt. Run reset_final_revision.py at the end.",
+  "rca of the issue": "Race: helpers.js registers `gattserverdisconnected -> btChar = null` per device without an identity check. Forced Ganti calls the old device's gatt.disconnect(); the event is dispatched asynchronously, and if the new device has already been connected it clears the new btChar. Repro: mock with requestDevice resolving immediately; connect, then Ganti, then status shows not connected."
+}
