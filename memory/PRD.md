@@ -290,3 +290,9 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - QA: Rider-guide/auth suite passed 6/6; mocked browser Bluetooth QA validated connect, change printer,
   test print, receipt print, disconnect, cancellation, and mobile fallback. PHYSICAL PRINTER PAIRING IS
   STILL MOCKED: verify it with the actual 58 mm BLE printer using Chrome on Android/desktop.
+
+## UX Update — Automatic PIN Login (2026-10)
+- Login submits automatically immediately after the sixth valid PIN digit is entered or a complete PIN is
+  pasted. A ref-based submit guard prevents concurrent duplicate login calls; incorrect PIN behavior
+  remains unchanged.
+- Verified on mobile Owner login without pressing the Continue button; frontend production build passed.

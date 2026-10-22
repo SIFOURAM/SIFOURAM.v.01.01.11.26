@@ -84,6 +84,7 @@ export default function Login() {
   const [revealed, setRevealed] = useState(Array(6).fill(false));
   const [showRiderGuide, setShowRiderGuide] = useState(false);
   const pinRefs = useRef([]);
+  const pinSubmitting = useRef(false);
 
   useEffect(() => {
     const isNewRider = stage === "pin" && account?.user?.role === "rider";
@@ -115,10 +116,11 @@ export default function Login() {
     }
   };
 
-  const handlePin = async (event) => {
-    event.preventDefault();
-    const pin = digits.join("");
-    if (pin.length !== 6) return;
+  const submitPin = async (pin) => {
+    if (pin.length !== 6 || pinSubmitting.current) {
+      return;
+    }
+    pinSubmitting.current = true;
     setBusy(true);
     try {
       const user = await login(account.account_token, pin, true);
@@ -129,8 +131,14 @@ export default function Login() {
       setDigits(Array(6).fill(""));
       pinRefs.current[0]?.focus();
     } finally {
+      pinSubmitting.current = false;
       setBusy(false);
     }
+  };
+
+  const handlePin = async (event) => {
+    event.preventDefault();
+    await submitPin(digits.join(""));
   };
 
   const updateDigit = (index, value) => {
@@ -142,6 +150,9 @@ export default function Login() {
       });
       setDigits(next);
       pinRefs.current[Math.min(clean.length, 6) - 1]?.focus();
+      if (next.join("").length === 6) {
+        submitPin(next.join(""));
+      }
       return;
     }
     const next = [...digits];
@@ -156,6 +167,9 @@ export default function Login() {
       }, 1000);
     }
     if (clean && index < 5) pinRefs.current[index + 1]?.focus();
+    if (next.join("").length === 6) {
+      submitPin(next.join(""));
+    }
   };
 
   const handleKeyDown = (index, event) => {
