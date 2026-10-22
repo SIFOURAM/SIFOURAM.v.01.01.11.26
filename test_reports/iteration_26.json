@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only mobile (390x844) regression as Owner baa. I logged in with the API token, stubbed window.open and created no data. The iteration-25 border fix is VERIFIED. On operations-table (all 4 views), report-products-table, menu-stock-history and pos-dashboard-history, the outer .bento-scrollable::before is display:none and the wrapper border is the neutral rgb(39,39,42). The inner table.table-x has border-collapse: separate and a 1px border-image gradient, and the orange border is visible in element screenshots. Pixel sampling confirms it: the bento wrapper edges have 0 orange pixels, while the table edges have orange pixels (the left edge is ~100% orange; the right edge is off-screen until scrolled, as expected). Horizontal scroll works (scrollLeft 112-200 on overflowing tables). The operations empty state renders inside the bordered table as a colSpan row, is fully readable and has no clipping. Excel/PDF/Cetak/Kirim WA sit above the DateFilter in all 4 views (buttons top 117px, date-filter top 161px; inventory has no DateFilter). The WA message opens wa.me with the title, total and up to 10 detail rows (inventory: 27 records, 10 bullets). FAIL: the inventory WA message still shows the date range ('📅 2026-10-22 → 2026-10-22') and never says 'snapshot'. No console errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Reports.jsx sendOperationsWhatsApp (inventory)", "issue": "Inventory WA message always shows the line '📅 ${range.start} → ${range.end}' and never mentions a snapshot. The requirement says inventory should say snapshot, not a date range.", "selector": "[data-testid=operations-wa]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Reports > report-products-table", "issues": ["The empty state 'Belum ada produk terjual pada periode ini' renders outside/below the orange table border because <Empty> is a sibling of the table. Move it into a tbody colSpan row, as done for operations."]},
+      {"screen": "POS Dashboard > pos-dashboard-history", "issues": ["On mobile the empty text 'Belum ada penjualan pada periode ini.' is centered in a 38rem (608px) table and clipped at the 356px viewport. The user must scroll to read it."]},
+      {"screen": "MenuStock > menu-stock-history", "issues": ["With no movements the table shows only headers and no empty-state message."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "In Reports.jsx sendOperationsWhatsApp, for kind === 'inventory' replace the date-range line with a snapshot line, e.g. '📦 Snapshot per <today/now>'.",
+    "Optional: move the report-products-table empty state inside the table (tbody row with colSpan=4).",
+    "Optional: make the empty state on the pos-dashboard-history and menu-stock-history tables readable without scrolling, and add an empty row to menu-stock-history."
+  ],
+  "critical_code_review_comments": [
+    "In Reports.jsx line 292, the WA template ignores kind for the date line, so inventory gets a misleading range.",
+    "The border-image under border-collapse: separate gives square corners on the table; the rounded look of the bento wrapper is lost. This is acceptable but cosmetic."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "92% (11/12 checks; inventory WA snapshot wording failed)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Log in via page.request: POST /api/auth/identify, then /api/auth/login. Put the token in localStorage (si4am_token, si4am_legal_2026-06-01=accepted, si4am_session_wib_date=WIB date). Stub window.open with add_init_script. PIL works inside the browser_automation tool: take an element screenshot of the table.table-x and count orange edge pixels (r>150, r-b>60). The bento wrapper should show 0 orange pixels. Only open item: the inventory WA snapshot wording."
+}

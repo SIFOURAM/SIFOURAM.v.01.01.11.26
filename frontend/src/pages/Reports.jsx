@@ -175,9 +175,8 @@ export default function Reports() {
         <Bento testId="report-products-table" scrollable className="col-span-2 lg:col-span-4 fade-up overflow-x-auto">
           <p className="eyebrow mb-4">{view === "sales" ? "Produk terlaris" : "Performa produk"}</p>
           <table className="table-x min-w-[34rem]"><thead><tr><th>Rank</th><th>Produk</th><th className="text-right">Kuantitas</th><th className="text-right">Revenue</th></tr></thead>
-            <tbody>{productRows.map((row) => <tr key={row.name}><td className="num">{row.rank}</td><td className="font-semibold">{row.name}</td><td className="num text-right">{row.qty}</td><td className="num text-right">{fmtRp(row.revenue)}</td></tr>)}</tbody>
+            <tbody>{productRows.length ? productRows.map((row) => <tr key={row.name}><td className="num">{row.rank}</td><td className="font-semibold">{row.name}</td><td className="num text-right">{row.qty}</td><td className="num text-right">{fmtRp(row.revenue)}</td></tr>) : <tr><td colSpan="4"><Empty text="Belum ada produk terjual pada periode ini" /></td></tr>}</tbody>
           </table>
-          {!productRows.length && <Empty text="Belum ada produk terjual pada periode ini" />}
         </Bento>
       </div></>}
     </div>
@@ -289,7 +288,7 @@ function OperationsReport({ kind, setView }) {
     const detail = rows.slice(0, 10).map((row) => `• ${columns.map((column) => `${column.label}: ${column.format(row)}`).join(" | ")}`).join("\n");
     openWA(
       `*SI FOUR AM — ${labels[kind].toUpperCase()}*\n` +
-      `📅 ${range.start} → ${range.end}\n` +
+      (kind === "inventory" ? "📦 Snapshot persediaan saat ini\n" : `📅 ${range.start} → ${range.end}\n`) +
       "----------------------------------\n" +
       `Total catatan: ${rows.length}\n` +
       (detail ? `----------------------------------\n${detail}\n` : "")

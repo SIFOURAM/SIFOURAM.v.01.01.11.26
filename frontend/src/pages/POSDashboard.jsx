@@ -37,7 +37,7 @@ export default function POSDashboard() {
       </div>
       <Bento scrollable testId="pos-dashboard-history" className="mt-4 overflow-x-auto">
         <p className="eyebrow mb-4">History Penjualan</p>
-        <table className="table-x min-w-[38rem]"><thead><tr><th>Tanggal</th><th className="text-right">Total Penjualan</th></tr></thead>
+        <table className={report.daily_revenue.length ? "table-x min-w-[38rem]" : "table-x w-full"}><thead><tr><th>Tanggal</th><th className="text-right">Total Penjualan</th></tr></thead>
           <tbody>{report.daily_revenue.length ? report.daily_revenue.map((row) => <tr key={row.date}><td>{row.date}</td><td className="text-right num">{fmtRp(row.revenue)}</td></tr>) : <tr><td colSpan="2" className="text-center text-muted-foreground py-8">Belum ada penjualan pada periode ini.</td></tr>}</tbody>
         </table>
       </Bento></>}

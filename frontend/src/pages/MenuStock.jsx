@@ -69,7 +69,7 @@ export default function MenuStock() {
       <Bento scrollable className="mt-6 overflow-x-auto" testId="menu-stock-history">
         <p className="eyebrow mb-4">Stock Movements</p>
         <table className="table-x"><thead><tr><th>Date</th><th>Menu</th><th>Type</th><th>Qty</th><th>After</th><th>By</th></tr></thead>
-          <tbody>{tx.slice(0, 50).map((x) => <tr key={x.id}><td className="num">{x.date}</td><td>{x.menu_name}</td><td className="text-xs uppercase font-bold">{x.type}</td><td className="num">{x.qty}</td><td className="num">{x.after}</td><td className="text-xs">{x.user}</td></tr>)}</tbody></table>
+          <tbody>{tx.length ? tx.slice(0, 50).map((x) => <tr key={x.id}><td className="num">{x.date}</td><td>{x.menu_name}</td><td className="text-xs uppercase font-bold">{x.type}</td><td className="num">{x.qty}</td><td className="num">{x.after}</td><td className="text-xs">{x.user}</td></tr>) : <tr><td colSpan="6"><Empty text="Belum ada pergerakan stock." /></td></tr>}</tbody></table>
       </Bento>
 
       <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
