@@ -85,7 +85,11 @@ export default function RiderStock() {
     const params = { ...range, ...(riderId ? { rider_id: riderId } : {}) };
     api.get("/rider-stock/remaining", { params })
       .then((response) => setRemainingRows(response.data))
-      .catch((error) => toast.error(errMsg(error)));
+      .catch((error) => {
+        if (error.response?.status !== 401) {
+          toast.error(errMsg(error));
+        }
+      });
   }, [range, riderId, view]);
 
   if (user.role === "rider") return <RiderPickup user={user} view={view} />;

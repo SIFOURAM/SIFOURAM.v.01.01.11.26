@@ -302,3 +302,11 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   and Production stay orange while any of their tabs or subtabs is open. This overrides inactive dark-mode
   text while retaining the POS action treatment.
 - Verified on mobile from the Produk report subtab: the Dashboard navigation item stayed orange.
+
+## Bug Fix — Invalid Session on Stock Remaining (2026-10)
+- Root cause: the protected `/rider-stock/remaining` request received HTTP 401 when its HttpOnly cookie
+  no longer had a matching server-side session (for example after an approved session reset, logout, or
+  session revocation). The Stock Remaining catch handler then showed the raw session error toast.
+- Axios now broadcasts unauthenticated API responses to AuthContext, which clears local session state and
+  returns the user to Login. The Stock Remaining tab suppresses the redundant 401 toast. Verified by
+  revoking a session and opening the remaining-stock route on mobile: Login appeared cleanly.

@@ -5,6 +5,25 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+let sessionExpirySent = false;
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const isUnauthorized = error.response?.status === 401;
+    const url = error.config?.url || "";
+    const isAuthRequest = url.startsWith("/auth/");
+    if (isUnauthorized && !isAuthRequest && !sessionExpirySent) {
+      sessionExpirySent = true;
+      window.dispatchEvent(new Event("si4am:session-expired"));
+      window.setTimeout(() => {
+        sessionExpirySent = false;
+      }, 1000);
+    }
+    return Promise.reject(error);
+  },
+);
+
 export const errMsg = (e) => {
   const d = e?.response?.data?.detail;
   if (!d) return e?.message || "Something went wrong";

@@ -9,6 +9,15 @@ export function AuthProvider({ children }) {
   const [posUnlocked, setPosUnlocked] = useState(sessionStorage.getItem("si4am_pos") === "1");
   const inactivityTimer = useRef(null);
   const wibDate = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta" }).format(new Date());
+  const clearSessionState = useCallback(() => {
+    localStorage.removeItem("si4am_token");
+    sessionStorage.removeItem("si4am_token");
+    localStorage.removeItem("si4am_eod_closed");
+    localStorage.removeItem("si4am_session_wib_date");
+    sessionStorage.removeItem("si4am_pos");
+    setUser(false);
+    setPosUnlocked(false);
+  }, []);
   const millisToWibMidnight = () => {
     const now = new Date();
     const wib = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
@@ -41,6 +50,12 @@ export function AuthProvider({ children }) {
     }).catch(() => setUser(false));
   }, []);
 
+  useEffect(() => {
+    const handleExpiredSession = () => clearSessionState();
+    window.addEventListener("si4am:session-expired", handleExpiredSession);
+    return () => window.removeEventListener("si4am:session-expired", handleExpiredSession);
+  }, [clearSessionState]);
+
   const identify = useCallback(async (identifier, termsAccepted, privacyAccepted) => {
     const { data } = await api.post("/auth/identify", {
       identifier,
@@ -63,13 +78,8 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     api.post("/auth/logout").catch(() => {});
-    localStorage.removeItem("si4am_token");
-    sessionStorage.removeItem("si4am_token");
-    localStorage.removeItem("si4am_eod_closed");
-    localStorage.removeItem("si4am_session_wib_date");
-    sessionStorage.removeItem("si4am_pos");
-    setUser(false); setPosUnlocked(false);
-  }, []);
+    clearSessionState();
+  }, [clearSessionState]);
 
   useEffect(() => {
     if (!user) return undefined;
