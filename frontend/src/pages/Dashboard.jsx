@@ -32,7 +32,7 @@ export default function Dashboard() {
       <PageHeader eyebrow="SI FOUR AM" title={t("dashboard")}><DateFilter onChange={setRange} /></PageHeader>
       {d && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <Stat gold label={t("cupsSold")} value={d.cups} sub={`${d.transactions} POS transactions`} icon={Coffee} testId="stat-cups" />
+          <Stat gold label="Total Pemasukan" value={fmtRp((d.cash || 0) + (d.qris || 0))} sub={`${d.transactions} POS transactions`} icon={Coffee} testId="stat-total-income" />
           <Stat label={t("expenses")} value={fmtRp(d.expenses)} sub={`Invoices: ${fmtRp(d.invoice_income)}`} icon={TrendingDown} testId="stat-expenses" />
           <Stat label={t("cashRevenue")} value={fmtRp(d.cash)} icon={Banknote} testId="stat-cash" />
           <Stat label={t("qrisRevenue")} value={fmtRp(d.qris)} icon={QrCode} testId="stat-qris" />
