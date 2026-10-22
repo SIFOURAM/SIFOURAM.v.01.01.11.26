@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { PageHeader, Bento } from "../components/common";
 import { CATEGORIES } from "../components/Layout";
 import { FONTS, getAppearance, setAppearance } from "../lib/appearance";
+import BluetoothPrinter from "../components/BluetoothPrinter";
 
 const Row = ({ icon: Icon, title, sub, children }) => (
   <div className="flex items-center justify-between py-4 border-b border-border/50 last:border-0 gap-4">
@@ -66,6 +67,8 @@ export default function Settings() {
             </select>
           </Row>
         </Bento>
+
+        <BluetoothPrinter />
 
         <Bento className="fade-up lg:col-span-2" testId="settings-permissions">
           <p className="eyebrow mb-2">{t("permissions")} · {user.role}</p>

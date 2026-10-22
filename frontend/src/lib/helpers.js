@@ -68,17 +68,65 @@ export const shareReceipt = async (el, text, filename, phone) => {
 
 export const nowTime = () => new Date().toLocaleTimeString("id-ID", { hour12: false }).replace(/\./g, ":");
 
-// Web Bluetooth ESC/POS thermal printing (58mm). Works on Chrome Android/desktop with BLE printers.
+let btDevice = null;
 let btChar = null;
+
+export const bluetoothPrinterStatus = () => ({
+  supported: typeof navigator !== "undefined" && Boolean(navigator.bluetooth),
+  connected: Boolean(btChar && btDevice?.gatt?.connected),
+  name: btDevice?.name || "Thermal Printer",
+});
+
+export const disconnectBluetoothPrinter = () => {
+  if (btDevice?.gatt?.connected) {
+    btDevice.gatt.disconnect();
+  }
+  btDevice = null;
+  btChar = null;
+};
+
+export const connectBluetoothPrinter = async () => {
+  if (!navigator.bluetooth) {
+    throw new Error("Web Bluetooth tidak didukung di browser ini");
+  }
+  if (btChar && btDevice?.gatt?.connected) {
+    return bluetoothPrinterStatus();
+  }
+  const device = await navigator.bluetooth.requestDevice({
+    acceptAllDevices: true,
+    optionalServices: [
+      "000018f0-0000-1000-8000-00805f9b34fb",
+      "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
+      "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+    ],
+  });
+  const server = await device.gatt.connect();
+  const services = await server.getPrimaryServices();
+  let writableCharacteristic = null;
+  for (const service of services) {
+    const characteristics = await service.getCharacteristics();
+    writableCharacteristic = characteristics.find(
+      (characteristic) => characteristic.properties.write || characteristic.properties.writeWithoutResponse,
+    );
+    if (writableCharacteristic) {
+      break;
+    }
+  }
+  if (!writableCharacteristic) {
+    device.gatt.disconnect();
+    throw new Error("Layanan tulis printer tidak ditemukan");
+  }
+  btDevice = device;
+  btChar = writableCharacteristic;
+  device.addEventListener("gattserverdisconnected", () => {
+    btChar = null;
+  });
+  return bluetoothPrinterStatus();
+};
+
 export const printBluetooth = async (text) => {
-  if (!navigator.bluetooth) throw new Error("Web Bluetooth tidak didukung di browser ini");
-  if (!btChar) {
-    const dev = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: ["000018f0-0000-1000-8000-00805f9b34fb", "e7810a71-73ae-499d-8c15-faa9aef0c3f2", "49535343-fe7d-4ae5-8fa9-9fafd205e455"] });
-    const server = await dev.gatt.connect();
-    const services = await server.getPrimaryServices();
-    for (const s of services) { const chars = await s.getCharacteristics(); const c = chars.find((x) => x.properties.write || x.properties.writeWithoutResponse); if (c) { btChar = c; break; } }
-    if (!btChar) throw new Error("Printer tidak ditemukan");
-    dev.addEventListener("gattserverdisconnected", () => { btChar = null; });
+  if (!btChar || !btDevice?.gatt?.connected) {
+    await connectBluetoothPrinter();
   }
   const clean = text.replace(/\*/g, "").replace(/[^\x00-\x7F\n]/g, "");
   const enc = new TextEncoder();

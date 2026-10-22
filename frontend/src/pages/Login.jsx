@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Check, ChevronDown, ShieldCheck } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { LANGS, useT } from "../lib/i18n";
 import { errMsg } from "../lib/api";
+import RiderGuide from "../components/RiderGuide";
 
 const DOCUMENTS = {
   terms: {
@@ -81,7 +82,23 @@ export default function Login() {
   const [document, setDocument] = useState(null);
   const [busy, setBusy] = useState(false);
   const [revealed, setRevealed] = useState(Array(6).fill(false));
+  const [showRiderGuide, setShowRiderGuide] = useState(false);
   const pinRefs = useRef([]);
+
+  useEffect(() => {
+    const isNewRider = stage === "pin" && account?.user?.role === "rider";
+    const guideKey = `si4am_rider_guide_${account?.user?.id}`;
+    if (isNewRider && !localStorage.getItem(guideKey)) {
+      setShowRiderGuide(true);
+    }
+  }, [account, stage]);
+
+  const closeRiderGuide = () => {
+    if (account?.user?.id) {
+      localStorage.setItem(`si4am_rider_guide_${account.user.id}`, "seen");
+    }
+    setShowRiderGuide(false);
+  };
 
   const handleIdentify = async (event) => {
     event.preventDefault();
@@ -217,6 +234,16 @@ export default function Login() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-3">Akun: {account?.user?.name}</p>
+              {account?.user?.role === "rider" && (
+                <button
+                  data-testid="rider-guide-open"
+                  type="button"
+                  onClick={() => setShowRiderGuide(true)}
+                  className="mt-3 text-xs font-semibold text-primary"
+                >
+                  Panduan Rider baru
+                </button>
+              )}
             </div>
             <button
               data-testid="pin-continue-button"
@@ -255,6 +282,7 @@ export default function Login() {
           }}
         />
       )}
+      <RiderGuide open={showRiderGuide} onClose={closeRiderGuide} />
     </div>
   );
 }
