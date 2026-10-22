@@ -226,3 +226,13 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   open a responsive detail dialog. QA iteration 28 passed 14/14 notification routing and popup checks.
 - Report table headers are centered for visual consistency; Settings permission keys are unique and
   message dialogs retain mobile side margins.
+
+## Rider Live Target Detail (2026-10)
+- Target Rank Rider now includes a live sales detail panel for all active Riders, showing gross sales,
+  current/next rank, and target progress. Data refreshes every 30 seconds while the page is visible.
+- Each rank card opens its detailed weekly target, attendance benefit, and sales bonus section; mobile
+  card text uses compact currency so target and benefit information remain within two lines.
+- Inactive Rider accounts are excluded from salary/live-target queries. Backend rank test suite passed 4/4;
+  frontend production build passed.
+- The live panel is labeled “Data Rider dengan Target yang Sedang Tercapai” and explicitly shows each
+  Rider's achieved rank plus the next target when one is available.

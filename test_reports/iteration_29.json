@@ -1,0 +1,38 @@
+{
+  "summary": "Tested the Target Rank Rider additions on /salary as Owner baa on mobile (390x844, plus 360 and 320 checks) and the /api/salary backend. Backend: 4/4 pytest pass. Five tiers come back with the correct thresholds, attendance benefits and percentages; each rider's tier matches its gross; next_tier progress and remaining are computed correctly; no _id or pin_hash leaks; auth is required (401/403); missing params return 422. Frontend: all five tier-open-* cards render and their images load. Clicking each card opens tier-detail-panel with the matching range, attendance benefit and bonus %. Clicking the same card again closes it. At 390 and 360px every range and benefit line is at most two lines, with no overflow and no horizontal page scroll. rider-live-sales-detail renders but shows only the empty state ('Tidak ada data untuk periode ini') because there are no Rider users in the DB. Polling: one setInterval(30000) is registered. Firing it by hand triggered a second /api/salary call with the same range, with no errors. The only console errors were two 401s around the login transition, unrelated to /api/salary. I could not test Rider rows or Rider-role access because no Rider accounts exist, and I created none as instructed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/salary", "issue": "The riders query returns every user with role 'rider' and does not filter by active status. The request says 'Riders with active targets', so inactive or disabled riders would also appear in the live sales detail."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Salary tier card (320px viewport)", "issue": "The range text has no line-clamp and wraps to 3 lines for Masters and Divine ('Rp 2.520.000 – Rp 3.219.999 / minggu'). The benefit line is clamped, so 'Bonus penjualan X%' is cut off with an ellipsis. Fine at 360px and up.", "selector": "[data-testid='tier-open-masters'] p, [data-testid='tier-open-divine'] p", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/salary mobile", "issues": ["tier-detail-panel always renders below the whole card grid (after Immortal). Clicking Herald at the top on mobile gives no visible feedback until the user scrolls. Consider scrollIntoView, or render the panel directly under the clicked card's row."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter29_salary_rank_detail.py", "/app/test_reports/pytest/pytest_iter29.xml"],
+  "action_items": [
+    "Optional: filter /api/salary riders to active riders, if 'active targets' means active accounts.",
+    "Optional: use a smaller text size or line-clamp-2 on the tier range text, and shorten the benefit text (e.g. 'Hadir Rp20rb/hari · 7%'), so both stay within two lines at 320px.",
+    "Optional: scroll tier-detail-panel into view when a tier card is clicked on mobile.",
+    "Add .catch on the polled api.get('/salary') in Salary.jsx so network or 401 failures during polling do not raise unhandled promise rejections."
+  ],
+  "critical_code_review_comments": [
+    "Salary.jsx loadSalary: api.get('/salary').then(setD) has no catch. Each 30s poll during an outage or after session expiry produces an unhandled rejection.",
+    "Polling keeps running while the tab is hidden. Consider pausing on document.visibilityState.",
+    "Line 44 and 46 are very long one-line JSX blocks with duplicated range formatting; extract a formatRange(tier) helper.",
+    "Backend computes tier twice (rider_rank_for and tier_for); this is harmless but redundant."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter29_salary_rank_detail.py"],
+  "success_rate": {"backend": "100%", "frontend": "95% (Rider rows and Rider-role access not testable: no Rider users exist)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md). No Rider accounts exist.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login via the UI: set localStorage 'si4am_legal_2026-06-01'='accepted' via add_init_script to skip consent, fill login-identifier-input, click login-continue-button, fill pin-digit-0..5, then pushState to /salary. The DB has zero role=rider users, so rider-live-sales-<id> rows cannot be verified until a Rider plus sales exist."
+}

@@ -2157,7 +2157,7 @@ async def dashboard_summary(start: str, end: str, rider_id: Optional[str] = None
 async def salary(start: str, end: str, rider_id: Optional[str] = None, u=Depends(ANY)):
     if u["role"] == "rider":
         rider_id = u["id"]
-    riders = await db.users.find({"role": "rider", **({"id": rider_id} if rider_id else {})}, {"_id": 0, "password_hash": 0, "pin_hash": 0}).to_list(50)
+    riders = await db.users.find({"role": "rider", "active": {"$ne": False}, **({"id": rider_id} if rider_id else {})}, {"_id": 0, "password_hash": 0, "pin_hash": 0}).to_list(50)
     recs = await daily_summaries(start, end, rider_id)
     att_q = {"date": {"$gte": start, "$lte": end}}
     if rider_id:

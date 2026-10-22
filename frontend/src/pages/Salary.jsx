@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Camera, ChevronDown } from "lucide-react";
@@ -19,16 +19,28 @@ export default function Salary() {
   const [d, setD] = useState(null);
   const [wds, setWds] = useState([]);
   const [expandedTier, setExpandedTier] = useState(null);
+  const tierDetailRef = useRef(null);
+  const compactRp = (value) => value >= 1000000 ? `Rp${(value / 1000000).toLocaleString("id-ID", { maximumFractionDigits: 2 })}jt` : fmtRp(value);
+  const formatTierRange = (tier, compact = false) => {
+    const start = compact ? compactRp(tier.threshold) : fmtRp(tier.threshold);
+    const end = tier.maximum ? (compact ? compactRp(tier.maximum - 1) : fmtRp(tier.maximum - 1)) : "+";
+    return `${start}${tier.maximum ? ` – ${end}` : end}`;
+  };
   const loadWds = () => range && api.get("/withdrawals", { params: range }).then((r) => setWds(r.data)).catch(() => {});
   useEffect(() => {
     if (!range) return undefined;
     const loadSalary = () => {
-      api.get("/salary", { params: { ...range, ...(targetRider ? { rider_id: targetRider } : {}) } }).then((r) => setD(r.data));
+      if (document.visibilityState === "hidden") return;
+      api.get("/salary", { params: { ...range, ...(targetRider ? { rider_id: targetRider } : {}) } }).then((r) => setD(r.data)).catch(() => {});
       loadWds();
     };
     loadSalary();
     const polling = window.setInterval(loadSalary, 30000);
-    return () => window.clearInterval(polling);
+    document.addEventListener("visibilitychange", loadSalary);
+    return () => {
+      window.clearInterval(polling);
+      document.removeEventListener("visibilitychange", loadSalary);
+    };
   }, [range, targetRider]); // eslint-disable-line
   const accept = async (id) => { try { await api.post(`/withdrawals/${id}/accept`); toast.success("Ditandai diterima ✓"); loadWds(); } catch { toast.error("Gagal menandai"); } };
   const changePhoto = async (rid, file) => {
@@ -36,16 +48,21 @@ export default function Salary() {
       setD((prev) => ({ ...prev, riders: prev.riders.map((x) => (x.rider_id === rid ? { ...x, photo: data.photo } : x)) })); toast.success("Foto rider diperbarui ✓"); }
     catch { toast.error("Gagal mengunggah foto"); }
   };
+  const openTier = (tierName) => {
+    const nextTier = expandedTier === tierName ? null : tierName;
+    setExpandedTier(nextTier);
+    if (nextTier) window.setTimeout(() => tierDetailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 0);
+  };
   return (
     <div data-testid="salary-page">
       <PageHeader eyebrow="Target mingguan" title={t("salary")}><DateFilter onChange={setRange} riderPeriods initialPreset="week" /></PageHeader>
       {d && (<>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {d.tiers.map((tr) => <Bento key={tr.name} gold className="fade-up overflow-hidden p-0" testId={`tier-${tr.name.toLowerCase()}`}><button data-testid={`tier-open-${tr.name.toLowerCase()}`} onClick={() => setExpandedTier(expandedTier === tr.name ? null : tr.name)} className="w-full text-left"><img src={RANK_ASSETS[tr.name]} alt={`Kartu ${tr.name}`} className="w-full aspect-[16/8] object-cover" /><div className="p-4"><p className="eyebrow">{tr.name}</p><p className="font-heading font-bold text-xs leading-tight sm:text-sm mt-1">{fmtRp(tr.threshold)}{tr.maximum ? ` – ${fmtRp(tr.maximum - 1)}` : "+"} / minggu</p><p className="text-[10px] leading-tight line-clamp-2 text-muted-foreground">Hadir {fmtRp(tr.attendance_benefit)} / hari · Bonus penjualan {Math.round(tr.pct * 100)}%</p></div></button></Bento>)}
+          {d.tiers.map((tr) => <Bento key={tr.name} gold className="fade-up overflow-hidden p-0" testId={`tier-${tr.name.toLowerCase()}`}><button data-testid={`tier-open-${tr.name.toLowerCase()}`} onClick={() => openTier(tr.name)} className="w-full text-left"><img src={RANK_ASSETS[tr.name]} alt={`Kartu ${tr.name}`} className="w-full aspect-[16/8] object-cover" /><div className="p-4"><p className="eyebrow">{tr.name}</p><p title={`${formatTierRange(tr)} / minggu`} className="font-heading font-bold text-xs leading-tight sm:text-sm mt-1">{formatTierRange(tr, true)} / minggu</p><p className="text-[10px] leading-tight text-muted-foreground">Hadir {compactRp(tr.attendance_benefit)}/hari · bonus {Math.round(tr.pct * 100)}%</p></div></button></Bento>)}
         </div>
-        {expandedTier && (() => { const tier = d.tiers.find((item) => item.name === expandedTier); return <Bento gold className="mb-4 fade-up" testId="tier-detail-panel"><div className="flex items-center justify-between gap-3"><div><p className="eyebrow">Detail Target {tier.name}</p><p className="font-heading font-bold text-lg">{fmtRp(tier.threshold)}{tier.maximum ? ` – ${fmtRp(tier.maximum - 1)}` : "+"} / minggu</p></div><ChevronDown className="w-4 h-4 text-primary" /></div><div className="grid grid-cols-2 gap-3 mt-3 text-xs"><div><p className="eyebrow">Kehadiran</p><p className="num font-bold">{fmtRp(tier.attendance_benefit)} / hari</p></div><div><p className="eyebrow">Bonus Penjualan</p><p className="num font-bold">{Math.round(tier.pct * 100)}% dari total penjualan</p></div></div></Bento>; })()}
+        {expandedTier && (() => { const tier = d.tiers.find((item) => item.name === expandedTier); return <div ref={tierDetailRef}><Bento gold className="mb-4 fade-up" testId="tier-detail-panel"><div className="flex items-center justify-between gap-3"><div><p className="eyebrow">Detail Target {tier.name}</p><p className="font-heading font-bold text-lg">{formatTierRange(tier)} / minggu</p></div><ChevronDown className="w-4 h-4 text-primary" /></div><div className="grid grid-cols-2 gap-3 mt-3 text-xs"><div><p className="eyebrow">Kehadiran</p><p className="num font-bold">{fmtRp(tier.attendance_benefit)} / hari</p></div><div><p className="eyebrow">Bonus Penjualan</p><p className="num font-bold">{Math.round(tier.pct * 100)}% dari total penjualan</p></div></div></Bento></div>; })()}
         <p className="text-xs text-muted-foreground mb-4">Benefit kehadiran dan bonus penjualan mengikuti rank yang tercapai pada periode pilihan.</p>
-        <Bento gold className="mb-4" testId="rider-live-sales-detail"><p className="eyebrow">Rincian Total Penjualan Rider · Real Time</p><p className="text-[10px] text-muted-foreground">Diperbarui otomatis setiap 30 detik sesuai periode yang dipilih.</p><div className="mt-3 space-y-2">{d.riders.map((r) => <div key={r.rider_id} data-testid={`rider-live-sales-${r.rider_id}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-b border-border/50 pb-2 last:border-0 last:pb-0"><div className="min-w-0"><p className="truncate text-xs font-semibold">{r.rider_name}</p><p className="text-[10px] text-primary">{r.tier}{r.next_tier ? ` → ${r.next_tier.name}` : " · Target tercapai"}</p></div><div className="text-right"><p className="num text-xs font-bold">{fmtRp(r.gross)}</p><p className="num text-[10px] text-muted-foreground">{r.next_tier ? `${r.next_tier.progress}% target` : "100% target"}</p></div></div>)}{!d.riders.length && <Empty text={t("noData")} />}</div></Bento>
+        <Bento gold className="mb-4" testId="rider-live-sales-detail"><p className="eyebrow">Data Rider dengan Target yang Sedang Tercapai</p><p className="text-[10px] text-muted-foreground">Penjualan real time dan target rank aktif diperbarui otomatis setiap 30 detik.</p><div className="mt-3 space-y-2">{d.riders.map((r) => <div key={r.rider_id} data-testid={`rider-live-sales-${r.rider_id}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-b border-border/50 pb-2 last:border-0 last:pb-0"><div className="min-w-0"><p className="truncate text-xs font-semibold">{r.rider_name}</p><p className="text-[10px] text-primary">Target tercapai: {r.tier}{r.next_tier ? ` · Target berikutnya ${r.next_tier.name}` : ""}</p></div><div className="text-right"><p className="num text-xs font-bold">{fmtRp(r.gross)}</p><p className="num text-[10px] text-muted-foreground">{r.next_tier ? `${r.next_tier.progress}% target` : "100% target"}</p></div></div>)}{!d.riders.length && <Empty text={t("noData")} />}</div></Bento>
         <div className="grid md:grid-cols-2 gap-4">
           {d.riders.map((r) => (
             <Bento key={r.rider_id} gold={r.rider_id === targetRider} className="fade-up" testId={`salary-card-${r.rider_id}`}>
