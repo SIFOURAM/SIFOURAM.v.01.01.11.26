@@ -233,7 +233,8 @@ export default function DepositPage() {
                       {fmtRp(line.price)}
                     </p>
                     <p className="num text-[10px] sm:hidden">
-                      {t("sold")} {line.sold} · {t("diff")} {line.diff}
+                      <span className="block">{t("sold")} {line.sold}</span>
+                      <span className="block">{t("diff")} {line.diff}</span>
                     </p>
                   </td>
                   <td>

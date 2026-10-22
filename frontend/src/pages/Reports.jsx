@@ -95,6 +95,7 @@ export default function Reports() {
         Rider: row.rider_name,
         Cup: row.cups,
         Layanan: row.order_type,
+        Jenis: row.sale_kind,
         Pembayaran: row.payment_method,
         Cash: row.cash,
         QRIS: row.qris,
@@ -129,6 +130,38 @@ export default function Reports() {
       headStyles: { fillColor: [255, 107, 0] },
       theme: "grid",
     });
+    if (view === "sales") {
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [[
+          "Tanggal",
+          "Struk",
+          "Rider",
+          "Layanan",
+          "Jenis",
+          "Bayar",
+          "Cup",
+          "Cash",
+          "QRIS",
+          "Total",
+        ]],
+        body: (report.transaction_rows || []).map((row) => [
+          `${row.date} ${row.time}`,
+          row.receipt_no,
+          row.rider_name,
+          row.order_type.replace("_", " "),
+          row.sale_kind,
+          row.payment_method,
+          row.cups,
+          fmtRp(row.cash),
+          fmtRp(row.qris),
+          fmtRp(row.total),
+        ]),
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [255, 107, 0], textColor: [255, 255, 255] },
+        theme: "grid",
+      });
+    }
     autoTable(doc, {
       head: [["Rank", "Produk", "Cup", "Revenue", "HPP", "Laba", "Kontribusi"]],
       body: productRows.map((row) => [
@@ -276,8 +309,8 @@ export default function Reports() {
         </Bento>
         {view === "sales" && <Bento testId="report-transactions-table" scrollable className="col-span-2 lg:col-span-4 fade-up overflow-x-auto">
           <p className="eyebrow mb-4">Detail transaksi</p>
-          <table className={report.transaction_rows.length ? "table-x min-w-[52rem]" : "table-x w-full"}><thead><tr><th>Tanggal</th><th>Struk</th><th>Rider</th><th>Service</th><th>Pembayaran</th><th className="text-right">Cup</th><th className="text-right">Cash</th><th className="text-right">QRIS</th><th className="text-right">Total</th></tr></thead>
-            <tbody>{report.transaction_rows.length ? report.transaction_rows.map((row) => <tr key={row.id} data-testid={`report-transaction-${row.id}`}><td className="num whitespace-nowrap">{row.date} {row.time}</td><td className="num whitespace-nowrap">{row.receipt_no}</td><td>{row.rider_name}</td><td className="capitalize">{row.order_type.replace("_", " ")}</td><td className="uppercase">{row.payment_method}</td><td className="num text-right">{row.cups}</td><td className="num text-right">{fmtRp(row.cash)}</td><td className="num text-right">{fmtRp(row.qris)}</td><td className="num text-right font-bold">{fmtRp(row.total)}</td></tr>) : <tr><td colSpan="9"><Empty text="Belum ada transaksi pada periode ini" /></td></tr>}</tbody>
+          <table className={report.transaction_rows.length ? "table-x min-w-[58rem]" : "table-x w-full"}><thead><tr><th>Tanggal</th><th>Struk</th><th>Rider</th><th>Service</th><th>Jenis</th><th>Pembayaran</th><th className="text-right">Cup</th><th className="text-right">Cash</th><th className="text-right">QRIS</th><th className="text-right">Total</th></tr></thead>
+            <tbody>{report.transaction_rows.length ? report.transaction_rows.map((row) => <tr key={row.id} data-testid={`report-transaction-${row.id}`}><td className="num whitespace-nowrap">{row.date} {row.time}</td><td className="num whitespace-nowrap">{row.receipt_no}</td><td>{row.rider_name}</td><td className="capitalize">{row.order_type.replace("_", " ")}</td><td className="capitalize">{row.sale_kind}</td><td className="uppercase">{row.payment_method}</td><td className="num text-right">{row.cups}</td><td className="num text-right">{fmtRp(row.cash)}</td><td className="num text-right">{fmtRp(row.qris)}</td><td className="num text-right font-bold">{fmtRp(row.total)}</td></tr>) : <tr><td colSpan="10"><Empty text="Belum ada transaksi pada periode ini" /></td></tr>}</tbody>
           </table>
         </Bento>}
       </div></>}
@@ -289,7 +322,7 @@ function Distribution({ title, rows, testId }) {
   return (
     <Bento testId={testId} className="col-span-2 lg:col-span-1 fade-up">
       <p className="eyebrow mb-4">{title}</p>
-      {rows.length ? <ResponsiveContainer width="100%" height={180}><PieChart><Pie data={rows} dataKey="value" nameKey="name" innerRadius={40} outerRadius={70}>{rows.map((row, index) => <Cell key={row.name} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip {...tooltip} formatter={(value) => fmtRp(value)} /></PieChart></ResponsiveContainer> : <Empty text="Tidak ada data" />}
+      {rows.length ? <><ResponsiveContainer width="100%" height={150}><PieChart><Pie data={rows} dataKey="value" nameKey="name" innerRadius={40} outerRadius={70}>{rows.map((row, index) => <Cell key={row.name} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip {...tooltip} formatter={(value) => fmtRp(value)} /></PieChart></ResponsiveContainer><div className="mt-2 space-y-1">{rows.map((row, index) => <div key={row.name} className="flex items-center justify-between gap-2 text-[10px]"><span className="flex items-center gap-1.5 truncate"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />{row.name}</span><span className="num">{fmtRp(row.value)}</span></div>)}</div></> : <Empty text="Tidak ada data" />}
     </Bento>
   );
 }

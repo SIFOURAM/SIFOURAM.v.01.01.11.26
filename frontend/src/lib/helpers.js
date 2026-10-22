@@ -41,7 +41,7 @@ export const waNumber = (phone) => {
   else if (p.startsWith("8")) p = "62" + p;
   return p;
 };
-export const waLink = (text, phone) => `https://wa.me/${phone ? waNumber(phone) : ""}?text=${encodeURIComponent(text)}`;
+export const waLink = (text, phone) => `https://api.whatsapp.com/send?${phone ? `phone=${waNumber(phone)}&` : ""}text=${encodeURIComponent(text)}`;
 export const openWA = (text, phone) => window.open(waLink(text, phone), "_blank");
 
 export const screenshotEl = async (el, filename) => {

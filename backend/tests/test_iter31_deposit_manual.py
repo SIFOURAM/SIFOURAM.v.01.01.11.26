@@ -32,6 +32,7 @@ def cleanup():
     db.eod.delete_many({"rider_id": {"$in": ids}})
     db.rider_stock.delete_many({"rider_id": {"$in": ids}})
     db.menu_stock_tx.delete_many({"rider_id": {"$in": ids}})
+    db.sessions.delete_many({"user_id": {"$in": ids}})
     db.users.delete_many({"id": {"$in": ids}})
     db.invoices.delete_many({"customer_name": {"$regex": "^TEST_"}})
     db.customers.delete_many({"name": {"$regex": "^TEST_"}})
@@ -44,7 +45,6 @@ def client():
     assert r.status_code == 200, r.text
     r = s.post(f"{BASE_URL}/api/auth/login", json={"account_token": r.json()["account_token"], "pin": "130994", "remember": True})
     assert r.status_code == 200, r.text
-    s.headers.update({"Authorization": f"Bearer {r.json()['token']}"})
     s.me = r.json()["user"]
     return s
 

@@ -1,0 +1,61 @@
+{
+  "summary": "Iteration 32: tested the Sales/Product reports end to end (backend + desktop/mobile UI + Excel/PDF/Print/WA), plus regressions for iteration 31 (Deposit clamping, backend stock accounting validation, single notification, no *_auto flags) and the Invoice/Field layout. Found and fixed 1 critical backend bug: /api/reports/sales transaction_rows cash/qris used a stale `payments` variable, so every row showed the last sale's split. After the fix, 27/27 backend tests pass and the UI shows correct per-row Cash/QRIS. Open issues: the PDF has no Transactions table, the Invoice mobile 'Pelanggan WhatsApp' label overflows into the next column, filtered payment/cup/HPP numbers are inconsistent under the payment filter, and WA emojis arrive garbled.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/reports/sales", "issue": "FIXED BY TESTER: transaction_rows[].cash/qris used `payments` left over from the filter loop (always the LAST sale's breakdown). All rows showed Cash 20000/QRIS 25000. This also affected the UI table and the Excel 'Transaksi' sheet. Changed to sale['payment_breakdown'] (server.py ~line 2049).", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/reports/sales?payment_method=qris", "issue": "With a payment filter, revenue/report_amount is narrowed to the QRIS part, but payment_distribution still includes the CASH part of split sales (e.g. {QRIS:47000, CASH:20000}). The 'Pembayaran Cash' KPI card therefore shows Rp 20.000 on a QRIS-only report. total_cups counts all cups of a split sale (6 instead of a prorated value), and product HPP is the full cost while revenue is prorated, so profit is understated."},
+      {"endpoint": "GET /api/reports/sales", "issue": "The `discount` field is hardcoded to 0. No validation of the start/end format, and an unknown payment_method/sale_kind value silently returns empty data instead of 400."},
+      {"endpoint": "backend startup", "issue": "Pre-existing log entry 'Storage init failed: 401 Unauthorized' for the objstore (photo uploads may fail). Not related to this scope."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Invoice detail fields (mobile 390px)", "issue": "The 'Pelanggan WhatsApp' label is single-line, but it measures 169px inside a 162px column. It bleeds into the peer 'Pelanggan' label and reads as 'PELANGGAN WHATSAPP PELANGGAN'. The requirement asked for single-line with aligned peer field: input heights/tops are aligned (20px, same top), but the label overflows.", "selector": ".invoice-detail-fields label > span", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Reports PDF/Print export", "issue": "buildPdf() only outputs the summary table and the product table (expanded fields OK). There is NO Transactions table, but the requirement asks for a Transactions worksheet/table in Excel and PDF. Excel is correct (sheets Ringkasan, Produk with Rank/HPP/Laba/Kontribusi, Transaksi, Tren Harian).", "affected_selectors": ["[data-testid='report-pdf-button']", "[data-testid='report-print-button']"]},
+      {"flow": "Reports Kirim WA", "issue": "The wa.me link ends up at api.whatsapp.com with emoji bytes turned into %EF%BF%BD (U+FFFD) on desktop Chromium: 📅🧾💰💵📱 arrive as '�'. The source text is valid UTF-8, so this is the wa.me redirect mangling it. Consider using https://api.whatsapp.com/send?text= directly in waLink (affects every WA share in the app).", "affected_selectors": ["[data-testid='report-wa-button']"]}
+    ],
+    "design_issues": [
+      {"screen": "Reports sales (desktop)", "issues": ["Donut charts (payment/order/service) use near-identical orange shades and have no legend or labels, so slices can't be told apart without hovering.", "The 4-column grid leaves an empty cell to the right of 'Layanan pesanan' + 'Transaksi & revenue per jam'.", "The hourly chart title says 'Transaksi & revenue' but only revenue bars are plotted.", "The transactions table has no Jenis (regular/bundling) column, and the Excel Transaksi sheet has no sale_kind column either."]},
+      {"screen": "Reports (mobile 390px)", "issues": ["No page overflow (scrollWidth 390). Product and transaction tables scroll horizontally inside their bento, which is acceptable.", "Custom date inputs are truncated ('2/10/20')."]},
+      {"screen": "Invoice", "issues": ["The 'Jml' header is left-aligned while the qty inputs are centered (td text-center), a minor column misalignment."]}
+    ]
+  },
+  "passed_checks": [
+    "Backend: all/qris/cash/regular/bundling/legacy order_type alias/takeaway/dine_in/online/rider/rider+payment/'all' values filters narrow summary, products and transaction_rows correctly",
+    "Totals: revenue 83000, cups 8, tx 3, avg 27667, payment CASH 36000/QRIS 47000, order and service distributions, hourly and daily all correct",
+    "Bundle allocation: Creamy 34500 (12000 + 22500), Matcha 22500. Under the QRIS filter it prorates to 24500/12500. Product revenue sum equals total revenue. HPP = cost*qty, profit = revenue-hpp, share %, rank ordering, top_product",
+    "No _id keys anywhere in the response. Rider token returns 403, unauthenticated returns 401",
+    "Deposit: overcount returns 400 'melebihi stok' with no write. 3 re-saves create exactly 1 notification. cash_auto/qris_auto are not persisted. All iteration31 deposit/invoice tests pass",
+    "Deposit UI: stock 12, cash 5, qris 3, remaining 2, wastage 2, then stock lowered to 6 gives cash 5/qris 1/remaining 0/wastage 0. calc-cash Rp 40.000, calc-qris Rp 8.000, and the POST payload matches",
+    "Reports UI: all selects render. Each change triggers /api/reports/sales with the correct params. KPIs, 4 distributions, trend, hourly, product table, transaction table and report-transaction-<id> rows all present. view=products hides the transaction table, keeps the date filter, and shows the expanded metrics. Excel and PDF downloads succeed, Print opens a blob tab, WA opens a tab. No console errors or page errors",
+    "Invoice: desktop th padding 6px (mobile 4px), Subtotal th right-aligned, qty input appearance textfield (spinner hidden) and centered, mobile select/inputs 20px tall, summary area gap 14.4px / mt 21.6px / pt 21.6px (10% tighter), no clipping",
+    "User edit dialog at 390px: labels single-line, no overflow"
+  ],
+  "test_report_links": ["/app/backend/tests/test_iter32_sales_report.py", "/app/backend/tests/test_iter31_deposit_manual.py", "/app/backend/tests/seed_iter32_reports_ui.py", "/app/test_reports/pytest/pytest_iter32.xml"],
+  "action_items": [
+    "Review/keep the tester fix in server.py sales_report transaction_rows (use sale['payment_breakdown']).",
+    "Add a Transactions table (date/time, receipt, rider, service, kind, payment, cups, cash, qris, total) to the Reports PDF/print buildPdf.",
+    "Invoice mobile: shorten the WhatsApp label on small screens (e.g. 'WhatsApp') or reduce letter-spacing/font so it fits its column without bleeding into the peer label.",
+    "Decide the payment-filter semantics: restrict payment_distribution to the selected method, and prorate or explain cups/HPP for split sales.",
+    "Optional: add pie legends with distinct colors, fill the empty grid cell, add a sale_kind column to the transaction table and Excel, and switch waLink to api.whatsapp.com/send to keep emojis intact."
+  ],
+  "critical_code_review_comments": [
+    "server.py sales_report: stale loop variable `payments` was reused in the second loop (fixed). Prefer a dedicated helper that builds the transaction row from the sale.",
+    "sales_report loads up to 5000 sales into memory and filters in Python. Push payment_method/order_type filters into the Mongo query where possible.",
+    "Products are keyed by name, not menu_id. Renamed menus will split or merge rows.",
+    "server.py is 2426 lines and Reports.jsx 436 lines; split server.py into routers (reports, deposits, invoices).",
+    "DateFilter and the Invoice/Deposit dates use the native <input type=date> picker instead of the shadcn Calendar."
+  ],
+  "updated_files": ["/app/backend/server.py", "/app/backend/tests/test_iter32_sales_report.py", "/app/backend/tests/seed_iter32_reports_ui.py"],
+  "success_rate": {"backend": "100% (27/27 after the 1-line fix; 10/27 assertions on transaction_rows would have failed before)", "frontend": "~85% (Reports, Deposit and Invoice core flows pass; PDF transactions table missing; invoice mobile label overflow)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md). Browser login: call the identify+login API, then set localStorage si4am_token, si4am_legal_2026-06-01=accepted, and si4am_session_wib_date=<WIB date>.",
+  "seed_data_creation": "Temporary TEST_ riders, sales, rider_stock, eod and deposits were created and fully hard-deleted. The final counts match the pre-test baseline exactly: users 1, notifications 7, deposits/sales/eod/rider_stock/menu_stock_tx/invoices/customers 0.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run 'pytest tests/test_iter32_sales_report.py tests/test_iter31_deposit_manual.py -n 0'. The UI seed for reports is 'python tests/seed_iter32_reports_ui.py seed|clean' (date 2030-02-10, 2 riders, 3 sales: cash regular takeaway, qris regular dine_in, split bundle online). Do NOT run the pytest file while the UI seed exists (same date). Retest: PDF transactions table, Invoice WhatsApp label at 390px, payment-filter distribution semantics.",
+  "rca of the issue": "transaction_rows cash/qris bug: in sales_report the first loop sets `payments = sale_payment_breakdown(sale)` for each sale while filtering. The second loop then built rows with payments['cash'], so every row got the final iteration's value. Reproduce: create 2+ sales with different payment methods, GET /api/reports/sales, and compare transaction_rows[].cash. Mitigation applied: use sale['payment_breakdown'] stored on each sale. A regression assertion was added in test_transaction_rows."
+}

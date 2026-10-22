@@ -26,16 +26,14 @@ export function AuthProvider({ children }) {
     api.get("/auth/me").then((r) => {
       const closedAt = Number(localStorage.getItem("si4am_eod_closed") || 0);
       if (r.data.role === "rider" && closedAt && Date.now() - closedAt >= 3 * 60 * 60 * 1000) {
-        localStorage.removeItem("si4am_token");
-        sessionStorage.removeItem("si4am_token");
+        api.post("/auth/logout").catch(() => {});
         localStorage.removeItem("si4am_eod_closed");
         setUser(false);
         return;
       }
       if (r.data.role !== "rider") localStorage.removeItem("si4am_eod_closed");
       if (r.data.role !== "rider" && localStorage.getItem("si4am_session_wib_date") !== wibDate()) {
-        localStorage.removeItem("si4am_token");
-        sessionStorage.removeItem("si4am_token");
+        api.post("/auth/logout").catch(() => {});
         setUser(false);
         return;
       }
@@ -58,14 +56,18 @@ export function AuthProvider({ children }) {
       pin,
       remember,
     });
-    (remember ? localStorage : sessionStorage).setItem("si4am_token", data.token);
     if (data.user.role !== "rider") localStorage.setItem("si4am_session_wib_date", wibDate());
     setUser(data.user);
     return data.user;
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("si4am_token"); sessionStorage.removeItem("si4am_token"); localStorage.removeItem("si4am_eod_closed"); localStorage.removeItem("si4am_session_wib_date"); sessionStorage.removeItem("si4am_pos");
+    api.post("/auth/logout").catch(() => {});
+    localStorage.removeItem("si4am_token");
+    sessionStorage.removeItem("si4am_token");
+    localStorage.removeItem("si4am_eod_closed");
+    localStorage.removeItem("si4am_session_wib_date");
+    sessionStorage.removeItem("si4am_pos");
     setUser(false); setPosUnlocked(false);
   }, []);
 

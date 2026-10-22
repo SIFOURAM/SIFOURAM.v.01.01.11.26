@@ -1,6 +1,7 @@
 """One-time reset approved for the final SI FOUR AM revision."""
 import asyncio
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -16,25 +17,55 @@ async def reset():
     await db.users.delete_many({"username": {"$ne": "baa"}})
     await db.users.update_one(
         {"username": "baa"},
-        {"$set": {"name": "Baazulfikar", "role": "owner", "active": True}},
+        {"$set": {
+            "name": "Baazulfikar",
+            "email": "baazulfikar@gmail.com",
+            "role": "owner",
+            "active": True,
+        }},
     )
-    owner = await db.users.find_one({"username": "baa"}, {"_id": 0, "id": 1})
-    if owner:
-        await db.attendance.delete_many({"rider_id": {"$ne": owner["id"]}})
-        await db.gps.delete_many({"rider_id": {"$ne": owner["id"]}})
     for collection in [
+        "attendance",
+        "broadcasts",
         "coach_chats",
+        "customers",
+        "deposits",
+        "eod",
         "expenses",
+        "finances",
+        "gps",
         "handovers",
-        "withdrawals",
         "inventory_tx",
+        "invoices",
+        "login_attempts",
         "menu_stock_tx",
+        "notifications",
+        "payment_accounts",
+        "purchase_orders",
+        "rank_resets",
         "rider_stock",
+        "sales",
+        "sessions",
         "wastage",
+        "withdrawals",
     ]:
         await db[collection].delete_many({})
+    await db.files.update_many(
+        {"folder": {"$ne": "menus"}},
+        {"$set": {"is_deleted": True, "deleted_at": datetime.now(timezone.utc).isoformat()}},
+    )
     await db.materials.update_many({}, {"$set": {"stock": 0}})
     await db.menus.update_many({}, {"$set": {"stock": 0}})
+    await db.audit_logs.delete_many({})
+    await db.audit_logs.insert_one({
+        "id": "final-operational-reset",
+        "action": "system.operational_reset",
+        "user_id": None,
+        "ip": "local",
+        "outcome": "allowed",
+        "detail": "Operational data reset; masters and Owner retained.",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
     client.close()
 
 

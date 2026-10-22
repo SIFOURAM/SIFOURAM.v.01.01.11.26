@@ -1,13 +1,8 @@
 import axios from "axios";
 
-export const api = axios.create({ baseURL: `${process.env.REACT_APP_BACKEND_URL}/api` });
-
-export const getToken = () => localStorage.getItem("si4am_token") || sessionStorage.getItem("si4am_token");
-
-api.interceptors.request.use((cfg) => {
-  const t = getToken();
-  if (t) cfg.headers.Authorization = `Bearer ${t}`;
-  return cfg;
+export const api = axios.create({
+  baseURL: `${process.env.REACT_APP_BACKEND_URL}/api`,
+  withCredentials: true,
 });
 
 export const errMsg = (e) => {

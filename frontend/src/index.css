@@ -133,6 +133,8 @@
   .invoice-qty-input::-webkit-inner-spin-button,
   .invoice-qty-input::-webkit-outer-spin-button { margin: 0; appearance: none; }
   .invoice-qty-input { appearance: textfield; }
+  .invoice-detail-fields label:first-child > span { font-size: 0; }
+  .invoice-detail-fields label:first-child > span::after { content: "WhatsApp"; font-size: 0.625rem; }
   .hide-sm { @apply hidden md:table-cell; }
   .hide-xs { @apply hidden sm:table-cell; }
   .qty { @apply h-[29px] rounded-lg border border-input bg-background text-xs outline-none focus:ring-2 focus:ring-primary/40 num; width: 1.76rem; padding: 0; text-align: center; appearance: none; -webkit-appearance: none; }

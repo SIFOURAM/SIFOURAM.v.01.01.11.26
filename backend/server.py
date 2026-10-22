@@ -3,12 +3,14 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-import os, uuid, logging, bcrypt, jwt, requests, threading, hmac
+import os, uuid, logging, bcrypt, jwt, requests, threading, hmac, time
+from collections import defaultdict, deque
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, BackgroundTasks, Body
 import base64, re
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 from seed import SEED_USERS, SEED_MATERIALS, SEED_MENUS, MENU_PHOTOS
@@ -24,6 +26,61 @@ NOID = {"_id": 0}
 TERMS_VERSION = "2026-06-01"
 PRIVACY_VERSION = "2026-06-01"
 VALID_ROLES = {"owner", "admin", "barteam", "rider"}
+AUTH_COOKIE = "si4am_session"
+MAX_REQUEST_BYTES = 5 * 1024 * 1024
+RATE_BUCKETS: Dict[str, deque] = defaultdict(deque)
+
+
+async def audit_event(
+    action: str,
+    request: Request,
+    user_id: Optional[str] = None,
+    outcome: str = "allowed",
+    detail: str = "",
+):
+    await db.audit_logs.insert_one({
+        "id": uid(),
+        "action": action,
+        "user_id": user_id,
+        "ip": request_ip(request),
+        "outcome": outcome,
+        "detail": detail[:200],
+        "created_at": now_iso(),
+    })
+
+
+def enforce_rate_limit(request: Request, scope: str, limit: int, window_seconds: int):
+    now = time.monotonic()
+    key = f"{scope}:{request_ip(request)}"
+    bucket = RATE_BUCKETS[key]
+    while bucket and bucket[0] <= now - window_seconds:
+        bucket.popleft()
+    if len(bucket) >= limit:
+        raise HTTPException(429, "Terlalu banyak permintaan. Coba kembali sebentar lagi.")
+    bucket.append(now)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        content_length = request.headers.get("content-length")
+        if request.url.path.startswith("/api") and content_length:
+            try:
+                if int(content_length) > MAX_REQUEST_BYTES:
+                    return Response("Payload terlalu besar", status_code=413)
+            except ValueError:
+                return Response("Content-Length tidak valid", status_code=400)
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(self), geolocation=(self), microphone=()"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        if request.url.path.startswith("/api"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 def now_iso():
@@ -160,12 +217,13 @@ def check_pw(p: str, h: str) -> bool:
         return False
 
 
-def make_token(user_id: str, days: int, token_type: str = "access") -> str:
+def make_token(user_id: str, session_id: str, expires_at: datetime) -> str:
     return jwt.encode(
         {
             "sub": user_id,
-            "exp": datetime.now(timezone.utc) + timedelta(days=days),
-            "type": token_type,
+            "sid": session_id,
+            "exp": expires_at,
+            "type": "access",
         },
         os.environ["JWT_SECRET"],
         algorithm=JWT_ALG,
@@ -196,12 +254,10 @@ def public_user(u: dict) -> dict:
 
 
 async def get_user(request: Request) -> dict:
-    token = None
+    token = request.cookies.get(AUTH_COOKIE)
     auth = request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
+    if not token and auth.startswith("Bearer "):
         token = auth[7:]
-    if not token:
-        token = request.cookies.get("access_token")
     if not token:
         raise HTTPException(401, "Not authenticated")
     try:
@@ -212,6 +268,19 @@ async def get_user(request: Request) -> dict:
         raise HTTPException(401, "Invalid token")
     if payload.get("type") != "access":
         raise HTTPException(401, "Invalid token type")
+    session_id = payload.get("sid")
+    if not session_id:
+        raise HTTPException(401, "Sesi tidak valid")
+    session = await db.sessions.find_one(
+        {
+            "id": session_id,
+            "user_id": payload["sub"],
+            "revoked": {"$ne": True},
+        },
+        NOID,
+    )
+    if not session:
+        raise HTTPException(401, "Sesi sudah berakhir")
     u = await db.users.find_one({"id": payload["sub"]})
     if not u or u.get("active", True) is False:
         raise HTTPException(401, "User not found")
@@ -219,8 +288,15 @@ async def get_user(request: Request) -> dict:
 
 
 def roles(*allowed):
-    async def dep(u: dict = Depends(get_user)):
+    async def dep(request: Request, u: dict = Depends(get_user)):
         if u["role"] not in allowed:
+            await audit_event(
+                "authorization.denied",
+                request,
+                u["id"],
+                "denied",
+                f"role={u['role']}",
+            )
             raise HTTPException(403, "Forbidden for role " + u["role"])
         return u
     return dep
@@ -508,6 +584,10 @@ async def seed():
     await db.sales.create_index([("rider_id", 1), ("date", 1)])
     await db.customers.create_index("phone")
     await db.login_attempts.create_index("identifier")
+    await db.sessions.create_index("id", unique=True)
+    await db.sessions.create_index("expires_at", expireAfterSeconds=0)
+    await db.audit_logs.create_index([("created_at", -1)])
+    await db.audit_logs.create_index([("user_id", 1), ("created_at", -1)])
     for su in SEED_USERS:
         ex = await db.users.find_one({"username": su["username"]})
         doc = {
@@ -590,7 +670,8 @@ async def delete_file(path: str, u=Depends(SUPER)):
 
 # ---------- Auth ----------
 @api.post("/auth/identify")
-async def identify_account(body: IdentifyIn):
+async def identify_account(body: IdentifyIn, request: Request):
+    enforce_rate_limit(request, "auth-identify", 12, 60)
     if not body.terms_accepted or not body.privacy_accepted:
         raise HTTPException(400, "Syarat & Ketentuan serta Kebijakan Privasi harus disetujui.")
     ident = body.identifier.strip().lower()
@@ -606,11 +687,8 @@ async def identify_account(body: IdentifyIn):
         }
     )
     if not u or u.get("active", True) is False:
-        raise HTTPException(
-            404,
-            "Email atau username tidak ditemukan, atau akun tidak aktif. "
-            "Segera hubungi Tim Bar atau Owner.",
-        )
+        await audit_event("auth.identify", request, outcome="denied", detail="unknown account")
+        raise HTTPException(401, "Akun atau status akun tidak valid.")
     consent = {
         "terms_version": TERMS_VERSION,
         "privacy_version": PRIVACY_VERSION,
@@ -618,11 +696,13 @@ async def identify_account(body: IdentifyIn):
     }
     await db.users.update_one({"id": u["id"]}, {"$set": {"consent": consent}})
     u["consent"] = consent
+    await audit_event("auth.identify", request, u["id"])
     return {"account_token": make_identify_token(u["id"]), "user": public_user(u)}
 
 
 @api.post("/auth/login")
-async def login(body: LoginIn, request: Request):
+async def login(body: LoginIn, request: Request, response: Response):
+    enforce_rate_limit(request, "auth-login", 10, 60)
     try:
         payload = jwt.decode(body.account_token, os.environ["JWT_SECRET"], algorithms=[JWT_ALG])
     except jwt.InvalidTokenError:
@@ -631,6 +711,7 @@ async def login(body: LoginIn, request: Request):
         raise HTTPException(401, "Sesi identifikasi tidak valid.")
     u = await db.users.find_one({"id": payload.get("sub")})
     if not u or u.get("active", True) is False:
+        await audit_event("auth.login", request, outcome="denied", detail="inactive account")
         raise HTTPException(
             401,
             "PIN belum didaftarkan, atau akun tidak aktif. Segera hubungi Tim Bar atau Owner.",
@@ -641,13 +722,52 @@ async def login(body: LoginIn, request: Request):
         raise HTTPException(429, "Too many attempts. Try again in 15 minutes.")
     if not u.get("pin_hash") or not check_pw(body.pin, u["pin_hash"]):
         await db.login_attempts.update_one({"identifier": key}, {"$inc": {"count": 1}, "$set": {"last": now_iso()}}, upsert=True)
+        await audit_event("auth.login", request, u["id"], "denied", "invalid PIN")
         raise HTTPException(
             401,
             "PIN belum didaftarkan, atau akun tidak aktif. Segera hubungi Tim Bar atau Owner.",
         )
     await db.login_attempts.delete_one({"identifier": key})
-    token = make_token(u["id"], 30 if body.remember else 1)
-    return {"token": token, "user": public_user(u)}
+    session_id = uid()
+    expires_at = datetime.now(timezone.utc) + timedelta(days=1)
+    token = make_token(u["id"], session_id, expires_at)
+    await db.sessions.insert_one({
+        "id": session_id,
+        "user_id": u["id"],
+        "expires_at": expires_at,
+        "revoked": False,
+        "created_at": now_iso(),
+        "ip": request_ip(request),
+    })
+    response.set_cookie(
+        key=AUTH_COOKIE,
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=24 * 60 * 60,
+        path="/",
+    )
+    await audit_event("auth.login", request, u["id"])
+    return {"user": public_user(u)}
+
+
+@api.post("/auth/logout")
+async def logout(request: Request, response: Response, u=Depends(ANY)):
+    token = request.cookies.get(AUTH_COOKIE)
+    if token:
+        try:
+            payload = jwt.decode(token, os.environ["JWT_SECRET"], algorithms=[JWT_ALG])
+            if payload.get("sid"):
+                await db.sessions.update_one(
+                    {"id": payload["sid"], "user_id": u["id"]},
+                    {"$set": {"revoked": True, "revoked_at": now_iso()}},
+                )
+        except jwt.InvalidTokenError:
+            pass
+    response.delete_cookie(AUTH_COOKIE, path="/")
+    await audit_event("auth.logout", request, u["id"])
+    return {"ok": True}
 
 
 @api.get("/auth/me")
@@ -657,6 +777,7 @@ async def me(u=Depends(ANY)):
 
 @api.post("/auth/verify-pin")
 async def verify_pin(body: PinIn, request: Request, u=Depends(ANY)):
+    enforce_rate_limit(request, "pin-gate", 10, 60)
     if len(body.pin) != 6 or not body.pin.isdigit():
         raise HTTPException(400, "PIN harus berisi 6 angka")
     key = f"pin-gate:{request_ip(request)}:{u['id']}"
@@ -671,13 +792,15 @@ async def verify_pin(body: PinIn, request: Request, u=Depends(ANY)):
             {"$inc": {"count": 1}, "$set": {"last": now_iso()}},
             upsert=True,
         )
+        await audit_event("auth.verify_pin", request, u["id"], "denied")
         raise HTTPException(401, "PIN salah")
     await db.login_attempts.delete_one({"identifier": key})
+    await audit_event("auth.verify_pin", request, u["id"])
     return {"ok": True}
 
 
 @api.put("/auth/profile")
-async def update_profile(body: ProfileIn, u=Depends(ANY)):
+async def update_profile(body: ProfileIn, request: Request, u=Depends(ANY)):
     upd = {k: v for k, v in body.model_dump().items() if v is not None}
     if "banks" in upd and isinstance(upd["banks"], list):
         upd["banks"] = upd["banks"][:3]
@@ -686,22 +809,33 @@ async def update_profile(body: ProfileIn, u=Depends(ANY)):
     if upd.get("photo"):
         upd["photo"] = await store_photo(upd["photo"], "profiles", u["id"])
     await db.users.update_one({"id": u["id"]}, {"$set": upd})
+    await audit_event("auth.profile_update", request, u["id"])
     return public_user(await db.users.find_one({"id": u["id"]}))
 
 
 @api.put("/auth/password")
-async def change_password(body: PasswordIn, u=Depends(ANY)):
+async def change_password(body: PasswordIn, request: Request, u=Depends(ANY)):
     if not check_pw(body.old_password, u["password_hash"]):
         raise HTTPException(400, "Old password incorrect")
     await db.users.update_one({"id": u["id"]}, {"$set": {"password_hash": hash_pw(body.new_password)}})
+    await db.sessions.update_many(
+        {"user_id": u["id"], "revoked": {"$ne": True}},
+        {"$set": {"revoked": True, "revoked_at": now_iso()}},
+    )
+    await audit_event("auth.password_change", request, u["id"])
     return {"ok": True}
 
 
 @api.put("/auth/pin")
-async def change_pin(body: PinChangeIn, u=Depends(ANY)):
+async def change_pin(body: PinChangeIn, request: Request, u=Depends(ANY)):
     if not check_pw(body.password, u["password_hash"]):
         raise HTTPException(400, "Password incorrect")
     await db.users.update_one({"id": u["id"]}, {"$set": {"pin_hash": hash_pw(body.new_pin)}})
+    await db.sessions.update_many(
+        {"user_id": u["id"], "revoked": {"$ne": True}},
+        {"$set": {"revoked": True, "revoked_at": now_iso()}},
+    )
+    await audit_event("auth.pin_change", request, u["id"])
     return {"ok": True}
 
 
@@ -1731,9 +1865,10 @@ class PhotoIn(BaseModel):
 
 
 @api.put("/users/{uid}/photo")
-async def update_user_photo(uid: str, body: PhotoIn, u=Depends(SUPER)):
+async def update_user_photo(uid: str, body: PhotoIn, request: Request, u=Depends(SUPER)):
     url = await store_photo(body.photo, "profiles", uid)
     await db.users.update_one({"id": uid}, {"$set": {"photo": url}})
+    await audit_event("users.photo_update", request, u["id"], detail=f"target={uid}")
     return {"photo": url}
 
 
@@ -1751,7 +1886,10 @@ class UserUpdateIn(BaseModel):
 
 
 @api.put("/users/{uid}")
-async def admin_update_user(uid: str, body: UserUpdateIn, u=Depends(SUPER)):
+async def admin_update_user(uid: str, body: UserUpdateIn, request: Request, u=Depends(SUPER)):
+    target = await db.users.find_one({"id": uid}, NOID)
+    if not target:
+        raise HTTPException(404, "Akun tidak ditemukan")
     if uid == u["id"] and (body.active is False or (body.role and body.role != "owner")):
         raise HTTPException(400, "Owner tidak dapat menonaktifkan atau menurunkan role akunnya sendiri")
     upd = {}
@@ -1778,6 +1916,12 @@ async def admin_update_user(uid: str, body: UserUpdateIn, u=Depends(SUPER)):
         upd["pin_hash"] = hash_pw(body.pin)
     if upd:
         await db.users.update_one({"id": uid}, {"$set": upd})
+        if {"role", "active", "password_hash", "pin_hash"}.intersection(upd):
+            await db.sessions.update_many(
+                {"user_id": uid, "revoked": {"$ne": True}},
+                {"$set": {"revoked": True, "revoked_at": now_iso()}},
+            )
+        await audit_event("users.update", request, u["id"], detail=f"target={uid}")
     return public_user(await db.users.find_one({"id": uid}))
 
 
@@ -1990,6 +2134,19 @@ async def sales_report(
     rider_id: Optional[str] = None,
     u=Depends(REPORTS),
 ):
+    try:
+        start_date = datetime.strptime(start, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(400, "Format tanggal harus YYYY-MM-DD")
+    if start_date > end_date:
+        raise HTTPException(400, "Tanggal mulai tidak boleh setelah tanggal akhir")
+    if payment_method not in (None, "all", "cash", "qris"):
+        raise HTTPException(400, "Metode pembayaran tidak valid")
+    if (sale_kind or order_type) not in (None, "all", "regular", "bundling"):
+        raise HTTPException(400, "Jenis pesanan tidak valid")
+    if service_type not in (None, "all", "takeaway", "dine_in", "online"):
+        raise HTTPException(400, "Layanan pesanan tidak valid")
     query: Dict[str, Any] = {"date": {"$gte": start, "$lte": end}}
     if rider_id and rider_id != "all":
         query["rider_id"] = rider_id
@@ -2012,6 +2169,10 @@ async def sales_report(
         sale["service_type"] = current_service_type
         sale["report_amount"] = payments.get(payment_method, 0) if payment_method and payment_method != "all" else sale["total"]
         sale["payment_breakdown"] = payments
+        sale["report_payment_breakdown"] = {
+            method: value if payment_method in (None, "all", method) else 0
+            for method, value in payments.items()
+        }
         filtered.append(sale)
     by_date: Dict[str, float] = {}
     by_payment: Dict[str, float] = {}
@@ -2024,7 +2185,7 @@ async def sales_report(
         amount = sale["report_amount"]
         allocation = amount / sale["total"] if sale["total"] else 0
         by_date[sale["date"]] = by_date.get(sale["date"], 0) + amount
-        for method, value in sale["payment_breakdown"].items():
+        for method, value in sale["report_payment_breakdown"].items():
             if value:
                 by_payment[method] = by_payment.get(method, 0) + value
         kind = sale["sale_kind"]
@@ -2042,12 +2203,12 @@ async def sales_report(
             "rider_id": sale.get("rider_id", ""),
             "rider_name": sale.get("rider_name", "-"),
             "receipt_no": sale.get("receipt_no", "-"),
-            "cups": sale.get("cups", 0),
+            "cups": round(sale.get("cups", 0) * allocation, 1),
             "payment_method": sale.get("payment_method", "-"),
             "order_type": service,
             "sale_kind": kind,
-            "cash": payments["cash"],
-            "qris": payments["qris"],
+            "cash": sale["report_payment_breakdown"]["cash"],
+            "qris": sale["report_payment_breakdown"]["qris"],
             "total": amount,
         })
         for item in sale["items"]:
@@ -2061,19 +2222,20 @@ async def sales_report(
                         name,
                         {"name": name, "qty": 0, "revenue": 0, "hpp": 0},
                     )
-                    item_row["qty"] += quantity
+                    item_row["qty"] += quantity * allocation
                     item_row["revenue"] += item["subtotal"] * quantity / cup_total * allocation
-                    item_row["hpp"] += menu_costs.get(menu_id, 0) * quantity
+                    item_row["hpp"] += menu_costs.get(menu_id, 0) * quantity * allocation
             else:
                 item_row = products.setdefault(
                     item["name"],
                     {"name": item["name"], "qty": 0, "revenue": 0, "hpp": 0},
                 )
-                item_row["qty"] += item["qty"]
+                item_row["qty"] += item["qty"] * allocation
                 item_row["revenue"] += item["subtotal"] * allocation
-                item_row["hpp"] += menu_costs.get(item.get("menu_id"), 0) * item["qty"]
+                item_row["hpp"] += menu_costs.get(item.get("menu_id"), 0) * item["qty"] * allocation
     total_revenue = sum(sale["report_amount"] for sale in filtered)
     for item in products.values():
+        item["qty"] = round(item["qty"], 1)
         item["revenue"] = round(item["revenue"])
         item["hpp"] = round(item["hpp"])
         item["profit"] = item["revenue"] - item["hpp"]
@@ -2091,10 +2253,10 @@ async def sales_report(
             "rider_id": rider_id,
         },
         "transactions": len(filtered),
-        "total_cups": sum(sale.get("cups", 0) for sale in filtered),
+        "total_cups": round(sum(row["cups"] for row in transactions), 1),
         "revenue": total_revenue,
         "average_order": round(total_revenue / len(filtered)) if filtered else 0,
-        "discount": 0,
+        "discount": round(sum(sale.get("discount", 0) for sale in filtered)),
         "daily_revenue": [{"date": key, "revenue": value} for key, value in sorted(by_date.items())],
         "payment_distribution": [{"name": key.upper(), "value": value} for key, value in by_payment.items()],
         "order_distribution": [{"name": key, "value": value} for key, value in by_type.items()],
@@ -2417,7 +2579,18 @@ async def root():
 
 
 app.include_router(api)
-app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','), allow_methods=["*"], allow_headers=["*"])
+cors_origins = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 
 @app.on_event("shutdown")
