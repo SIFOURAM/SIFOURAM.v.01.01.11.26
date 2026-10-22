@@ -7,6 +7,7 @@ import { api } from "../lib/api";
 import { initials } from "../lib/helpers";
 import GpsGate from "./GpsGate";
 import RiderMotivation from "./RiderMotivation";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 
 function playTriTone() {
   try {
@@ -27,6 +28,8 @@ function playTriTone() {
 function NotifBell() {
   const [list, setList] = useState([]);
   const [open, setOpen] = useState(false);
+  const [messageDetail, setMessageDetail] = useState(null);
+  const navigate = useNavigate();
   const prevUnread = useRef(null);
   const load = () => api.get("/notifications").then((r) => {
     setList(r.data);
@@ -37,6 +40,20 @@ function NotifBell() {
   useEffect(() => { load(); const id = setInterval(load, 20000); return () => clearInterval(id); }, []);
   const unread = list.filter((n) => !n.read).length;
   const clearAll = () => api.post("/notifications/clear").then(() => { setList([]); setOpen(false); }).catch(() => {});
+  const openNotification = (notification) => {
+    setOpen(false);
+    if (notification.type === "broadcast") {
+      setMessageDetail(notification);
+      return;
+    }
+    const targets = {
+      purchase_order: "/purchase-orders",
+      deposit: "/deposit",
+      order: "/invoice",
+      withdrawal: "/salary",
+    };
+    navigate(targets[notification.type] || "/");
+  };
   return (
     <div className="relative">
       <button data-testid="notif-bell" onClick={() => { setOpen(!open); if (unread) api.post("/notifications/read").then(load); }} className="p-2 rounded-lg hover:bg-muted relative text-foreground dark:text-white"><Bell className="w-4 h-4" />{unread > 0 && <span data-testid="notif-count" className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">{unread}</span>}</button>
@@ -48,10 +65,17 @@ function NotifBell() {
             {list.length > 0 && <button data-testid="notif-clear-all" onClick={clearAll} className="text-[11px] font-bold text-primary hover:underline">Semua Terbaca</button>}
           </div>
           <div className="space-y-1.5">
-            {list.map((n) => <div key={n.id} className={`p-2 rounded-lg text-xs ${n.read ? "bg-muted/40" : "bg-primary/10"}`}><p className="font-semibold">{n.title}</p><p className="text-muted-foreground">{n.body}</p></div>)}
+            {list.map((n) => <button key={n.id} data-testid={`notification-${n.id}`} onClick={() => openNotification(n)} className={`w-full p-2 rounded-lg text-xs text-left transition-colors hover:bg-primary/15 ${n.read ? "bg-muted/40" : "bg-primary/10"}`}><p className="font-semibold">{n.title}</p><p className="text-muted-foreground">{n.body}</p></button>)}
             {!list.length && <p className="text-xs text-muted-foreground p-4 text-center">Tidak ada notifikasi</p>}
           </div>
         </div></>}
+      <Dialog open={!!messageDetail} onOpenChange={(isOpen) => !isOpen && setMessageDetail(null)}>
+        <DialogContent data-testid="incoming-message-dialog" className="max-w-sm">
+          <DialogHeader><DialogTitle>{messageDetail?.title || "Pesan masuk"}</DialogTitle></DialogHeader>
+          <p data-testid="incoming-message-body" className="whitespace-pre-wrap text-sm leading-relaxed">{messageDetail?.body}</p>
+          <button data-testid="incoming-message-close" onClick={() => setMessageDetail(null)} className="btn-primary w-full">Tutup</button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
