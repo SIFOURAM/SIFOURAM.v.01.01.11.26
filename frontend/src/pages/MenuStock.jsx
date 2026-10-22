@@ -5,7 +5,7 @@ import { api, errMsg } from "../lib/api";
 import { fmtRp, today, compressImage } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { useAuth } from "../context/AuthContext";
-import { PageHeader, Bento, Field, Select } from "../components/common";
+import { PageHeader, Bento, Field, Select, Empty } from "../components/common";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
 export default function MenuStock() {

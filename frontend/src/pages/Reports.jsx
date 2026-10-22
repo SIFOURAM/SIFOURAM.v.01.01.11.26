@@ -118,7 +118,7 @@ export default function Reports() {
       .join("\n");
     openWA(
       `*SI FOUR AM — ${title.toUpperCase()}*\n` +
-      (kind === "inventory" ? "📦 Snapshot persediaan saat ini\n" : `📅 ${range.start} → ${range.end}\n`) +
+      `📅 ${range.start} → ${range.end}\n` +
       "----------------------------------\n" +
       `🧾 Total transaksi: ${report.transactions}\n` +
       `💰 Total revenue: ${fmtRp(report.revenue)}\n` +
@@ -174,7 +174,7 @@ export default function Reports() {
         </>}
         <Bento testId="report-products-table" scrollable className="col-span-2 lg:col-span-4 fade-up overflow-x-auto">
           <p className="eyebrow mb-4">{view === "sales" ? "Produk terlaris" : "Performa produk"}</p>
-          <table className="table-x min-w-[34rem]"><thead><tr><th>Rank</th><th>Produk</th><th className="text-right">Kuantitas</th><th className="text-right">Revenue</th></tr></thead>
+          <table className={productRows.length ? "table-x min-w-[34rem]" : "table-x w-full"}><thead><tr><th>Rank</th><th>Produk</th><th className="text-right">Kuantitas</th><th className="text-right">Revenue</th></tr></thead>
             <tbody>{productRows.length ? productRows.map((row) => <tr key={row.name}><td className="num">{row.rank}</td><td className="font-semibold">{row.name}</td><td className="num text-right">{row.qty}</td><td className="num text-right">{fmtRp(row.revenue)}</td></tr>) : <tr><td colSpan="4"><Empty text="Belum ada produk terjual pada periode ini" /></td></tr>}</tbody>
           </table>
         </Bento>

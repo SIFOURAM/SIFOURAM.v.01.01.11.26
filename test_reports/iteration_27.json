@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only mobile (390x844) regression as Owner baa, logging in via the API token. window.open was stubbed and no data was created. MenuStock empty was simulated by intercepting GET /api/menu-stock/tx with []. RESULTS: (1) PASS. The inventory WA message reads '📦 Snapshot persediaan saat ini' with no date range ('→' absent), and inventory has no DateFilter. Wastage/purchases/opname WA still include the 📅 range. (2) PASS. The report-products-table empty state is inside the tbody (td colSpan=4) within the table bounds and the orange table border. (3) PASS. The pos-dashboard-history empty table is w-full (336px, scrollWidth == clientWidth 356) and the message at x 97-293 is fully visible without scrolling. (4) Was CRITICAL, FIXED by me. MenuStock crashed with the runtime error 'Empty is not defined' whenever there were no movements, because Empty was not imported. After adding the import, the empty row 'Belum ada pergerakan stock.' renders in tbody (colSpan=6) and is fully visible. (5) PASS. On all checked tables .bento-scrollable::before is display:none and the wrapper border is rgb(39,39,42) with 0% orange edge pixels. The inner table has the linear-gradient border-image and orange edge pixels; ops tables overflow (scrollWidth 468 vs clientWidth 356). (6) PASS. Excel/PDF/Cetak/Kirim WA are above the DateFilter in wastage, purchases and opname. REMAINING DESIGN ISSUE: the report-products-table empty text is clipped on mobile ('Belum ada produk terjual pada p...', text spans x 164-434 against a 390px viewport) because the table stays min-w-[34rem] when empty.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MenuStock.jsx", "issue": "Runtime crash 'Empty is not defined' whenever the movement history is empty, because Empty was not imported from components/common. FIXED by the testing agent (import added). Verified working.", "selector": "[data-testid=menu-stock-history]", "priority": "CRITICAL (fixed)"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Reports > Produk > report-products-table (mobile)", "issues": ["The empty state is inside the bordered table, but the table keeps min-w-[34rem] (544px), so the centered message 'Belum ada produk terjual pada periode ini' is cut off at the 390px viewport. The user has to scroll horizontally to read it. Use the POSDashboard pattern: table-x w-full when productRows is empty."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Reports.jsx line ~177: use className={productRows.length ? 'table-x min-w-[34rem]' : 'table-x w-full'} so the empty message is readable on mobile without horizontal scroll.",
+    "Review the MenuStock.jsx import fix made by the testing agent (Empty added to the components/common import)."
+  ],
+  "critical_code_review_comments": [
+    "MenuStock referenced <Empty> without importing it. The build passed because JSX identifiers are not lint-blocked here. Consider enabling the ESLint react/jsx-no-undef rule to catch this.",
+    "The operations (non-inventory) empty state sits in a min-w-[28rem] table. It is currently readable at 390px, but the same w-full-when-empty pattern would be more robust."
+  ],
+  "updated_files": ["/app/frontend/src/pages/MenuStock.jsx"],
+  "success_rate": {"backend": "N/A", "frontend": "~92% (6 requirement groups: 5 pass; MenuStock crash fixed; products empty-state still clipped on mobile)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. MenuStock empty state was simulated with a Playwright route intercept.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Log in via page.request: POST /api/auth/identify, then /api/auth/login. Put the token in localStorage (si4am_token, si4am_legal_2026-06-01=accepted, si4am_session_wib_date=WIB date). Stub window.open in add_init_script. Get empty states via a custom DateFilter range of 2020-01-01 to 2020-01-02 (filter-preset-select=custom), or with page.route for /api/menu-stock/tx. PIL edge-pixel orange check works in the tool. Only open item: the report-products-table empty width on mobile."
+}

@@ -219,3 +219,6 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   40px area, and can be revealed through a centered `>` action.
 - Shared Bento cards use an orange gradient border. Report actions, WhatsApp summaries, compact mobile
   filters, and split report payment/order/service cards have also been added during visual refinements.
+- Scrollable report and stock tables use the gradient border on the inner table that actually moves,
+  while their outer Bento wrapper remains neutral. QA iteration 27 verified scrolling, WA summaries,
+  and empty states; the final mobile Products empty-state width was also fixed and smoke-tested.
