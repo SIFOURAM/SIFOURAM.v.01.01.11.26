@@ -205,6 +205,7 @@ export default function POS() {
   if (!posUnlocked) return <PinGate />;
   const rider = isRider ? user : riders.find((r) => r.id === riderId);
   const L = lang === "id";
+  const shouldHideCoach = lines.length > 0 || bcart.length > 0 || !!receipt || !!qrisPreview || busy;
   const receiptOrder = receipt && [
     receipt.order_type === "dine_in" ? "Dine In" : receipt.order_type === "online" ? "Online" : "Takeaway",
     receipt.table_number ? `Meja ${receipt.table_number}` : null,
@@ -418,7 +419,7 @@ export default function POS() {
             {!hist.length && <Empty text={t("noData")} />}
           </div>
         </div>)}
-      {(user.role === "rider" || user.role === "owner") && <CoachChat />}
+      {(user.role === "rider" || user.role === "owner") && <CoachChat hidden={shouldHideCoach} />}
 
       <Dialog open={showAbsen} onOpenChange={(o) => !o && setShowAbsen(false)}>
         <DialogContent data-testid="absen-dialog"><DialogHeader><DialogTitle>{L ? "Absen Kehadiran" : "Attendance"}</DialogTitle></DialogHeader>

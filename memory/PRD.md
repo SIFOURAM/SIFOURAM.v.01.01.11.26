@@ -238,3 +238,5 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   Rider's achieved rank plus the next target when one is available.
 - Header navigation auto-hide pauses while either tab dropdown is focused/open, then resumes its three
   second countdown after the selection is finished.
+- POS Dashboard payment summary now shows Total Penjualan as the first full-width card, followed by
+  Total Tunai and Total QRIS side-by-side.

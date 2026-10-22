@@ -110,20 +110,20 @@ export const CATEGORIES = {
     { name: "Dashboard", icon: LayoutDashboard, to: "/", match: (loc) => ["/", "/reports", "/finance", "/rider-dashboard", "/salary"].includes(loc.pathname), tabs: [item("/", "dashboard"), { ...item("/reports", "reports"), subtabs: [{ to: "/finance", label: "Keuangan" }, { to: "/reports?view=sales", label: "Penjualan" }, { to: "/reports?view=products", label: "Produk" }, { to: "/reports?view=wastage", label: "Wastage" }, { to: "/reports?view=inventory", label: "Persediaan" }, { to: "/reports?view=purchases", label: "Pembelian" }, { to: "/reports?view=opname", label: "Opname" }] }, item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
     { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos-dashboard", tabs: [item("/pos-dashboard", "posDashboard"), item("/pos", "pos"), item("/deposit", "deposit"), item("/invoice", "invoice"), item("/customers", "customers"), item("/handover", "handover")] },
-    { name: "Production", icon: Layers, to: "/inventory", tabs: [{ ...item("/inventory", "inventory"), subtabs: [{ to: "/inventory?tab=stock", label: "Stok" }, { to: "/inventory?tab=recipes", label: "Resep" }, { to: "/inventory?tab=wastage", label: "Wastage" }, { to: "/inventory?tab=history", label: "History" }] }, item("/menu-stock?mode=production", "menuStock"), item("/purchase-orders", "purchaseOrders")] },
+    { name: "Production", icon: Layers, to: "/inventory", tabs: [{ ...item("/inventory", "inventory"), subtabs: [{ to: "/inventory?tab=stock", label: "Stok" }, { to: "/inventory?tab=recipes", label: "Resep" }, { to: "/inventory?tab=wastage", label: "Wastage" }, { to: "/inventory?tab=history", label: "History" }, { to: "/menu-stock?mode=production", label: "Stock Menu" }] }, item("/purchase-orders", "purchaseOrders")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/user-info", tabs: [item("/user-info", "userInfo"), item("/broadcast", "broadcast"), item("/payment-accounts", "paymentAccounts"), item("/settings", "settings")] },
   ],
   admin: [
     { name: "Dashboard", icon: LayoutDashboard, to: "/", match: (loc) => ["/", "/reports", "/finance", "/rider-dashboard", "/salary"].includes(loc.pathname), tabs: [item("/", "dashboard"), { ...item("/reports", "reports"), subtabs: [{ to: "/finance", label: "Keuangan" }, { to: "/reports?view=sales", label: "Penjualan" }, { to: "/reports?view=products", label: "Produk" }, { to: "/reports?view=wastage", label: "Wastage" }, { to: "/reports?view=inventory", label: "Persediaan" }, { to: "/reports?view=purchases", label: "Pembelian" }, { to: "/reports?view=opname", label: "Opname" }] }, item("/rider-dashboard", "riderDash"), item("/salary", "salary")] },
     { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
     { name: "POS", icon: ShoppingCart, to: "/pos-dashboard", tabs: [item("/pos-dashboard", "posDashboard"), item("/deposit", "deposit")] },
-    { name: "Production", icon: Layers, to: "/inventory", tabs: [{ ...item("/inventory", "inventory"), subtabs: [{ to: "/inventory?tab=stock", label: "Stok" }, { to: "/inventory?tab=recipes", label: "Resep" }, { to: "/inventory?tab=wastage", label: "Wastage" }, { to: "/inventory?tab=history", label: "History" }] }, item("/menu-stock?mode=production", "menuStock"), item("/purchase-orders", "purchaseOrders")] },
+    { name: "Production", icon: Layers, to: "/inventory", tabs: [{ ...item("/inventory", "inventory"), subtabs: [{ to: "/inventory?tab=stock", label: "Stok" }, { to: "/inventory?tab=recipes", label: "Resep" }, { to: "/inventory?tab=wastage", label: "Wastage" }, { to: "/inventory?tab=history", label: "History" }, { to: "/menu-stock?mode=production", label: "Stock Menu" }] }, item("/purchase-orders", "purchaseOrders")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
   barteam: [
     { name: "Stock", icon: Boxes, to: "/rider-stock", tabs: [item("/rider-stock", "riderStock"), item("/rider-stock?view=rider", "stockRider"), item("/rider-stock?view=pickup", "stockPickup"), item("/rider-stock?view=remaining", "stockRemaining"), item("/menu-stock", "menuStock")] },
     { name: "POS", icon: ShoppingCart, to: "/deposit", tabs: [item("/deposit", "deposit")] },
-    { name: "Production", icon: Layers, to: "/inventory", tabs: [item("/inventory", "inventory"), item("/menu-stock?mode=production", "menuStock"), item("/purchase-orders", "purchaseOrders")] },
+    { name: "Production", icon: Layers, to: "/inventory", tabs: [{ ...item("/inventory", "inventory"), subtabs: [{ to: "/inventory?tab=stock", label: "Stok" }, { to: "/inventory?tab=recipes", label: "Resep" }, { to: "/inventory?tab=wastage", label: "Wastage" }, { to: "/inventory?tab=history", label: "History" }, { to: "/menu-stock?mode=production", label: "Stock Menu" }] }, item("/purchase-orders", "purchaseOrders")] },
     { name: "Lainnya", icon: MoreHorizontal, to: "/settings", tabs: [item("/settings", "settings")] },
   ],
   rider: [
@@ -221,7 +221,7 @@ export default function Layout() {
   const activeCategory = categories.find((category) => (
     category.match
       ? category.match(loc)
-      : category.tabs.some((tab) => tab.to === `${loc.pathname}${loc.search}`)
+      : category.tabs.some((tab) => tab.to === `${loc.pathname}${loc.search}` || tab.subtabs?.some((subtab) => subtab.to === `${loc.pathname}${loc.search}`))
   )) || categories[0];
   useEffect(() => setMoreOpen(false), [loc.pathname, loc.search]);
   const linkCls = (isActive) => `flex items-center gap-3 px-4 h-11 rounded-xl text-sm font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`;
@@ -246,7 +246,7 @@ export default function Layout() {
             const CategoryIcon = category.icon;
             const selected = category.match
               ? category.match(loc)
-              : category.tabs.some((tab) => tab.to === `${loc.pathname}${loc.search}`);
+              : category.tabs.some((tab) => tab.to === `${loc.pathname}${loc.search}` || tab.subtabs?.some((subtab) => subtab.to === `${loc.pathname}${loc.search}`));
             return (
               <NavLink key={category.name} to={category.to} data-testid={`nav-category-${category.name.toLowerCase()}`} className={() => linkCls(selected)}>
                 <CategoryIcon className="w-4 h-4" />{category.name}
