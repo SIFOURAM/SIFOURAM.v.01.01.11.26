@@ -265,3 +265,14 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 ## Remaining Backlog
 - P2: physical Web Bluetooth receipt pairing remains hardware-dependent and is mocked in headless tests.
 - Optional future: split the oversized backend into dedicated auth, sales, deposit, and report routers.
+
+## Feature Added — Owner Onboarding Rider Pertama (2026-10)
+- Owner Dashboard shows a three-step setup checklist only after the first active Rider is created:
+  create stock awal, Rider verification with photo, then POS readiness. The checklist action opens
+  Stock Awal and it remains responsive at mobile width.
+- The Owner-only `/api/onboarding/owner` status endpoint is RBAC-protected. Onboarding completion is
+  stored after that first Rider verifies stock, preventing the checklist from returning daily or when
+  that Rider is later deactivated.
+- QA passed 8/8 across API RBAC, first-Rider targeting, stock state, Rider verification, POS readiness,
+  desktop/mobile rendering, and navigation. The approved operational reset was rerun after QA: one
+  Owner remains, all operational collections and stock quantities are zero, and onboarding is ready.

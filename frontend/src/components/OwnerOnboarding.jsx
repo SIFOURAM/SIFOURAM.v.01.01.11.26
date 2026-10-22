@@ -57,7 +57,7 @@ export default function OwnerOnboarding() {
         <button
           data-testid="onboarding-stock-button"
           onClick={() => navigate("/rider-stock")}
-          className="btn-primary h-9 px-4 text-xs"
+          className="btn-primary h-11 px-4 text-xs"
         >
           {hasStock ? "Lihat Stock Awal" : "Buat Stock Awal"}
         </button>

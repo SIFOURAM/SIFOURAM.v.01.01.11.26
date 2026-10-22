@@ -898,13 +898,17 @@ async def list_users(role: Optional[str] = None, u=Depends(ANY)):
 
 @api.get("/onboarding/owner")
 async def owner_onboarding_status(u=Depends(SUPER)):
+    if u.get("settings", {}).get("owner_onboarding_completed"):
+        return {"show": False, "rider": None, "stock": None, "verified": True}
     riders = await db.users.find(
-        {"role": "rider", "active": {"$ne": False}},
-        {"_id": 0, "id": 1, "name": 1, "created_at": 1},
+        {"role": "rider"},
+        {"_id": 0, "id": 1, "name": 1, "active": 1, "created_at": 1},
     ).sort("created_at", 1).to_list(200)
     if not riders:
         return {"show": False, "rider": None, "stock": None, "verified": False}
     rider = riders[0]
+    if rider.get("active") is False:
+        return {"show": False, "rider": None, "stock": None, "verified": False}
     date = datetime.now(WIB).strftime("%Y-%m-%d")
     stock = await db.rider_stock.find_one(
         {"rider_id": rider["id"], "date": date},
@@ -1345,6 +1349,16 @@ async def verify_rider_stock(stock_id: str, body: RiderStockVerifyIn, u=Depends(
                 "verification_photo": verification_photo,
             }},
         )
+        first_rider = await db.users.find_one(
+            {"role": "rider"},
+            NOID,
+            sort=[("created_at", 1)],
+        )
+        if first_rider and first_rider["id"] == stock["rider_id"]:
+            await db.users.update_many(
+                {"role": "owner"},
+                {"$set": {"settings.owner_onboarding_completed": True}},
+            )
     return await db.rider_stock.find_one({"id": stock_id}, NOID)
 
 

@@ -1,0 +1,35 @@
+{
+  "summary": "Owner onboarding checklist QA via the preview HTTPS URL. Backend: new suite test_iter34_owner_onboarding.py passed 8/8. It covered: show=false with no riders; show=true with rider detail and stock=null after creating a Rider; first-created rider stays the target when a second rider exists; after POST /rider-stock with a photo, show=true, verified=false, stock={id,total}; Admin/Bar Team/Rider get 403 and no cookie gets 401; after the Rider verifies with a photo, show=false and verified=true; Rider GET /pos/stock then returns has_stock=true and pending_stock=false. UI at desktop 1920: no card with no riders. With a rider, owner-onboarding-card shows the three step test IDs (onboarding-step-stock/verify/pos) with the correct pending copy, and the 'Buat Stock Awal' button navigates to /rider-stock. After stock is seeded, step 1 shows the green check and '6 cup sudah dicatat.', step 2 stays pending, and the button reads 'Lihat Stock Awal'. A Rider (mobile, with geolocation granted) logged in, opened pickup-detail-button, uploaded a photo, clicked pickup-verify-button and got the toast 'Stock awal diverifikasi · POS siap digunakan'. The DB shows verified_at and verification_photo set. On a fresh Owner load the card was hidden. Mobile 390: card stays inside the viewport (docW 390 = vw), the button is 335x36 with white text on #FF6A00 and no text overflow. Cleanup: all temp users, stock, files, sessions and audit rows were removed, menu stock was restored, then reset_final_revision.py was executed. Final DB: users=1 (baa), sessions=0, rider_stock=0, sales=0, audit_logs=1 (reset marker), active files=0, menu/material stock all 0.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/onboarding/owner", "issue": "The check is per day: it only looks at today's (WIB) rider_stock for the first rider. On the next day, before that rider's stock is created and verified, the checklist reappears for the Owner every morning. This matches the stated 'no verified stock today' spec, but it means the onboarding never permanently completes. Consider hiding it once the first rider has ever had a verified stock (e.g. any rider_stock with verified_at), or storing an owner onboarding_completed flag."},
+      {"endpoint": "GET /api/onboarding/owner", "issue": "If the first rider is deactivated, the checklist switches to the next active rider and reappears even when the business is already operating (verified in test_08). Possibly intended; the persistent completion flag above would also solve this."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Owner onboarding card", "issues": ["Step 3 'Mulai POS' can never show as done, because the card hides on verification. Fine, but its icon looks the same as a pending step.", "On mobile, the button is 36px tall (h-9), below the 44px tap-target guideline."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter34_owner_onboarding.py", "/app/backend/tests/ui_seed_iter34.py", "/app/test_reports/pytest/iter34_results.xml"],
+  "action_items": [
+    "Optional: make onboarding completion persistent (any verified stock for the first rider, or a flag), so the card does not reappear daily or after a rider is deactivated.",
+    "Optional: raise the onboarding button to at least 44px tall on mobile."
+  ],
+  "critical_code_review_comments": [
+    "OwnerOnboarding.jsx: errors are swallowed silently (setStatus(null)). Acceptable for a non-critical widget.",
+    "OwnerOnboarding.jsx: polls every 30s. The card only hides on the next poll or a fresh load; verified via a fresh load.",
+    "The endpoint uses SUPER (owner-only), and the component skips the API call for non-owner roles. Admin sharing Dashboard does not trigger 403 noise.",
+    "rider-stock verification stores verification_photo inline as a base64 JPEG in rider_stock (store_photo output). The document size will grow; consider object storage."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter34_owner_onboarding.py", "/app/backend/tests/ui_seed_iter34.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% (all onboarding flows verified)"},
+  "test_credentials": "Owner baa / PIN 130994 from /app/memory/test_credentials.md. Browser PIN entry: fill pin-digit-0 with all 6 digits (paste behaviour). Riders need context permissions=['geolocation'] or a GPS gate blocks the app.",
+  "seed_data_creation": "Temp users test_r34_/test_q34_/test_a34_/test_b34_ (via API) and test_ui34_rider (direct DB), plus their today stock, files, sessions and audit rows. All deleted, then reset_final_revision.py ran. Final baseline: only Owner baa, zero operational data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: cd /app/backend && pytest tests/test_iter34_owner_onboarding.py -n 0 -p no:cacheprovider. It self-cleans and restores menu stock, but requires zero active riders at start (test_01). For UI: python tests/ui_seed_iter34.py rider|stock|clean. ALWAYS run python reset_final_revision.py after QA to restore the final empty baseline."
+}

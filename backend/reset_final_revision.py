@@ -22,6 +22,7 @@ async def reset():
             "email": "baazulfikar@gmail.com",
             "role": "owner",
             "active": True,
+            "settings.owner_onboarding_completed": False,
         }},
     )
     for collection in [
