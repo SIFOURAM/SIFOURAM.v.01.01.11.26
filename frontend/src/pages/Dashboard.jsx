@@ -65,10 +65,16 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-2 gap-x-5 gap-y-2 text-xs sm:grid-cols-4">
                 {lowStockMenus.map((menu) => (
-                  <div key={menu.id} data-testid={`central-stock-${menu.id}`} className="min-w-0">
+                  <button
+                    key={menu.id}
+                    type="button"
+                    data-testid={`central-stock-${menu.id}`}
+                    onClick={() => setShowAllCentralStock(true)}
+                    className="min-w-0 text-left transition-opacity hover:opacity-70"
+                  >
                     <p className="truncate text-muted-foreground">{menu.name.replace("SI ", "")}</p>
                     <p className={`num font-bold ${menu.stock <= 0 ? "text-red-500" : "text-foreground"}`}>{menu.stock} cup</p>
-                  </div>
+                  </button>
                 ))}
                 {!lowStockMenus.length && <p className="col-span-2 text-muted-foreground sm:col-span-4">Belum ada menu produk.</p>}
               </div>

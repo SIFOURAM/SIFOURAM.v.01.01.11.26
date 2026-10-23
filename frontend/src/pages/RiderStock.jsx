@@ -67,6 +67,7 @@ export default function RiderStock() {
   const [history, setHistory] = useState([]);
   const [remainingRows, setRemainingRows] = useState([]);
   const [selectedStock, setSelectedStock] = useState(null);
+  const [confirmSave, setConfirmSave] = useState(false);
   const view = searchParams.get("view") || "initial";
 
   useEffect(() => {
@@ -107,6 +108,7 @@ export default function RiderStock() {
   const rider = riders.find((r) => r.id === riderId);
 
   const save = async () => {
+    setConfirmSave(false);
     if (!photo) return toast.error(t("photoRequired"));
     if (busy) return;
     setBusy(true);
@@ -163,7 +165,7 @@ export default function RiderStock() {
           <Bento className="fade-up" testId="rider-stock-photo-card">
             <p className="eyebrow mb-3">{t("photoEvidence")} *</p>
             <PhotoCapture value={photo} onChange={setPhoto} testId="rider-stock-photo" />
-            <button data-testid="rider-stock-save-button" onClick={save} disabled={!riderId || !photo || busy} className="btn-primary w-full mt-4">{t("saveRider")}</button>
+            <button data-testid="rider-stock-save-button" onClick={() => setConfirmSave(true)} disabled={!riderId || !photo || busy} className="btn-primary w-full mt-4">{t("saveRider")}</button>
             <p className="text-[11px] text-muted-foreground mt-2 text-center">{photo ? "✓" : "!"} {t("photoRequired")} · WhatsApp</p>
           </Bento>
           <Bento className="fade-up" testId="rider-stock-history">
@@ -175,6 +177,13 @@ export default function RiderStock() {
           </Bento>
         </div>
       </div>
+      <Dialog open={confirmSave} onOpenChange={setConfirmSave}>
+        <DialogContent data-testid="rider-stock-confirm-dialog">
+          <DialogHeader><DialogTitle>Data Stock Awal sudah benar?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Total {total} cup untuk {rider?.name || "Rider"}. Foto bukti akan tersimpan dan WhatsApp akan dibuka untuk meninjau rincian sebelum dikirim.</p>
+          <div className="flex gap-2"><button data-testid="rider-stock-revise-button" onClick={() => setConfirmSave(false)} className="btn-ghost flex-1">Kembali & Revisi</button><button data-testid="rider-stock-confirm-submit" onClick={save} disabled={busy} className="btn-primary flex-1">Simpan & WhatsApp</button></div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

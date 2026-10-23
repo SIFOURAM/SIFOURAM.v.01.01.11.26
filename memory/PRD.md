@@ -454,3 +454,11 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - CoachChat now offers Gemini Flash, GPT-5.6 Terra, GPT-5.4, Claude Sonnet 5.5, and Claude Sonnet 4.6 choices.
   QA confirmed PIN/cookie safety and the selector; live Coach replies still await restoration of the managed
   Universal Key, which currently fails upstream with an invalid-key response.
+
+## In Progress — SI FOUR A.M Operational UI Revisions (2026-10)
+- Browser title, description, and favicon now use SI FOUR A.M | Coffee Cart Operating System branding.
+- Dashboard Stock Center item cells now open the stock-detail dialog on click. Menu production is disabled when
+  its recipe materials cannot satisfy the requested production quantity.
+- Stock Awal Rider now requires a review dialog before save; saving persists the existing evidence and opens the
+  reviewed WhatsApp handoff. Remaining requested work: total stock summary, editable Rank targets, POS payment
+  bottom sheet/QRIS confirmation, Admin Deposit entry, and Purchase workspace.
