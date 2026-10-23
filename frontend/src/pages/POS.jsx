@@ -190,13 +190,13 @@ export default function POS() {
     for (const [m, q] of Object.entries(comps)) { const it = stock.items.find((x) => x.menu_id === m); if ((need[m] || 0) + q > it.remaining) return toast.warning(`${it.name}: ${it.remaining} ${t("remaining").toLowerCase()}`); }
     setBcart([...bcart, { id: crypto.randomUUID(), bundle: pickB, components: comps }]); setPickB(null);
   };
-  const checkout = async (confirmedQris = false) => {
+  const checkout = async () => {
     if ((!lines.length && !bcart.length) || busy) return;
     if (ownerPreview && !riderId) return toast.error("Mode pratinjau Owner tidak dapat menyimpan transaksi.");
     if (locked) return toast.error("Pembayaran tidak dapat dilakukan sebelum stok awal terverifikasi.");
     if (orderType === "dine_in" && !tableNumber) return toast.error("Pilih nomor meja terlebih dahulu.");
     if (pay === "cash" && Number(cash) < total) return toast.error(t("cashReceived") + " < " + t("total"));
-    if (pay === "qris" && !qrisConfirmed && !confirmedQris) {
+    if (pay === "qris" && !qrisConfirmed) {
       const riderQris = qrisAccounts[0];
       if (!riderQris) return toast.error("Akun QRIS Rider belum tersedia.");
       setQrisPreview(riderQris);
@@ -405,7 +405,7 @@ export default function POS() {
                 <div><p className="eyebrow">{t("total")} · {cups} {t("cups")}</p><p data-testid="cart-total" className="text-3xl font-bold num font-heading">{fmtRp(total)}</p>
                   {pay === "cash" && cash && <p data-testid="cart-change" className="text-sm text-emerald-500 num">{t("change")}: {fmtRp(change)}</p>}</div>
                 <div className="flex gap-2"><button data-testid="cart-clear" onClick={() => { setCart({}); setBcart([]); setPaymentSheet(false); }} className="btn-ghost h-11 w-11 p-0"><Trash2 className="w-4 h-4" /></button>
-                  <button data-testid="checkout-button" onClick={checkout} disabled={locked || busy || (!lines.length && !bcart.length) || (orderType === "dine_in" && !tableNumber) || (pay === "cash" && Number(cash) < total) || (pay === "split" && !splitValid)} className="btn-primary">{pay === "qris" && !qrisConfirmed ? "Bayar · Tampilkan QRIS" : t("checkout")}</button></div>
+                  <button data-testid="checkout-button" onClick={checkout} disabled={locked || busy || (!lines.length && !bcart.length) || (orderType === "dine_in" && !tableNumber) || (pay === "cash" && Number(cash) < total) || (pay === "split" && !splitValid)} className="btn-primary">{pay === "qris" && !qrisConfirmed ? "Tampilkan QRIS" : pay === "qris" ? "Bayar" : t("checkout")}</button></div>
               </div>
             </Bento></div></div>}
           </>}
@@ -466,7 +466,7 @@ export default function POS() {
           <Attendance rider={rider} riders={riders} riderId={riderId} setRiderId={setRiderId} isRider={isRider} />
         </DialogContent>
       </Dialog>
-      <Dialog open={!!qrisPreview} onOpenChange={() => setQrisPreview(null)}><DialogContent data-testid="pos-qris-preview" className="max-w-sm"><DialogHeader><DialogTitle>QRIS · {qrisPreview?.name}</DialogTitle></DialogHeader>{qrisPreview && <><img src={qrisPreview.qris_photo} alt={`QRIS ${qrisPreview.name}`} className="w-full aspect-square object-contain bg-white rounded-lg p-3" /><p className="text-xs text-muted-foreground">Pastikan pelanggan sudah menyelesaikan pembayaran sebelum mengonfirmasi.</p><button data-testid="pos-qris-confirm-button" onClick={() => { setQrisConfirmed(true); setQrisPreview(null); checkout(true); }} className="btn-primary w-full">Konfirmasi pembayaran diterima</button></>}</DialogContent></Dialog>
+      <Dialog open={!!qrisPreview} onOpenChange={() => setQrisPreview(null)}><DialogContent data-testid="pos-qris-preview" className="max-w-sm"><DialogHeader><DialogTitle>QRIS · {qrisPreview?.name}</DialogTitle></DialogHeader>{qrisPreview && <><img src={qrisPreview.qris_photo} alt={`QRIS ${qrisPreview.name}`} className="w-full aspect-square object-contain bg-white rounded-lg p-3" /><p className="text-xs text-muted-foreground">Tampilkan QR ini kepada pelanggan. Setelah pelanggan selesai membayar, kembali ke POS lalu tekan tombol Bayar.</p><button data-testid="pos-qris-confirm-button" onClick={() => { setQrisConfirmed(true); setQrisPreview(null); }} className="btn-primary w-full">Lanjut ke tombol Bayar</button></>}</DialogContent></Dialog>
     </div>
   );
 }
