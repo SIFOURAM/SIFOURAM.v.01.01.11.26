@@ -19,6 +19,9 @@ export default function Salary() {
   const [d, setD] = useState(null);
   const [wds, setWds] = useState([]);
   const [expandedTier, setExpandedTier] = useState(null);
+  const [rankSettings, setRankSettings] = useState([]);
+  const [editingRank, setEditingRank] = useState(null);
+  const [savingRank, setSavingRank] = useState(false);
   const tierDetailRef = useRef(null);
   const compactRp = (value) => value >= 1000000 ? `Rp${(value / 1000000).toLocaleString("id-ID", { maximumFractionDigits: 2 })}jt` : fmtRp(value);
   const formatTierRange = (tier, compact = false) => {
@@ -53,13 +56,29 @@ export default function Salary() {
     setExpandedTier(nextTier);
     if (nextTier) window.setTimeout(() => tierDetailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 0);
   };
+  const openRankEditor = async (tierName) => {
+    try {
+      const { data } = await api.get("/rider-ranks");
+      setRankSettings(data);
+      setEditingRank(tierName);
+    } catch { toast.error("Target Rank belum dapat dimuat."); }
+  };
+  const saveRank = async () => {
+    setSavingRank(true);
+    try {
+      await api.put("/rider-ranks", rankSettings);
+      toast.success("Target Rank berhasil disimpan.");
+      setEditingRank(null);
+    } catch { toast.error("Target Rank gagal disimpan."); } finally { setSavingRank(false); }
+  };
   return (
     <div data-testid="salary-page">
       <PageHeader eyebrow="Target mingguan" title={t("salary")}><DateFilter onChange={setRange} riderPeriods initialPreset="week" /></PageHeader>
       {d && (<>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {d.tiers.map((tr) => <Bento key={tr.name} gold className="fade-up overflow-hidden p-0" testId={`tier-${tr.name.toLowerCase()}`}><div className="relative"><button data-testid={`tier-open-${tr.name.toLowerCase()}`} onClick={() => openTier(tr.name)} className="w-full text-left"><img src={RANK_ASSETS[tr.name]} alt={`Kartu ${tr.name}`} className="w-full aspect-[16/8] object-cover" /><div className="p-4"><p className="eyebrow">{tr.name}</p><p title={`${formatTierRange(tr)} / minggu`} className="font-heading font-bold text-xs leading-tight sm:text-sm mt-1">{formatTierRange(tr, true)} / minggu</p><p className="text-[10px] leading-tight text-muted-foreground">Hadir {compactRp(tr.attendance_benefit)}/hari · bonus {Math.round(tr.pct * 100)}%</p></div></button>{user.role === "owner" && <button data-testid={`salary-edit-rank-${tr.name.toLowerCase()}`} onClick={() => nav(`/rider-dashboard?rider=all`)} className="absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-md bg-primary text-white shadow" aria-label={`Edit ${tr.name}`}><Pencil className="h-3.5 w-3.5" /></button>}</div></Bento>)}
+          {d.tiers.map((tr) => <Bento key={tr.name} gold className="fade-up overflow-hidden p-0" testId={`tier-${tr.name.toLowerCase()}`}><div className="relative"><button data-testid={`tier-open-${tr.name.toLowerCase()}`} onClick={() => openTier(tr.name)} className="w-full text-left"><img src={RANK_ASSETS[tr.name]} alt={`Kartu ${tr.name}`} className="w-full aspect-[16/8] object-cover" /><div className="p-4"><p className="eyebrow">{tr.name}</p><p title={`${formatTierRange(tr)} / minggu`} className="font-heading font-bold text-xs leading-tight sm:text-sm mt-1">{formatTierRange(tr, true)} / minggu</p><p className="text-[10px] leading-tight text-muted-foreground">Hadir {compactRp(tr.attendance_benefit)}/hari · bonus {Math.round(tr.pct * 100)}%</p></div></button>{user.role === "owner" && <button data-testid={`salary-edit-rank-${tr.name.toLowerCase()}`} onClick={() => openRankEditor(tr.name)} className="absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-md bg-primary text-white shadow" aria-label={`Edit ${tr.name}`}><Pencil className="h-3.5 w-3.5" /></button>}</div></Bento>)}
         </div>
+        {editingRank && (() => { const index = rankSettings.findIndex((rank) => rank.name === editingRank); const rank = rankSettings[index]; return rank && <Bento gold data-testid="rank-target-editor" className="mb-4"><p className="font-heading font-bold">Edit Target Rank {rank.name}</p><div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4"><label className="text-xs">Minimum<input data-testid="rank-minimum-input" type="number" className="field mt-1" value={rank.minimum} onChange={(event) => setRankSettings((all) => all.map((item, itemIndex) => itemIndex === index ? { ...item, minimum: Number(event.target.value) } : item))} /></label><label className="text-xs">Maksimum<input data-testid="rank-maximum-input" type="number" className="field mt-1" value={rank.maximum || ""} onChange={(event) => setRankSettings((all) => all.map((item, itemIndex) => itemIndex === index ? { ...item, maximum: event.target.value ? Number(event.target.value) : null } : item))} /></label><label className="text-xs">Benefit hadir<input data-testid="rank-attendance-input" type="number" className="field mt-1" value={rank.attendance_benefit} onChange={(event) => setRankSettings((all) => all.map((item, itemIndex) => itemIndex === index ? { ...item, attendance_benefit: Number(event.target.value) } : item))} /></label><label className="text-xs">Komisi %<input data-testid="rank-commission-input" type="number" step="0.1" className="field mt-1" value={rank.commission_pct * 100} onChange={(event) => setRankSettings((all) => all.map((item, itemIndex) => itemIndex === index ? { ...item, commission_pct: Number(event.target.value) / 100 } : item))} /></label></div><div className="mt-4 flex gap-2"><button data-testid="rank-save-button" onClick={saveRank} disabled={savingRank} className="btn-primary">Simpan Target</button><button onClick={() => setEditingRank(null)} className="btn-ghost">Batal</button></div></Bento>; })()}
         {expandedTier && (() => { const tier = d.tiers.find((item) => item.name === expandedTier); return <div ref={tierDetailRef}><Bento gold className="mb-4 fade-up" testId="tier-detail-panel"><div className="flex items-center justify-between gap-3"><div><p className="eyebrow">Detail Target {tier.name}</p><p className="font-heading font-bold text-lg">{formatTierRange(tier)} / minggu</p></div><ChevronDown className="w-4 h-4 text-primary" /></div><div className="grid grid-cols-2 gap-3 mt-3 text-xs"><div><p className="eyebrow">Kehadiran</p><p className="num font-bold">{fmtRp(tier.attendance_benefit)} / hari</p></div><div><p className="eyebrow">Bonus Penjualan</p><p className="num font-bold">{Math.round(tier.pct * 100)}% dari total penjualan</p></div></div></Bento></div>; })()}
         <p className="text-xs text-muted-foreground mb-4">Benefit kehadiran dan bonus penjualan mengikuti rank yang tercapai pada periode pilihan.</p>
         <Bento gold className="mb-4" testId="rider-live-sales-detail"><p className="eyebrow">Data Rider dengan Target yang Sedang Tercapai</p><p className="text-[10px] text-muted-foreground">Penjualan real time dan target rank aktif diperbarui otomatis setiap 30 detik.</p><div className="mt-3 space-y-2">{d.riders.map((r) => <div key={r.rider_id} data-testid={`rider-live-sales-${r.rider_id}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-b border-border/50 pb-2 last:border-0 last:pb-0"><div className="min-w-0"><p className="truncate text-xs font-semibold">{r.rider_name}</p><p className="text-[10px] text-primary">Target tercapai: {r.tier}{r.next_tier ? ` · Target berikutnya ${r.next_tier.name}` : ""}</p></div><div className="text-right"><p className="num text-xs font-bold">{fmtRp(r.gross)}</p><p className="num text-[10px] text-muted-foreground">{r.next_tier ? `${r.next_tier.progress}% target` : "100% target"}</p></div></div>)}{!d.riders.length && <Empty text={t("noData")} />}</div></Bento>
