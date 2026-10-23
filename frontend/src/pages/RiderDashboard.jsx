@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
-import { Trophy, Calendar, MapPin, Wallet, FileDown, Printer } from "lucide-react";
+import { Trophy, Calendar, MapPin, Wallet, FileDown, Printer, Pencil } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { api, errMsg } from "../lib/api";
@@ -46,12 +46,37 @@ function RankCard({ data, onOpen }) {
   );
 }
 
-function RankDialog({ data, onClose }) {
+function RankDialog({ data, onClose, isOwner }) {
   const rank = data.rank || {};
+  const editRank = async () => {
+    try {
+      const response = await api.get("/rider-ranks");
+      const ranks = response.data;
+      const index = ranks.findIndex((item) => item.name === rank.name);
+      if (index < 0) return toast.error("Target rank tidak ditemukan.");
+      const current = ranks[index];
+      const minimum = window.prompt("Target minimum penjualan (Rp)", current.minimum);
+      if (minimum === null) return;
+      const attendance = window.prompt("Benefit hadir per hari (Rp)", current.attendance_benefit);
+      if (attendance === null) return;
+      const commission = window.prompt("Komisi penjualan (%)", Math.round(current.commission_pct * 100));
+      if (commission === null) return;
+      ranks[index] = {
+        ...current,
+        minimum: Number(minimum),
+        attendance_benefit: Number(attendance),
+        commission_pct: Number(commission) / 100,
+      };
+      await api.put("/rider-ranks", ranks);
+      toast.success(`Target ${rank.name} berhasil diperbarui.`);
+    } catch (error) {
+      toast.error(errMsg(error));
+    }
+  };
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent data-testid="rank-detail-dialog" className="max-w-md">
-        <DialogHeader><DialogTitle>Rank {rank.name}</DialogTitle></DialogHeader>
+        <DialogHeader><div className="flex items-center justify-between gap-3"><DialogTitle>Rank {rank.name}</DialogTitle>{isOwner && <button data-testid={`rank-edit-${rank.name}`} onClick={editRank} className="btn-ghost h-9 px-3 text-xs"><Pencil className="h-3.5 w-3.5" />Edit Target</button>}</div></DialogHeader>
         <img src={RANK_ASSETS[rank.name]} alt="Kartu rank rider" className="w-full rounded-lg" />
         <div className="grid grid-cols-2 gap-3 text-sm"><div className="bg-muted p-3 rounded-lg"><p className="eyebrow">Total penjualan</p><p className="num font-bold">{fmtRp(data.gross)}</p></div><div className="bg-muted p-3 rounded-lg"><p className="eyebrow">Hari hadir</p><p className="num font-bold">{data.attendance_days}</p></div><div className="bg-muted p-3 rounded-lg"><p className="eyebrow">Benefit hadir</p><p className="num font-bold">{fmtRp(rank.attendance_benefit)} / hari</p></div><div className="bg-primary/10 p-3 rounded-lg"><p className="eyebrow">Bonus penjualan</p><p className="num font-bold">{Math.round((rank.commission_pct || 0) * 100)}%</p></div></div>
         <p className="text-sm">Total benefit hadir: <b>{fmtRp(data.attendance_total)}</b> · Komisi estimasi: <b>{fmtRp(data.commission)}</b></p>
@@ -176,6 +201,7 @@ export default function RiderDashboard() {
   const [deps, setDeps] = useState([]);
   const [wd, setWd] = useState(null);
   const [rank, setRank] = useState(null);
+  const [rankDetailOpen, setRankDetailOpen] = useState(false);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -306,7 +332,7 @@ export default function RiderDashboard() {
               <p className="eyebrow">{t("incentive")} · {agg.tier}</p><p className="mt-3 text-2xl font-bold num font-heading">{fmtRp(agg.incentive)}</p><p className="text-xs text-muted-foreground">{t("available")}: <b className="num">{fmtRp(agg.incentive_available)}</b></p></button></Bento>
           <Stat label={t("totalCups")} value={sum.cups} sub={`${agg.attendance_days} ${t("attendance").toLowerCase()} · ${fmtRp(agg.gross)}`} testId="rider-stat-cups" />
 
-          {rank && <RankCard data={rank} onOpen={() => navigate(`/salary?rider=${rank.rider_id}`)} />}
+          {rank && <RankCard data={rank} onOpen={() => setRankDetailOpen(true)} />}
 
           {!rank && <Bento className="col-span-2 lg:col-span-4 fade-up" testId="tier-card">
             <p className="eyebrow mb-4">
@@ -346,6 +372,7 @@ export default function RiderDashboard() {
         </div>
       )}
       {wd && single && <WithdrawDialog type={wd} s={agg} range={range} onClose={() => setWd(null)} onDone={() => load(true)} />}
+      {rankDetailOpen && rank && <RankDialog data={rank} onClose={() => setRankDetailOpen(false)} isOwner={user.role === "owner"} />}
     </div>
   );
 }
