@@ -790,6 +790,10 @@ async def seed():
 @app.on_event("startup")
 async def on_startup():
     await seed()
+    global RIDER_RANKS
+    saved_ranks = await db.system_settings.find_one({"key": "rider_ranks"}, NOID)
+    if saved_ranks and isinstance(saved_ranks.get("value"), list):
+        RIDER_RANKS = [tuple(rank) for rank in saved_ranks["value"]]
     try:
         init_storage()
         logger.info("Object storage initialized")
@@ -2891,6 +2895,43 @@ RIDER_RANKS = [
     ("Divine", 3220000, 4000000, 40000, 0.10),
     ("Immortal", 4000000, None, 50000, 0.15),
 ]
+
+
+@api.get("/rider-ranks")
+async def get_rider_ranks(u=Depends(ANY)):
+    return [
+        {"name": name, "minimum": minimum, "maximum": maximum, "attendance_benefit": attendance, "commission_pct": commission}
+        for name, minimum, maximum, attendance, commission in RIDER_RANKS
+    ]
+
+
+@api.put("/rider-ranks")
+async def update_rider_ranks(body: List[Dict[str, Any]], u=Depends(SUPER)):
+    global RIDER_RANKS
+    expected = [rank[0] for rank in RIDER_RANKS]
+    if len(body) != len(expected) or [str(rank.get("name")) for rank in body] != expected:
+        raise HTTPException(400, "Urutan rank tidak valid")
+    normalized = []
+    last_minimum = -1
+    for index, rank in enumerate(body):
+        minimum = float(rank.get("minimum", -1))
+        maximum = rank.get("maximum")
+        maximum = float(maximum) if maximum is not None else None
+        attendance = float(rank.get("attendance_benefit", -1))
+        commission = float(rank.get("commission_pct", -1))
+        if minimum < 0 or attendance < 0 or not 0 <= commission <= 1 or minimum < last_minimum:
+            raise HTTPException(400, "Nilai target rank tidak valid")
+        if index < len(body) - 1 and (maximum is None or maximum <= minimum):
+            raise HTTPException(400, "Batas maksimum rank tidak valid")
+        normalized.append((expected[index], minimum, maximum, attendance, commission))
+        last_minimum = minimum
+    RIDER_RANKS = normalized
+    await db.system_settings.update_one(
+        {"key": "rider_ranks"},
+        {"$set": {"value": [list(rank) for rank in normalized], "updated_at": now_iso(), "updated_by": u["id"]}},
+        upsert=True,
+    )
+    return await get_rider_ranks(u)
 
 
 def rider_rank_for(gross: float) -> dict:
