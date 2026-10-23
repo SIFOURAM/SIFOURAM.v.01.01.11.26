@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 45: real-browser plus API test of the Purchase flow, using the dummy_admin, baa (owner) and dummy_barteam accounts. Backend: test_purchase_flow_iter45.py passes 10/10. UI results: (1) For Owner and Admin, the Production category dropdown (category-tabs-dropdown) lists '/purchase|Purchase', and selecting it opens /purchase. Bar Team does not get the option, and opening /purchase directly redirects them to /menu-stock. (2) The page shows purchase-proof-capture, purchase-ai-draft-button (disabled until a proof is added), purchase-po-select, the vendor/date/note fields and purchase-save-button (disabled until a PO is picked). (3) A TEST PO in 'requested' status was selected. qty-0 was changed 2->3 and price-0 1000->1500. 'Tambah Bahan' added row 1 with the same material (Plastic Cup), price set to 1500. A proof PNG was uploaded. AI Draft showed 'Membaca struk...', then POST /expenses/extract returned 424 with the safe toast 'AI tidak dapat membaca bukti saat ini. Isi data secara manual.' Saving returned 200 and showed the toast 'Pembelian dicatat. PO menjadi Sudah Dibeli.' The PO left the select list and its card shows SUDAH DIBELI. In the DB the two rows were merged into qty 4 @ 1500 (subtotal 6000), status is purchased and auto_approved_at_purchase is true. (4) Bar Team sees the 'Barang Datang' section on the purchased PO; Konfirmasi is disabled until a photo is added. After uploading the photo and a note, a double click sent exactly 1 POST /receive with 200. Status changed to BARANG DATANG, and the Bukti and 'Kirim Barang Masuk' buttons appeared. Stock went from 1100 to 1104 exactly once, with a single inventory_tx (qty 4, cost 6000). (5) /api/purchase-orders/{id}/proof returns 200 image/jpeg with no-store when logged in and 401 after logout. The page shows no raw base64 (the only 'base64,' in the DOM is a CSS sourcemap). However, the list API returns the raw purchase_proof_data (see the backend issues). (6) Admin can open /deposit through the POS dropdown (Setoran). Report downloads all worked: Reports Sales Excel/PDF and Pembelian Excel/PDF as Admin, Finance Excel/PDF as Owner (Finance is Owner-only). Found an Admin navigation bug for Reports. All QA data was cleaned up: the PO, tx, notifications and PO counter, plus Plastic Cup stock 1100 and pack_price 50000 restored. No users were created.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/purchase-orders (and the POST /purchase and POST /receive responses)", "issue": "The purchase proof is not protected. list_purchase_orders only excludes arrival_proof_data, so the full raw base64 purchase_proof_data (the receipt image) goes to every STAFF caller, including Bar Team for their own POs. It also inflates the list payload (about 34KB with a single small proof; it will grow to MBs). Fix: add 'purchase_proof_data': 0 to the projections at server.py:1187, 1368 and 1542. Then add a protected GET /api/purchase-orders/{id}/purchase-proof that serves the image (like the arrival proof), and expose only a URL field such as purchase_proof.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/purchase-orders/{id}/receive", "issue": "inventory_tx.supplier uses po.vendor_name ('TEST_vendor_ui') instead of the actual purchase_vendor ('TEST_Toko_UI') recorded at Purchase. As a result Reports > Pembelian shows the planned vendor, not the real supplier. Use po.get('purchase_vendor') or po.get('vendor_name')."},
+      {"endpoint": "POST /api/purchase-orders/{id}/purchase", "issue": "Possible business-logic problem: the code overwrites materials.pack_price with the per-unit purchase price, e.g. Plastic Cup pack_price 50000 -> 1500. Meanwhile the frontend 'Tambah Bahan' fills unit_price with pack_price (50000) for a row whose qty is in pcs. Pack price and unit price are being mixed. Confirm which semantics are intended."},
+      {"endpoint": "GET /api/purchase-orders/{id}/proof", "issue": "Any STAFF user, including Bar Team, can fetch the arrival proof of any PO by id. The list endpoint is restricted to requested_by, but the proof endpoint has no such check. Low risk, but inconsistent."},
+      {"endpoint": "GET /api/gps/active", "issue": "Returns 403 for Admin on every Dashboard load (SUPER guard), because Dashboard.jsx:32 calls it for all roles. This adds console noise. Call it only when role is owner."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Layout CategoryTabs (Admin)", "issue": "Admin cannot reach Reports through the navigation. Selecting 'Laporan' (/reports) in category-tabs-dropdown goes through selectTab, which maps /reports to /finance. /finance is Guard allow=['owner'], so Admin is bounced back to '/'. The Admin Dashboard config (Layout.jsx:118) also lists the subtab 'Keuangan' -> /finance, which Admin cannot open. Admin can only reach /reports by typing the URL. Fix: for non-owner roles, map /reports to '/reports?view=sales' and remove the Keuangan subtab for admin.", "selector": "[data-testid='category-tabs-dropdown']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "PO card after Purchase/Arrival", "issue": "PurchaseOrderCard renders order.items (the original request: 2 pcs, Rp 2.000) even after the PO is purchased or arrived. The actual purchase_items (4 pcs @1500 = Rp 6.000) and purchase_vendor are never shown, so the card disagrees with the stock change. Use order.purchase_items || order.items once the status is purchased or arrived, and show purchase_vendor. Also, key={item.material_id} would be a duplicate key for legacy duplicates.", "affected_selectors": ["[data-testid^='purchase-order-']"]},
+      {"flow": "Purchase form reset", "issue": "After a successful save the proof image stays loaded and AI Draft stays enabled, and purchaseDate is not reset. Only selectedId, vendor and note are cleared. The stale receipt could be attached to the next PO. Call setProof('') and setPurchaseDate(today()) on success.", "affected_selectors": ["[data-testid='purchase-proof-capture']", "[data-testid='purchase-ai-draft-button']"]}
+    ],
+    "design_issues": [
+      {"screen": "/purchase item rows", "issues": ["The qty and price number inputs have no column headers, labels or placeholders. The user cannot tell which box is Jumlah and which is Harga, and the unit is not shown.", "There is no per-row delete button; a row added by mistake with 'Tambah Bahan' cannot be removed.", "There is no running total of the actual purchase.", "The purchase date uses the browser's native date input instead of the shadcn calendar."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_purchase_flow_iter45.py", "/app/backend/tests/qa_iter45_ui_setup.py", "/app/test_reports/pytest/iter45_purchase.xml"],
+  "action_items": [
+    "Exclude purchase_proof_data from the GET /purchase-orders list and the purchase/receive responses, and serve it from a protected proof endpoint (HIGH)",
+    "Fix the Admin navigation to Reports: selectTab maps /reports to /finance, which is Owner-only; also remove or guard the Keuangan subtab for admin (HIGH)",
+    "PurchaseOrderCard: show purchase_items and purchase_vendor for purchased/arrived POs",
+    "receive_purchase_order: set the inventory_tx supplier from purchase_vendor",
+    "Purchase.jsx: reset proof and date after saving; add qty/price headers, row delete and a total",
+    "Clarify pack_price vs unit_price semantics in record_purchase and 'Tambah Bahan'",
+    "Dashboard: call /gps/active only for owner"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 3540 lines; split the purchase-order routes into a module",
+    "record_purchase accepts an untyped Dict[str, Any] body; use a Pydantic model (PurchaseIn with items: list[PurchaseOrderItemIn]) for validation",
+    "record_purchase stores proof data inline on the PO document, so every list query returns it. Store it in a separate collection or exclude it by default"
+  ],
+  "updated_files": ["/app/backend/tests/qa_iter45_ui_setup.py"],
+  "success_rate": {"backend": "100% (10/10 pytest) plus 1 HIGH data-exposure issue found in code review and API check", "frontend": "~88% (all 6 requested flows work; Admin Reports navigation broken)"},
+  "seed_data_creation": "One TEST PO (vendor TEST_vendor_ui) was created through the API as dummy_barteam and then purchased and received through the UI. It was fully removed by qa_iter45_ui_setup.py cleanup (PO, inventory_tx, notifications, counters). Plastic Cup stock 1100 and pack_price 50000 were restored. No users were created.",
+  "test_credentials": "baa/130994 (owner), dummy_admin/100002, dummy_barteam/100003, from /app/memory/test_credentials.md",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login UI: fill login-identifier-input. If login-continue-button is disabled, open-terms-link / open-privacy-link open modals that need auth-{t}-document scrolled to the bottom (set scrollTop and dispatch a scroll event) before auth-{t}-agree is enabled. Then fill pin-digit-0..5. Navigation is the native select category-tabs-dropdown (not links). Use 'python backend/tests/qa_iter45_ui_setup.py setup|status|cleanup' with REACT_APP_BACKEND_URL exported to seed and clean a TEST PO. The AI extract returns 424 with a safe toast (expected)."
+}

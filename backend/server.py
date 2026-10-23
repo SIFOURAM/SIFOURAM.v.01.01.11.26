@@ -1184,7 +1184,7 @@ async def list_purchase_orders(u=Depends(STAFF)):
     query = {} if u["role"] in {"owner", "admin"} else {"requested_by": u["id"]}
     return await db.purchase_orders.find(
         query,
-        {"_id": 0, "arrival_proof_data": 0},
+        {"_id": 0, "arrival_proof_data": 0, "purchase_proof_data": 0},
     ).sort("created_at", -1).to_list(300)
 
 
@@ -1365,7 +1365,19 @@ async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
         raise HTTPException(409, "Status PO telah berubah. Muat ulang sebelum mencatat pembelian.")
     for item in actual_items:
         await db.materials.update_one({"id": item["material_id"]}, {"$set": {"pack_price": item["unit_price"]}})
-    return await db.purchase_orders.find_one({"id": po_id}, {"_id": 0, "arrival_proof_data": 0})
+    return await db.purchase_orders.find_one({"id": po_id}, {"_id": 0, "arrival_proof_data": 0, "purchase_proof_data": 0})
+
+
+@api.get("/purchase-orders/{po_id}/purchase-proof")
+async def get_purchase_proof(po_id: str, u=Depends(STAFF)):
+    query = {"id": po_id}
+    if u["role"] == "barteam":
+        query["requested_by"] = u["id"]
+    po = await db.purchase_orders.find_one(query, {"_id": 0, "purchase_proof_data": 1})
+    if not po or not po.get("purchase_proof_data"):
+        raise HTTPException(404, "Bukti pembelian tidak ditemukan")
+    content_type, raw = validate_expense_proof(po["purchase_proof_data"])
+    return Response(content=raw, media_type=content_type, headers={"Cache-Control": "private, no-store"})
 
 
 @api.post("/purchase-orders/{po_id}/action/{decision}")
@@ -1527,7 +1539,7 @@ async def receive_purchase_order(po_id: str, body: PurchaseOrderReceiveIn, u=Dep
             "date": datetime.now(WIB).strftime("%Y-%m-%d"),
             "time": now_wib(),
             "item_name": material["name"],
-            "supplier": po.get("vendor_name", ""),
+            "supplier": po.get("purchase_vendor") or po.get("vendor_name", ""),
             "user": u["name"],
             "created_at": now_iso(),
         })
