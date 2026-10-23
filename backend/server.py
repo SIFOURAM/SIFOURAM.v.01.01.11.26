@@ -1320,13 +1320,18 @@ async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
     actual_items_by_material = {}
     material_ids = []
     for item in requested_items:
+        if not isinstance(item, dict):
+            raise HTTPException(400, "Rincian bahan pembelian harus berupa objek")
         material_id = str(item.get("material_id") or "")
-        price = float(item.get("unit_price") or 0)
-        qty = float(item.get("qty") or 0)
+        try:
+            price = float(item.get("unit_price") or 0)
+            qty = float(item.get("qty") or 0)
+        except (TypeError, ValueError) as error:
+            raise HTTPException(400, "Jumlah atau harga bahan pembelian tidak valid") from error
         if not material_id or qty <= 0 or price < 0:
             raise HTTPException(400, "Rincian bahan pembelian tidak valid")
         material_ids.append(material_id)
-        merged = actual_items_by_material.setdefault(material_id, {**item, "qty": 0, "unit_price": price})
+        merged = actual_items_by_material.setdefault(material_id, {"qty": 0, "unit_price": price})
         merged["qty"] += qty
         merged["unit_price"] = price
     materials = {
@@ -1339,10 +1344,11 @@ async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
     for material_id, item in actual_items_by_material.items():
         material = materials[material_id]
         actual_items.append({
-            **item,
             "material_id": material_id,
             "material_name": material["name"],
             "unit": material["unit"],
+            "qty": item["qty"],
+            "unit_price": item["unit_price"],
             "subtotal": round(item["qty"] * item["unit_price"]),
         })
     proof = body.get("proof")
@@ -1364,7 +1370,8 @@ async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
     if not transition.modified_count:
         raise HTTPException(409, "Status PO telah berubah. Muat ulang sebelum mencatat pembelian.")
     for item in actual_items:
-        await db.materials.update_one({"id": item["material_id"]}, {"$set": {"pack_price": item["unit_price"]}})
+        if item["unit_price"] > 0:
+            await db.materials.update_one({"id": item["material_id"]}, {"$set": {"pack_price": item["unit_price"]}})
     return await db.purchase_orders.find_one({"id": po_id}, {"_id": 0, "arrival_proof_data": 0, "purchase_proof_data": 0})
 
 
@@ -1551,13 +1558,16 @@ async def receive_purchase_order(po_id: str, body: PurchaseOrderReceiveIn, u=Dep
     )
     return await db.purchase_orders.find_one(
         {"id": po_id},
-        {"_id": 0, "arrival_proof_data": 0},
+        {"_id": 0, "arrival_proof_data": 0, "purchase_proof_data": 0},
     )
 
 
 @api.get("/purchase-orders/{po_id}/proof")
 async def get_purchase_order_proof(po_id: str, u=Depends(STAFF)):
-    po = await db.purchase_orders.find_one({"id": po_id}, {"_id": 0, "arrival_proof_data": 1})
+    query = {"id": po_id}
+    if u["role"] == "barteam":
+        query["requested_by"] = u["id"]
+    po = await db.purchase_orders.find_one(query, {"_id": 0, "arrival_proof_data": 1})
     if not po or not po.get("arrival_proof_data"):
         raise HTTPException(404, "Bukti Barang Datang tidak ditemukan")
     content_type, raw = validate_expense_proof(po["arrival_proof_data"])

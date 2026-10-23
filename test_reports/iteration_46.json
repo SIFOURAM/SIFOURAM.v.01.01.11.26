@@ -1,0 +1,49 @@
+{
+  "summary": "Re-tested the active Purchase flow only, on the preview build. Backend: 6/8 pytest cases passed (test_purchase_flow_iter46.py). UI end-to-end worked: Admin uploaded a proof, picked a PO, changed qty/price, added a material and saved. The PO moved to purchased and pack_price updated. Bar Team then received the PO with a photo; stock went up exactly once (+4/+3), 2 inventory_tx rows were written and a second receive returned 409. Found 2 backend bugs: the /receive response still contains raw purchase_proof_data, and malformed items cause a 500. All QA data has been removed and material stock, pack_price and counters are back to their earlier values.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/purchase-orders/{id}/receive", "issue": "The response projection only excludes arrival_proof_data, so the full raw purchase_proof_data base64 is returned to Bar Team. Reproduced in pytest and in the UI network response. Fix: use projection {'_id':0,'arrival_proof_data':0,'purchase_proof_data':0} (server.py ~L1552).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/purchase-orders/{id}/purchase", "issue": "body is an untyped Dict. items=['x'] gives 500 (AttributeError: 'str' object has no attribute 'get', server.py L1323), and a non-numeric qty such as 'abc' would raise a ValueError, also a 500. Use a Pydantic model (List[PurchaseOrderItemIn]) or validate types and return 400/422."},
+      {"endpoint": "POST /api/purchase-orders/{id}/purchase", "issue": "Merged items use {**item}, so any extra keys the client sends are stored in purchase_items. Whitelist the fields: material_id, qty, unit_price."},
+      {"endpoint": "POST /api/purchase-orders/{id}/purchase", "issue": "materials.pack_price is overwritten with the per-item unit_price. In the UI test Plastic Cup went from 50000 to 1250. It also gets set to 0 when the price is 0. Confirm this is the intended meaning of pack_price, and consider skipping the update when unit_price is 0."},
+      {"endpoint": "GET /api/purchase-orders/{id}/proof", "issue": "The arrival-proof endpoint has no requested_by scoping for barteam, unlike purchase-proof. Any Bar Team user can fetch another user's arrival photo by id."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Purchase", "issues": ["purchase-date-input uses the native browser date picker, not the shadcn calendar", "There is no button to remove an item row after 'Tambah Bahan'", "The stored purchase proof (/purchase-proof) is never shown or linked on PurchaseOrderCard"]}
+    ]
+  },
+  "passed_tests": [
+    "Purchase response and GET /purchase-orders list (owner/admin/barteam) exclude purchase_proof_data and arrival_proof_data; the proof is still stored in the DB",
+    "Duplicate material rows merge: qty is summed, the last price is used, subtotal and name come from the DB",
+    "pack_price is not updated on a 409 repeat purchase or on a 400 invalid proof, and the PO stays 'requested'",
+    "Bar Team receive raises stock once by the purchase_items qty; second receive returns 409; 1 tx per material with the correct cost",
+    "purchase-proof endpoint: unauthenticated 401, rider 403, owner/admin/own barteam 200 image with no-store, another user's PO 404 for barteam, PO without proof 404",
+    "UI: proof upload, AI draft button (enabled after proof), PO select, vendor/date/note, qty/price edit, Tambah Bahan plus material change and save are all visible and work; toast shown; form resets and the purchased PO leaves the select",
+    "UI: Bar Team card shows 'Sudah Dibeli' with the actual items; receive button disabled until a photo is added; after receive the card shows 'Barang Datang' with the Bukti link"
+  ],
+  "test_report_links": ["/app/backend/tests/test_purchase_flow_iter46.py", "/app/backend/tests/ui_qa_setup_iter46.py", "/app/test_reports/pytest/pytest_iter46.xml"],
+  "action_items": [
+    "Exclude purchase_proof_data from the receive_purchase_order response projection",
+    "Validate record_purchase body/items with Pydantic so malformed input returns 400/422 instead of 500",
+    "Whitelist fields stored in purchase_items",
+    "Confirm pack_price vs unit_price semantics; skip the update when the price is 0",
+    "Scope GET /purchase-orders/{id}/proof to the requesting barteam user"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 3552 lines; split it into routers (purchase_orders, expenses, etc.)",
+    "record_purchase takes Dict[str, Any] while the other PO endpoints use Pydantic models; make them consistent"
+  ],
+  "updated_files": ["/app/backend/tests/test_purchase_flow_iter46.py", "/app/backend/tests/ui_qa_setup_iter46.py"],
+  "success_rate": {"backend": "75% (6/8)", "frontend": "100%"},
+  "test_credentials": "baa/130994, dummy_admin/100002, dummy_barteam/100003, dummy_rider/100004 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None kept. TEST_ POs, notifications, inventory_tx, counters and material stock/pack_price were all restored or deleted.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: pytest backend/tests/test_purchase_flow_iter46.py (pytest.ini uses xdist). Proof images must be at least 40px and not plain (variance check). For UI, run ui_qa_setup_iter46.py setup, then UI login via page.request identify/login, then run it again with cleanup."
+}
