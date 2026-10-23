@@ -1371,7 +1371,11 @@ async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
         raise HTTPException(409, "Status PO telah berubah. Muat ulang sebelum mencatat pembelian.")
     for item in actual_items:
         if item["unit_price"] > 0:
-            await db.materials.update_one({"id": item["material_id"]}, {"$set": {"pack_price": item["unit_price"]}})
+            material = materials[item["material_id"]]
+            await db.materials.update_one(
+                {"id": item["material_id"]},
+                {"$set": {"pack_price": item["unit_price"] * material.get("pack_qty", 1)}},
+            )
     return await db.purchase_orders.find_one({"id": po_id}, {"_id": 0, "arrival_proof_data": 0, "purchase_proof_data": 0})
 
 

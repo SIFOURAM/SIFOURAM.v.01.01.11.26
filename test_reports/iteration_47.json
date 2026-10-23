@@ -1,0 +1,63 @@
+{
+  "summary": "Checked the current /purchase UI against what the user asked for, without changing any code. I logged into the UI as dummy_admin; for Owner (baa) I only checked the API. Basic save works: one PO was saved with 2 rows (one edited, one added with 'Tambah Bahan'). The backend returned 200, status=purchased, correct per-row subtotals (4500, 2000), and no purchase_proof_data. Three of the four requested UI features are missing: column headers, deleting a row, and a live total. AI line-item mapping is also missing: the frontend ignores any items from /expenses/extract, and the backend returns items as an array of strings with no qty or price. In this run the AI upstream returned the safe 424.",
+  "checklist": {
+    "implemented": [
+      "Purchase page loads for Admin (data-testid=purchase-page); Owner can call GET /api/purchase-orders and /api/materials (200)",
+      "Proof upload (purchase-proof-capture). The AI draft button is disabled until a proof is uploaded",
+      "PO select lists only POs that can still be purchased",
+      "Vendor, date and note inputs",
+      "Each row has a material select, qty input and unit_price input; values can be edited",
+      "'Tambah Bahan' adds a row (purchase-add-material-button)",
+      "Save posts items to POST /purchase-orders/{id}/purchase. The response has status=purchased and server-computed subtotal per row. The form resets after save",
+      "AI draft fills vendor, date and note only, and shows an error toast when the upstream returns 424"
+    ],
+    "missing": [
+      "No header row 'Bahan / Jumlah / Harga / Total Baris'. The grid is grid-cols-[1fr_90px_110px] and has no label row",
+      "No 'Total Baris' column: the row subtotal (qty x price) is not shown",
+      "No delete button for item rows (0 delete/remove elements found)",
+      "No total (grand total) that updates as qty or price change, anywhere on the page",
+      "No AI mapping of receipt lines to material rows. extractDraft never reads data.items, and the backend prompt/receipt_draft only returns items as strings (no material_id, qty or unit_price)"
+    ]
+  },
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/expenses/extract", "issue": "Returns items as array<string>. AI line-item mapping needs structured items such as {name, qty, unit_price, subtotal} plus matching to materials (by name or fuzzy match), or a separate purchase-extract endpoint."},
+      {"endpoint": "POST /api/purchase-orders/{id}/purchase", "issue": "It still overwrites materials.pack_price with the per-item unit_price (Plastic Cup went from 50000 to 1500 in this run). Restored during cleanup. Carried over from iteration 46."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Purchase item rows", "issue": "No column headers (Bahan/Jumlah/Harga/Total Baris)", "selector": "[data-testid^='purchase-qty-']", "priority": "HIGH"},
+      {"component": "Purchase item rows", "issue": "No delete row button", "selector": "n/a (missing)", "priority": "HIGH"},
+      {"component": "Purchase item rows", "issue": "No per-row total and no grand total that updates live", "selector": "n/a (missing)", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "AI draft -> item rows", "issue": "AI result does not fill any material rows. Only vendor, date and note are set.", "affected_selectors": ["purchase-ai-draft-button"]}
+    ],
+    "design_issues": [
+      {"screen": "Purchase", "issues": ["Date uses the native browser date picker, not the shadcn Calendar", "Qty and price inputs have no labels or placeholders, so it is unclear which column is which"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/purchase_ui_truth_iter47.py", "/app/backend/tests/ui_qa_setup_iter46.py"],
+  "action_items": [
+    "Add a header row Bahan | Jumlah | Harga | Total Baris | (delete), with matching grid columns",
+    "Show the row subtotal qty*unit_price as Rupiah in each row (data-testid purchase-row-total-{i})",
+    "Add a delete row button (data-testid purchase-remove-{i}). Decide whether at least 1 row must remain, and block save when there are 0 rows",
+    "Add a grand total that updates live (data-testid purchase-grand-total)",
+    "AI mapping: return structured line items from the extract endpoint (name, qty, unit_price), map them to materials, fill purchaseItems as editable rows, and show any unmatched lines for the user to pick manually",
+    "Reconsider pack_price being overwritten by unit_price"
+  ],
+  "critical_code_review_comments": [
+    "Purchase.jsx puts the whole UI on one 45-line JSX statement (line 45). Split it into PurchaseItemRow and PurchaseSummary components",
+    "The material select onChange does materials.find(...) and then material.id without a null check",
+    "Number('') becomes 0 for an empty qty, which the backend then rejects with 400. There is no client-side validation"
+  ],
+  "updated_files": ["/app/backend/tests/purchase_ui_truth_iter47.py"],
+  "success_rate": {"backend": "100% of basic save flow (save 200, correct subtotals, no proof leak); AI extract 424 (mocked/safe)", "frontend": "Of the 4 features asked for, only add row exists; headers, delete row and live total are missing. AI line-item mapping is also missing"},
+  "test_credentials": "baa/130994, dummy_admin/100002 from /app/memory/test_credentials.md",
+  "seed_data_creation": "None kept. The TEST_ PO, notifications and counters were deleted, and material pack_price/stock were restored to 50000/45000 and 1100.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use ui_qa_setup_iter46.py setup/cleanup to create and remove a TEST_ PO. Log into the UI via page.request identify/login. After the fix, verify these data-testids exist: header row, purchase-remove-{i}, row totals and grand total. Also check that the total updates when qty/price change, and that AI items fill the rows when the upstream is available."
+}
