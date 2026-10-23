@@ -114,8 +114,16 @@ function WithdrawDialog({ type, s, range, onClose, onDone }) {
   const [done, setDone] = useState(null);
   const [admins, setAdmins] = useState([]);
   const avail = type === "allowance" ? s.allowance_available : s.incentive_available;
-  const load = () => api.get("/withdrawals", { params: { ...range, rider_id: s.rider_id } }).then((r) => setHist(r.data.filter((w) => w.type === type)));
-  useEffect(() => { load(); api.get("/users", { params: { role: "owner" } }).then((r) => setAdmins(r.data.filter((u) => u.role === "owner"))).catch(() => {}); }, []); // eslint-disable-line
+  const load = useCallback(() => {
+    return api.get("/withdrawals", { params: { ...range, rider_id: s.rider_id } })
+      .then((response) => setHist(response.data.filter((withdrawal) => withdrawal.type === type)));
+  }, [range, s.rider_id, type]);
+  useEffect(() => {
+    load();
+    api.get("/users", { params: { role: "owner" } })
+      .then((response) => setAdmins(response.data.filter((account) => account.role === "owner")))
+      .catch(() => {});
+  }, [load]);
   const submit = async () => {
     const bk = f.method === "bank" ? banks[f.bank_idx] || {} : {};
     try { const { data } = await api.post("/withdrawals", { rider_id: s.rider_id, type, method: f.method, date: f.date, note: f.note, amount: Number(f.amount), bank_name: bk.bank_name, bank_account: bk.bank_account, bank_holder: bk.bank_holder }, { params: range }); toast.success(t("withdraw") + " ✓"); setF({ ...f, amount: "" }); load(); onDone(); setDone(data); }

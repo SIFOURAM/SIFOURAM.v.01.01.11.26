@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Minus, Plus, Trash2, LogIn, LogOut, ReceiptText, History, Lock, CalendarCheck, Split } from "lucide-react";
 import { api, errMsg } from "../lib/api";
@@ -38,7 +38,7 @@ function PinGate() {
   return (
     <div className="max-w-xs mx-auto text-center pt-10 fade-up" data-testid="pin-gate">
       <p className="eyebrow mb-2">{t("pin")}</p><h2 className="text-2xl font-bold mb-6">{t("enterPin")}</h2>
-      <div className="flex justify-center gap-3 mb-8 h-4">{Array.from({ length: 6 }).map((_, i) => <span key={i} className={`w-3 h-3 rounded-full transition-colors ${i < pin.length ? "bg-primary" : "bg-muted"}`} />)}</div>
+      <div className="flex justify-center gap-3 mb-8 h-4">{Array.from({ length: 6 }).map((_, i) => <span key={`pin-dot-${i}`} className={`w-3 h-3 rounded-full transition-colors ${i < pin.length ? "bg-primary" : "bg-muted"}`} />)}</div>
       <div className="grid grid-cols-3 gap-3">{["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"].map((k, i) => (
         k === "" ? <span key={`b${i}`} /> : <button key={`k${k}`} data-testid={`pin-key-${k === "⌫" ? "del" : k}`} onClick={() => press(k)} className="h-16 rounded-2xl bg-card border border-border text-xl font-heading font-semibold hover:bg-muted active:scale-95 transition-transform">{k}</button>))}</div>
     </div>
@@ -51,8 +51,12 @@ function Attendance({ rider, riders, riderId, setRiderId, isRider }) {
   const [pin, setPin] = useState("");
   const [photo, setPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
-  const load = () => riderId && api.get("/attendance", { params: { start: today(), end: today(), rider_id: riderId } }).then((r) => setAtt(r.data[0] || null));
-  useEffect(() => { load(); }, [riderId]); // eslint-disable-line
+  const load = useCallback(() => {
+    if (!riderId) return;
+    api.get("/attendance", { params: { start: today(), end: today(), rider_id: riderId } })
+      .then((response) => setAtt(response.data[0] || null));
+  }, [riderId]);
+  useEffect(() => { load(); }, [load]);
   const act = async (kind) => {
     if (!photo) return toast.error(t("photoRequired"));
     if (pin.length !== 6) return toast.error("Masukkan PIN Rider 6 angka.");
@@ -127,17 +131,21 @@ export default function POS() {
   const revision = useLiveRevision();
 
   useEffect(() => { if (!isRider) api.get("/users", { params: { role: "rider" } }).then((r) => setRiders(r.data)); }, [isRider, revision]);
-  const loadStock = () => riderId && api.get("/pos/stock", { params: { rider_id: riderId, date: today() } }).then((r) => setStock(r.data));
-  useEffect(() => { loadStock(); }, [riderId, revision]); // eslint-disable-line
+  const loadStock = useCallback(() => {
+    if (!riderId) return;
+    api.get("/pos/stock", { params: { rider_id: riderId, date: today() } })
+      .then((response) => setStock(response.data));
+  }, [riderId]);
+  useEffect(() => { loadStock(); }, [loadStock, revision]);
   useEffect(() => {
     api.get("/payment-accounts/public", { params: riderId ? { rider_id: riderId } : {} })
       .then((response) => setQrisAccounts(response.data))
       .catch(() => setQrisAccounts([]));
-  }, [riderId]);
+  }, [riderId, revision]);
   useEffect(() => {
     const p = cust.phone.replace(/\D/g, "");
     if (p.length >= 5 && !cust.name) api.get("/customers/lookup", { params: { phone: p } }).then((r) => { const c = r.data.customers[0]; if (c?.name) setCust((x) => ({ ...x, name: c.name })); });
-  }, [cust.phone]); // eslint-disable-line
+  }, [cust.name, cust.phone]);
 
   const locked = !stock.has_stock || stock.closed || stock.deposited;
   const need = useMemo(() => { const n = { ...cart }; bcart.forEach((b) => Object.entries(b.components).forEach(([m, q]) => { n[m] = (n[m] || 0) + q; })); return n; }, [cart, bcart]);
@@ -156,7 +164,7 @@ export default function POS() {
   };
   const addBundle = (comps) => {
     for (const [m, q] of Object.entries(comps)) { const it = stock.items.find((x) => x.menu_id === m); if ((need[m] || 0) + q > it.remaining) return toast.warning(`${it.name}: ${it.remaining} ${t("remaining").toLowerCase()}`); }
-    setBcart([...bcart, { bundle: pickB, components: comps }]); setPickB(null);
+    setBcart([...bcart, { id: crypto.randomUUID(), bundle: pickB, components: comps }]); setPickB(null);
   };
   const checkout = async () => {
     if ((!lines.length && !bcart.length) || busy) return;
@@ -278,7 +286,7 @@ export default function POS() {
                   <div className="flex items-center gap-2"><button data-testid={`cart-minus-${l.menu_id}`} onClick={() => add(l, -1)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center"><Minus className="w-3 h-3" /></button>
                     <span className="num w-6 text-center font-bold">{l.qty}</span><button data-testid={`cart-plus-${l.menu_id}`} onClick={() => add(l, 1)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center"><Plus className="w-3 h-3" /></button></div>
                   <span className="num w-24 text-right">{fmtRp(l.sub)}</span></div>))}
-              {bcart.map((b, i) => <div key={i} className="flex items-center justify-between py-2 border-b border-border/50 text-sm" data-testid={`cart-bundle-${i}`}>
+              {bcart.map((b, i) => <div key={b.id} className="flex items-center justify-between py-2 border-b border-border/50 text-sm" data-testid={`cart-bundle-${i}`}>
                 <span className="flex-1"><b className="text-primary">BUNDLING {b.bundle}</b><span className="block text-[10px] text-muted-foreground">{Object.entries(b.components).map(([m, q]) => `${stock.items.find((x) => x.menu_id === m)?.name} ×${q}`).join(", ")}</span></span>
                 <button onClick={() => setBcart(bcart.filter((_, j) => j !== i))} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center mr-2"><Trash2 className="w-3 h-3" /></button><span className="num w-24 text-right">{fmtRp(BUNDLES[b.bundle].price)}</span></div>)}
               {!lines.length && !bcart.length && <Empty text={t("tapProducts")} />}
