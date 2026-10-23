@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 from io import BytesIO
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, BackgroundTasks, Body
+from fastapi.concurrency import run_in_threadpool
 import base64, re
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -910,19 +911,27 @@ async def login(body: LoginIn, request: Request, response: Response):
 
 @api.post("/auth/google/session")
 async def google_login(body: dict, request: Request, response: Response):
+    enforce_rate_limit(request, "auth-google", 10, 60)
     session_id = str(body.get("session_id") or "").strip()
     if not session_id:
         raise HTTPException(400, "Sesi Google tidak ditemukan")
     try:
-        result = requests.get(
+        result = await run_in_threadpool(
+            requests.get,
             "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
             headers={"X-Session-ID": session_id},
             timeout=12,
         )
+        if 400 <= result.status_code < 500:
+            raise HTTPException(401, "Sesi Google tidak valid atau telah kedaluwarsa")
         result.raise_for_status()
         google = result.json()
+    except HTTPException:
+        raise
     except requests.RequestException as error:
-        raise HTTPException(502, "Google Sign-In belum dapat diverifikasi") from error
+        raise HTTPException(424, "Google Sign-In belum dapat diverifikasi") from error
+    if google.get("email_verified") is False:
+        raise HTTPException(401, "Email Google harus terverifikasi")
     email = str(google.get("email") or "").strip().lower()
     user = await db.users.find_one({"email": email, "active": {"$ne": False}}, NOID)
     if not user:
@@ -930,6 +939,8 @@ async def google_login(body: dict, request: Request, response: Response):
         raise HTTPException(403, "Email Google belum terdaftar pada SI FOUR A.M")
     session_key = uid()
     expires_at = await session_expiry_for(user)
+    if user["role"] == "rider" and expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(403, "Sesi Rider hari ini telah berakhir setelah batas empat jam EOD.")
     token = make_token(user["id"], session_key, expires_at)
     await db.sessions.insert_one({
         "id": session_key,
@@ -2815,10 +2826,11 @@ async def coach_chat(body: CoachIn, u=Depends(ANY)):
     ).with_model(prov, model)
     try:
         reply = await chat.send_message(UserMessage(text=body.message))
-    except Exception:
+    except Exception as error:
         if created_session:
             await db.coach_sessions.delete_one({"id": session_id, "user_id": u["id"]})
-        raise
+        logger.exception("Coach model request failed")
+        raise HTTPException(424, "Model AI belum dapat merespons. Coba pilih model lain.") from error
     title = session["title"]
     if title == "Chat baru":
         title = body.message.strip().replace("\n", " ")[:48] or "Chat baru"

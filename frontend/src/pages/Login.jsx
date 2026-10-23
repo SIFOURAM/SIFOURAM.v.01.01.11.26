@@ -85,10 +85,12 @@ export default function Login() {
   const [showRiderGuide, setShowRiderGuide] = useState(false);
   const pinRefs = useRef([]);
   const pinSubmitting = useRef(false);
+  const googleCallbackProcessed = useRef(false);
 
   useEffect(() => {
     const sessionId = new URLSearchParams(window.location.hash.slice(1)).get("session_id");
-    if (!sessionId) return;
+    if (!sessionId || googleCallbackProcessed.current) return;
+    googleCallbackProcessed.current = true;
     setBusy(true);
     googleLogin(sessionId)
       .then((user) => toast.success("Selamat datang", { description: user.name }))

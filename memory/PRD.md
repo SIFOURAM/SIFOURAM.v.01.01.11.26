@@ -444,3 +444,13 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   selections remain available. Python compilation, parser tests (5/5), and frontend production build passed.
 - Live model verification remains pending the managed Universal Key environment refresh; no key was exposed,
   hardcoded, or edited in source control.
+
+## Feature Added — Managed Google Sign-In and Coach Model Selection (2026-10)
+- PIN login remains available. The Login page now offers Emergent-managed Google Sign-In and exchanges a
+  managed callback session for the existing HttpOnly app cookie only when the verified Google email already
+  exists in `users`. The configured Owner email is `baazulfikar@gmail.com`; no self-registration is allowed.
+- Google callback requests are rate-limited, single-run in React StrictMode, check verified email and Rider EOD
+  expiry, use a background thread for the upstream lookup, and return safe JSON errors for invalid sessions.
+- CoachChat now offers Gemini Flash, GPT-5.6 Terra, GPT-5.4, Claude Sonnet 5.5, and Claude Sonnet 4.6 choices.
+  QA confirmed PIN/cookie safety and the selector; live Coach replies still await restoration of the managed
+  Universal Key, which currently fails upstream with an invalid-key response.

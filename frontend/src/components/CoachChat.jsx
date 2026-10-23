@@ -149,11 +149,11 @@ export default function CoachChat({ hidden = false }) {
         <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4" onClick={() => setOpen(false)}>
           <div onClick={(e) => e.stopPropagation()} data-testid="coach-panel"
             className="relative w-full sm:max-w-md h-[88vh] sm:h-[620px] flex flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl bg-card border border-border/60 shadow-2xl">
-            <div className="flex items-center gap-3 p-4 border-b border-border/60 bg-gradient-to-r from-primary/10 to-transparent">
+            <div className="flex flex-wrap items-center gap-2 p-4 border-b border-border/60 bg-gradient-to-r from-primary/10 to-transparent">
               <div className="w-9 h-9 rounded-full bg-[linear-gradient(135deg,#0064e0,#8a2be2,#ff4d9d,#FF6B00)] flex items-center justify-center shrink-0"><Sparkles className="w-4 h-4 text-white" /></div>
-              <div className="flex-1 min-w-0"><p className="font-heading font-bold leading-tight">SI FOUR AM AI</p><p className="text-[11px] text-muted-foreground truncate">Tanya apa saja — dimaksimalkan untuk jualan ☕</p></div>
-              <select data-testid="coach-provider" value={provider} onChange={(e) => setProv(e.target.value)} className="text-[11px] font-semibold rounded-full bg-muted px-2 py-1 border border-border shrink-0">
-                <option value="gemini">Gemini Flash</option><option value="gpt-terra">GPT-5.6 Terra</option><option value="gpt">GPT-5.4</option><option value="claude-sonnet">Claude Sonnet 5.5</option><option value="claude">Claude Sonnet 4.6</option>
+              <div className="min-w-0 flex-1"><p className="font-heading font-bold leading-tight">SI FOUR AM AI</p><p className="hidden text-[11px] text-muted-foreground truncate sm:block">Tanya apa saja — dimaksimalkan untuk jualan ☕</p></div>
+              <select data-testid="coach-provider" value={provider} onChange={(e) => setProv(e.target.value)} className="w-full text-[11px] font-semibold rounded-full bg-muted px-2 py-1 border border-border sm:w-auto">
+                <option value="gemini">Gemini Flash</option><option value="gpt-terra">GPT Terra</option><option value="gpt">GPT 5.4</option><option value="claude-sonnet">Claude Sonnet</option><option value="claude">Claude 4.6</option>
               </select>
               <button data-testid="coach-history-open" onClick={() => setShowHistory(true)} className="p-2 rounded-full hover:bg-muted"><History className="w-4 h-4" /></button>
               <button data-testid="coach-new-chat" onClick={newChat} className="p-2 rounded-full hover:bg-muted"><MessageSquarePlus className="w-4 h-4" /></button>

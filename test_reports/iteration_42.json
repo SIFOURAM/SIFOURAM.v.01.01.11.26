@@ -1,0 +1,49 @@
+{
+  "summary": "Iteration 42: tested Google Sign-In (managed) safety, PIN login regression, HttpOnly cookie session, and the CoachChat model selector. PIN login (baa/130994) reaches the Owner dashboard and sets an HttpOnly+Secure si4am_session cookie. No auth token is kept in localStorage, sessionStorage or document.cookie. /api/auth/google/session returns 400 for a missing or blank session_id. An invalid session_id is rejected and no cookie or session is issued; 0 google sessions exist in the DB. The Google button redirects to https://auth.emergentagent.com/?redirect=<window.location.origin>/ with nothing hardcoded. The coach selector shows all 5 choices and sends the chosen value (e.g. provider=claude-sonnet). BLOCKER: every /api/coach/chat call returns 500 for all 5 providers because EMERGENT_LLM_KEY is rejected upstream ('openai.AuthenticationError: Invalid API key', same as iteration 40). So none of the new model IDs could be checked live. Interactive Google login was not tested, as instructed.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/coach/chat", "issue": "Returns 500 for all 5 providers (gemini, gpt-terra, gpt, claude-sonnet, claude). Backend log: openai.AuthenticationError: Invalid API key from integrations.emergentagent.com. The key exists in backend/.env but is rejected; it may need a new key or more balance. The exception is not handled, so the API returns a bare 500 with no friendly message.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/coach/chat", "issue": "New model IDs 'gpt-5.6-terra', 'claude-sonnet-5-5' and 'gemini-3.8-flash' could not be checked because of the key failure. Confirm they are supported by emergentintegrations before release; an unsupported ID will also cause a 500."},
+      {"endpoint": "POST /api/auth/google/session", "issue": "An invalid or expired session_id returns HTTP 502 from the app. Cloudflare replaces origin 502 responses with its HTML 'Bad gateway' page, so the frontend gets HTML and not the JSON detail. When the upstream returns 4xx, return 401 with a JSON message. Keep 502/503 only for real network failures."},
+      {"endpoint": "POST /api/auth/google/session", "issue": "Uses blocking requests.get inside an async handler (12s timeout), which can block the event loop. Use httpx.AsyncClient or run_in_threadpool. It also has no enforce_rate_limit, unlike identify/login. It takes a raw dict body, not a Pydantic model (non-JSON body returns 400/422 and is handled)."},
+      {"endpoint": "POST /api/auth/google/session", "issue": "Skips the rider EOD-deadline check that /auth/login has (expires_at <= now -> 403). A Rider could get a session that has already expired. It also ignores any email_verified flag from session-data."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Login Google callback effect", "issue": "The callback with #session_id calls POST /auth/google/session twice: React.StrictMode runs the effect twice in dev, and there is no useRef guard. The managed session_id is single-use, so in a real login the second call can fail and show an error toast right after a successful login. It can also create two sessions. Add a ref guard (e.g. processedRef) as the playbook advises.", "selector": "[data-testid='login-page']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Coach chat send", "issue": "On a 500 from /api/coach/chat, no error toast was visible within 8s and the user's message is not kept on screen.", "affected_selectors": ["[data-testid='coach-send']", "[data-testid='coach-input']"]},
+      {"flow": "Google callback with invalid session", "issue": "The hash is cleared and no session is issued (correct), but no error toast was visible after about 8s. This is probably because of the Cloudflare HTML 502 body.", "affected_selectors": ["[data-testid='google-sign-in-button']"]}
+    ],
+    "design_issues": [
+      {"screen": "CoachChat header (mobile 390px)", "issues": ["With the provider select added, the title 'SI FOUR AM AI' wraps onto 4 lines and the subtitle is cut to 'Tan...'. Shorten the option labels, move the select to its own row, or hide the subtitle on small screens."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter42_google_auth_coach_models.py", "/app/test_reports/pytest/pytest_iter42.xml"],
+  "action_items": [
+    "Fix or replace EMERGENT_LLM_KEY (Invalid API key upstream), then re-check all 5 coach model IDs, especially gpt-5.6-terra, claude-sonnet-5-5 and gemini-3.8-flash",
+    "Catch LLM exceptions in /api/coach/chat and return a JSON 502/503 with a friendly message; show an error toast in CoachChat",
+    "Add a useRef guard in the Login.jsx Google callback effect so /auth/google/session is called only once",
+    "In google_login, map upstream 4xx to 401 with JSON (avoid the Cloudflare HTML 502), use an async HTTP client, add enforce_rate_limit, and apply the rider EOD-deadline check",
+    "Fix the CoachChat header layout on mobile with the provider select"
+  ],
+  "critical_code_review_comments": [
+    "server.py google_login: sync requests.get in async route blocks the event loop",
+    "server.py google_login: missing rate limit and the rider expired-deadline check that the PIN login has",
+    "server.py coach_chat: model fallback silently maps unknown providers to gemini; this is fine, but LLM errors propagate as a bare 500",
+    "server.py is 3420 lines; split it into modules",
+    "Login.jsx: the Google effect has no single-run guard under StrictMode"
+  ],
+  "updated_files": ["/app/backend/tests/test_iter42_google_auth_coach_models.py"],
+  "success_rate": {"backend": "58% (7/12; all 5 failures are coach/chat, caused by the invalid LLM key)", "frontend": "85% (login, PIN, Google redirect, storage audit and selector pass; coach send fails on the backend)"},
+  "test_credentials": "Owner baa / PIN 130994 / baazulfikar@gmail.com (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. No google sessions or TEST_ coach chats/sessions remain (checked in Mongo).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Coach is rendered only on /pos for rider or owner (needs the PinGate, pin-key-N buttons). Set localStorage si4am_legal_2026-06-01=accepted to skip consent. To test the Google callback, do a full page load (goto about:blank first); a hash-only goto does not re-mount. The interactive Google flow was not tested.",
+  "rca of the issue": "Coach 500: the backend log shows openai.AuthenticationError Invalid API key from integrations.emergentagent.com/llm/chat/completions, so the issue is the environment key, not the code. Double Google call: React.StrictMode in index.js plus a useEffect without a ref guard in Login.jsx."
+}
