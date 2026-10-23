@@ -292,6 +292,7 @@ export default function RiderDashboard() {
   return (
     <div data-testid="rider-dashboard">
       <PageHeader eyebrow={isRider ? (lang === "id" ? "Performa saya" : "My performance") : "Riders"} title={t("riderDash")}>
+        {user.role === "owner" && <button data-testid="owner-rank-settings-header-button" onClick={() => setRankDetailOpen(true)} className="btn-primary h-10 px-3 text-xs"><Pencil className="h-3.5 w-3.5" />Edit Target Rank</button>}
         {!isRider && <Select testId="rider-dash-select" value={riderId} onChange={setRiderId} className="w-44" options={[{ value: "all", label: t("allRiders") }, ...riders.map((r) => ({ value: r.id, label: r.name }))]} />}
       </PageHeader>
       <Bento className="mb-4 fade-up" testId="rider-period-filter">
