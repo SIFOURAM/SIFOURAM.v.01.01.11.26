@@ -1450,10 +1450,10 @@ async def receive_purchase_order(po_id: str, body: PurchaseOrderReceiveIn, u=Dep
     po = await db.purchase_orders.find_one({"id": po_id}, NOID)
     if not po:
         raise HTTPException(404, "PO tidak ditemukan")
-    if po.get("status") != "shipped":
-        raise HTTPException(409, "PO harus ditandai dikirim sebelum Barang Datang dicatat")
+    if po.get("status") not in {"shipped", "purchased"}:
+        raise HTTPException(409, "PO harus sudah Dibeli atau Ditandai Dikirim sebelum Barang Datang dicatat")
     proof = await store_purchase_order_proof(body.photo, u["id"], po_id)
-    items = purchase_order_items(po)
+    items = po.get("purchase_items") or purchase_order_items(po)
     materials = {
         material["id"]: material
         for material in await db.materials.find(
@@ -1464,7 +1464,7 @@ async def receive_purchase_order(po_id: str, body: PurchaseOrderReceiveIn, u=Dep
     if len(materials) != len(items):
         raise HTTPException(404, "Bahan PO tidak lagi tersedia")
     transition = await db.purchase_orders.update_one(
-        {"id": po_id, "status": "shipped"},
+        {"id": po_id, "status": po.get("status")},
         {"$set": {
             **proof,
             "status": "arrived",
