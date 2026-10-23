@@ -1969,11 +1969,12 @@ async def create_sale(body: SaleIn, u=Depends(ANY)):
     serial = await next_document_number("sale", body.date)
     receipt_no = f"S4-{body.date.replace('-', '')}-{serial:04d}"
     rider = await db.users.find_one({"id": body.rider_id}, NOID)
-    cash_received = body.cash_received if cash_part else total
+    cash_received = body.cash_received if cash_part else 0
     doc = {"id": uid(), "client_id": body.client_id or uid(), "receipt_no": receipt_no, "rider_id": body.rider_id, "rider_name": rider["name"] if rider else "", "date": body.date, "time": now_wib(),
            "customer_name": body.customer_name, "customer_phone": body.customer_phone, "items": items, "total": total, "cups": sum(need.values()),
            "payment_method": payment_method, "payment_parts": payment_parts,
-           "cash_received": cash_received, "change": max(0, cash_received - cash_part),
+           "cash_received": cash_received,
+           "change": max(0, cash_received - cash_part) if cash_part else 0,
            "order_type": body.order_type,
            "table_number": body.table_number.strip() if body.order_type == "dine_in" else "",
            "created_at": now_iso()}
