@@ -435,3 +435,12 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - P1: Resolve remaining React Hook dependency warnings and finish the planned `server.py` refactor for complex
   sale/deposit functions.
 - P2: Improve procurement with partial receiving and supplier-price history after operational validation.
+
+## Integration Update — Gemini Expense and Coach Models (2026-10)
+- Receipt extraction now tries Gemini 3.8 Flash first for routine proofs. If the extracted nominal is empty or
+  the returned confidence is below 80%, it retries with Gemini 3.1 Pro Preview. The editable expense draft
+  identifies the selected model and confidence; no AI result is ever saved automatically.
+- CoachChat defaults to Gemini 3.8 Flash for operational conversation, while the existing explicit provider
+  selections remain available. Python compilation, parser tests (5/5), and frontend production build passed.
+- Live model verification remains pending the managed Universal Key environment refresh; no key was exposed,
+  hardcoded, or edited in source control.

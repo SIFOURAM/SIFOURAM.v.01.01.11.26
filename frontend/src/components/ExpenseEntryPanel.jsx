@@ -136,7 +136,9 @@ export default function ExpenseEntryPanel({ onSaved }) {
           data-testid="expense-ai-draft-status"
           className="border-l-2 border-primary bg-primary/5 px-3 py-2 text-xs"
         >
-          Draft AI siap ditinjau{extraction.merchant ? ` · ${extraction.merchant}` : ""}.
+          Draft {extraction.model?.includes("flash") ? "Gemini Flash" : "Gemini Pro"} siap ditinjau
+          {extraction.merchant ? ` · ${extraction.merchant}` : ""}.
+          {typeof extraction.confidence === "number" ? ` Keyakinan ${Math.round(extraction.confidence * 100)}%.` : ""}
           {extraction.items?.length ? ` ${extraction.items.join(", ")}` : ""}
         </div>
       )}

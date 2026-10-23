@@ -2279,6 +2279,10 @@ def receipt_draft(payload: dict) -> dict:
     merchant = str(payload.get("merchant") or "").strip()[:120]
     note = str(payload.get("note") or merchant).strip()[:400]
     items = payload.get("items") if isinstance(payload.get("items"), list) else []
+    try:
+        confidence = max(0, min(1, float(payload.get("confidence", 0))))
+    except (TypeError, ValueError):
+        confidence = 0
     return {
         "date": date,
         "category": category,
@@ -2287,6 +2291,7 @@ def receipt_draft(payload: dict) -> dict:
         "note": note,
         "merchant": merchant,
         "items": [str(item).strip()[:120] for item in items[:12] if str(item).strip()],
+        "confidence": confidence,
     }
 
 
@@ -2306,23 +2311,31 @@ async def extract_expense_receipt(
         "account (cash atau bank), note, items (array string). Kategori WAJIB salah satu dari: "
         "Raw Material, Packaging, Fuel / Transport, Salary, Rent, Utilities, Marketing, "
         "Equipment, Other. "
-        "Jika data tidak terbaca, gunakan amount 0, category Other, account cash, dan note singkat. "
+        "Tambahkan confidence sebagai angka 0 sampai 1 untuk tingkat keyakinan pembacaan. "
+        "Jika data tidak terbaca, gunakan amount 0, category Other, account cash, confidence 0, dan note singkat. "
         "Jangan pernah membuat nominal jika tidak terlihat jelas."
     )
-    chat = LlmChat(
-        api_key=os.environ["EMERGENT_LLM_KEY"],
-        session_id=f"expense-extract-{u['id']}-{uid()}",
-        system_message="Kamu adalah asisten ekstraksi struk yang teliti.",
-    ).with_model("gemini", "gemini-3.1-pro-preview")
-    try:
+    async def extract_with(model: str) -> dict:
+        chat = LlmChat(
+            api_key=os.environ["EMERGENT_LLM_KEY"],
+            session_id=f"expense-extract-{u['id']}-{uid()}",
+            system_message="Kamu adalah asisten ekstraksi struk yang teliti.",
+        ).with_model("gemini", model)
         result = await chat.send_message(UserMessage(text=prompt, file_contents=[body.proof]))
+        draft = receipt_draft(receipt_json(result))
+        draft["model"] = model
+        return draft
+    try:
+        draft = await extract_with("gemini-3.8-flash")
+        if draft["confidence"] < 0.8 or not draft["amount"]:
+            draft = await extract_with("gemini-3.1-pro-preview")
     except Exception as error:
         logger.exception("Expense receipt extraction failed")
         raise HTTPException(
             424,
             "AI tidak dapat membaca bukti saat ini. Isi data secara manual.",
         ) from error
-    return receipt_draft(receipt_json(result))
+    return draft
 
 
 async def store_expense_proof(data_url: str, user_id: str, expense_id: str) -> dict:
@@ -2730,7 +2743,7 @@ async def coach_chat(body: CoachIn, u=Depends(ANY)):
             "id": uid(),
             "user_id": u["id"],
             "title": "Chat baru",
-            "provider": body.provider or "gpt",
+            "provider": body.provider or "gemini",
             "created_at": now_iso(),
             "updated_at": now_iso(),
         }
@@ -2747,8 +2760,8 @@ async def coach_chat(body: CoachIn, u=Depends(ANY)):
               "Jawab padat (maks ±180 kata), pakai bullet & emoji secukupnya. Jika pertanyaan menyangkut jualan atau lokasi, WAJIB sertakan 2–3 lokasi ramai TERDEKAT dari daftar POI dengan alasan & jam terbaik, plus 1 taktik jualan konkret (sapaan, bundling 4 cup Rp45.000 / 10 cup Rp110.000, upsell). "
               "Untuk pertanyaan lain, jawab langsung & akurat, lalu bila relevan kaitkan dengan cara menambah penjualan kopi. Selalu tutup dengan 1 kalimat penyemangat. "
               f"\nKONTEKS: waktu {datetime.now(WIB).strftime('%A %H:%M')} WIB. Lokasi rider: {area or 'tidak diketahui'}. User: {u['name']} ({u['role']}). Terjual hari ini {sold} cup (target 50). Sisa stok: {remaining}.\nPOI radius 1,5 km:\n{poi_txt}\n\nRiwayat:\n{hist_txt}")
-    models = {"gpt": ("openai", "gpt-5.4"), "claude": ("anthropic", "claude-sonnet-4-6"), "gemini": ("gemini", "gemini-3.1-pro-preview")}
-    prov, model = models.get(body.provider or "gpt", ("openai", "gpt-5.4"))
+    models = {"gpt": ("openai", "gpt-5.4"), "claude": ("anthropic", "claude-sonnet-4-6"), "gemini": ("gemini", "gemini-3.8-flash")}
+    prov, model = models.get(body.provider or "gemini", ("gemini", "gemini-3.8-flash"))
     chat = LlmChat(
         api_key=os.environ["EMERGENT_LLM_KEY"],
         session_id=f"coach-{u['id']}-{session_id}",
@@ -2765,9 +2778,9 @@ async def coach_chat(body: CoachIn, u=Depends(ANY)):
         title = body.message.strip().replace("\n", " ")[:48] or "Chat baru"
     await db.coach_sessions.update_one(
         {"id": session_id, "user_id": u["id"]},
-        {"$set": {"title": title, "provider": body.provider or "gpt", "updated_at": now_iso()}},
+        {"$set": {"title": title, "provider": body.provider or "gemini", "updated_at": now_iso()}},
     )
-    doc = {"id": uid(), "user_id": u["id"], "session_id": session_id, "message": body.message, "reply": reply, "provider": body.provider or "gpt", "pois": pois, "area": area, "sold": sold, "created_at": now_iso()}
+    doc = {"id": uid(), "user_id": u["id"], "session_id": session_id, "message": body.message, "reply": reply, "provider": body.provider or "gemini", "pois": pois, "area": area, "sold": sold, "created_at": now_iso()}
     await db.coach_chats.insert_one(doc)
     doc.pop("_id", None)
     return doc
