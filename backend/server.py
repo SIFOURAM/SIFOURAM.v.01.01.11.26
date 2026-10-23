@@ -1307,6 +1307,26 @@ async def record_purchase_order_share(po_id: str, u=Depends(STAFF)):
     return {"ok": True, "recipient": "6281283578212"}
 
 
+@api.post("/purchase-orders/{po_id}/purchase")
+async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
+    po = await db.purchase_orders.find_one({"id": po_id}, NOID)
+    if not po:
+        raise HTTPException(404, "PO tidak ditemukan")
+    if po.get("status") != "approved":
+        raise HTTPException(409, "Hanya PO Disetujui yang dapat dicatat sebagai pembelian")
+    vendor = str(body.get("vendor_name") or po.get("vendor_name") or "").strip()[:120]
+    note = str(body.get("note") or "").strip()[:500]
+    await db.purchase_orders.update_one({"id": po_id, "status": "approved"}, {"$set": {
+        "status": "purchased",
+        "purchased_by": u["name"],
+        "purchased_at": now_iso(),
+        "purchase_vendor": vendor,
+        "purchase_note": note,
+        "purchase_date": str(body.get("purchase_date") or datetime.now(WIB).strftime("%Y-%m-%d")),
+    }})
+    return await db.purchase_orders.find_one({"id": po_id}, {"_id": 0, "arrival_proof_data": 0})
+
+
 @api.post("/purchase-orders/{po_id}/action/{decision}")
 async def decide_purchase_order(
     po_id: str,

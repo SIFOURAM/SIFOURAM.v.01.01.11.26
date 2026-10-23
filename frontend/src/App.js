@@ -27,6 +27,7 @@ import Customers from "./pages/Customers";
 import UserInfo from "./pages/UserInfo";
 import Reports from "./pages/Reports";
 import PurchaseOrders from "./pages/PurchaseOrders";
+import Purchase from "./pages/Purchase";
 import { Broadcast, PaymentAccounts } from "./pages/MoreTools";
 
 const S = ["owner"];
@@ -58,6 +59,7 @@ function Shell() {
         <Route path="/inventory" element={<Guard allow={SB}><Inventory /></Guard>} />
         <Route path="/menu-stock" element={<Guard allow={SB}><MenuStock /></Guard>} />
         <Route path="/purchase-orders" element={<Guard allow={SB}><PurchaseOrders /></Guard>} />
+        <Route path="/purchase" element={<Guard allow={REPORT_ACCESS}><Purchase /></Guard>} />
         <Route path="/pos" element={<Guard allow={POS_ACCESS}><POS /></Guard>} />
         <Route path="/pos-dashboard" element={<Guard allow={REPORT_ACCESS}><POSDashboard /></Guard>} />
         <Route path="/rider-stock" element={<Guard allow={ALL}><RiderStock /></Guard>} />
