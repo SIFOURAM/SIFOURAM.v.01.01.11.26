@@ -354,8 +354,8 @@ export default function POS() {
                 )}
               </div>
               <div className="grid sm:grid-cols-2 gap-3 mt-4">
-                <input data-testid="customer-phone-input" className="field" placeholder="WhatsApp 08xx" value={cust.phone} onChange={(e) => setCust({ ...cust, phone: e.target.value })} />
                 <input data-testid="customer-name-input" className="field" placeholder={t("customer")} value={cust.name} onChange={(e) => setCust({ ...cust, name: e.target.value })} />
+                <input data-testid="customer-phone-input" className="field" placeholder="WhatsApp 08xx" value={cust.phone} onChange={(e) => setCust({ ...cust, phone: e.target.value })} />
                 <div className="flex gap-2">
                   {["cash", "qris", "split"].map((p) => (
                     <button
