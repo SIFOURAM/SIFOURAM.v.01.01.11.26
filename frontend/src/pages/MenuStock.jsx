@@ -34,7 +34,11 @@ export default function MenuStock() {
     catch (err) { toast.error(errMsg(err)); }
   };
   const selectedMenu = menus.find((menu) => menu.id === form.menu_id);
-  const canProduce = form.type !== "produce" || !selectedMenu?.recipe?.length || selectedMenu.recipe.every((line) => {
+  const productionRecipe = selectedMenu?.recipe?.filter((line) => {
+    const material = mats.find((item) => item.id === line.material_id);
+    return material?.category !== "packaging";
+  }) || [];
+  const canProduce = form.type !== "produce" || !productionRecipe.length || productionRecipe.every((line) => {
     const material = mats.find((item) => item.id === line.material_id);
     return material && material.stock >= Number(line.qty || 0) * Number(form.qty || 0);
   });
