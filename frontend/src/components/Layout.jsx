@@ -92,7 +92,7 @@ export const NAV = {
     more: [item("/finance", "finance")],
   },
   admin: {
-    main: [item("/", "dashboard"), item("/rider-stock", "riderStock"), item("/pos", "pos"), item("/deposit", "deposit"), item("/inventory", "inventory")],
+    main: [item("/", "dashboard"), item("/rider-stock", "riderStock"), item("/deposit", "deposit"), item("/inventory", "inventory")],
     more: [item("/settings", "settings")],
   },
   barteam: {
