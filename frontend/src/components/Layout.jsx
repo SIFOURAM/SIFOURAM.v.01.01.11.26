@@ -287,7 +287,7 @@ export default function Layout() {
               <NavLink key={i.to} to={i.to} end={i.to === "/"} data-testid={`bottomnav-${i.key}`}
                 className={() => `flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${isPrimaryAction ? "text-black" : isBottomItemActive(i) ? "text-primary" : theme === "dark" ? "text-white" : "text-muted-foreground"}`}>
                 <span className={isPrimaryAction ? "flex h-20 w-20 -mt-10 items-center justify-center rounded-full border-4 border-background bg-primary shadow-lg" : "flex items-center justify-center"}>
-                  <i.icon className={isPrimaryAction ? "h-10 w-10" : "w-[0.95rem] h-[0.95rem]"} />
+                  <i.icon className={isPrimaryAction ? `h-10 w-10 ${theme === "dark" ? "text-white" : "text-black"}` : "w-[0.95rem] h-[0.95rem]"} />
                 </span>
                 <span className="truncate max-w-full">{t(i.key)}</span>
               </NavLink>
