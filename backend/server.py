@@ -944,8 +944,25 @@ async def google_login(body: dict, request: Request, response: Response):
     email = str(google.get("email") or "").strip().lower()
     user = await db.users.find_one({"email": email, "active": {"$ne": False}}, NOID)
     if not user:
-        await audit_event("auth.google", request, outcome="denied", detail="unregistered email")
-        raise HTTPException(403, "Email Google belum terdaftar pada SI FOUR A.M")
+        pending = await db.google_access_requests.find_one({"email": email, "status": "pending"}, NOID)
+        if not pending:
+            request_id = uid()
+            await db.google_access_requests.insert_one({
+                "id": request_id,
+                "email": email,
+                "name": str(google.get("name") or email)[:120],
+                "status": "pending",
+                "created_at": now_iso(),
+            })
+            for role in ("owner", "admin"):
+                await purchase_order_notification(
+                    for_role=role,
+                    po_id=request_id,
+                    title="Persetujuan Google Sign-In",
+                    body=f"{email} meminta akses ke aplikasi melalui Google.",
+                )
+        await audit_event("auth.google", request, outcome="pending", detail="approval required")
+        raise HTTPException(403, "Permintaan akses Google dikirim. Menunggu persetujuan Owner atau Admin.")
     session_key = uid()
     expires_at = await session_expiry_for(user)
     if user["role"] == "rider" and expires_at <= datetime.now(timezone.utc):
