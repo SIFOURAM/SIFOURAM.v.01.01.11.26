@@ -221,6 +221,25 @@ export default function PurchaseOrderCard({ order, user, onChanged }) {
             <Image className="h-3.5 w-3.5" /> Bukti
           </a>
         )}
+        {order.arrival_proof && (
+          <button
+            type="button"
+            data-testid={`purchase-order-arrival-wa-${order.id}`}
+            onClick={() => {
+              const proofUrl = `${window.location.origin}${order.arrival_proof}`;
+              openWA([
+                `Barang masuk · ${order.po_number || "Purchase Order"}`,
+                `Vendor: ${order.vendor_name || "-"}`,
+                `Penerima: ${order.arrived_by || "-"}`,
+                `Bukti foto: ${proofUrl}`,
+                "Buka tautan bukti foto, lalu lampirkan file di WhatsApp bila diperlukan.",
+              ].join("\n"));
+            }}
+            className="btn-wa h-9 px-3 text-xs"
+          >
+            <MessageCircle className="h-3.5 w-3.5" /> Kirim Barang Masuk
+          </button>
+        )}
       </div>
 
       {(canReview || canApprove || canReject || canShip) && (
