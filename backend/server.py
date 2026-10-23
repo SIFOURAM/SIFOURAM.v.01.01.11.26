@@ -1312,8 +1312,8 @@ async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
     po = await db.purchase_orders.find_one({"id": po_id}, NOID)
     if not po:
         raise HTTPException(404, "PO tidak ditemukan")
-    if po.get("status") != "approved":
-        raise HTTPException(409, "Hanya PO Disetujui yang dapat dicatat sebagai pembelian")
+    if po.get("status") in {"arrived", "rejected", "purchased"}:
+        raise HTTPException(409, "PO pada status ini tidak dapat dicatat sebagai pembelian")
     vendor = str(body.get("vendor_name") or po.get("vendor_name") or "").strip()[:120]
     note = str(body.get("note") or "").strip()[:500]
     actual_items = body.get("items") if isinstance(body.get("items"), list) else purchase_order_items(po)
@@ -1329,6 +1329,9 @@ async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
         await db.materials.update_one({"id": material_id}, {"$set": {"pack_price": price}})
     await db.purchase_orders.update_one({"id": po_id, "status": "approved"}, {"$set": {
         "status": "purchased",
+        "auto_approved_at_purchase": po.get("status") != "approved",
+        "owner_approved_by": po.get("owner_approved_by") or u["name"],
+        "owner_approved_at": po.get("owner_approved_at") or now_iso(),
         "purchased_by": u["name"],
         "purchased_at": now_iso(),
         "purchase_vendor": vendor,
