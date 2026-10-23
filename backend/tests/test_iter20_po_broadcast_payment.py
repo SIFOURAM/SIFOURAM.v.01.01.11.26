@@ -16,11 +16,18 @@ PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUl
 
 
 def login(i, p):
-    r = requests.post(f"{API}/auth/identify", json={"identifier": i, "terms_accepted": True, "privacy_accepted": True})
+    session = requests.Session()
+    r = session.post(
+        f"{API}/auth/identify",
+        json={"identifier": i, "terms_accepted": True, "privacy_accepted": True},
+    )
     assert r.status_code == 200, r.text
-    r = requests.post(f"{API}/auth/login", json={"account_token": r.json()["account_token"], "pin": p, "remember": True})
+    r = session.post(
+        f"{API}/auth/login",
+        json={"account_token": r.json()["account_token"], "pin": p, "remember": True},
+    )
     assert r.status_code == 200, r.text
-    return {"Authorization": f"Bearer {r.json()['token']}"}
+    return {"Cookie": "; ".join(f"{key}={value}" for key, value in session.cookies.items())}
 
 
 @pytest.fixture(scope="module")
@@ -53,15 +60,16 @@ def ctx():
 
 # --- Purchase Orders ---
 class TestPurchaseOrders:
-    def test_barteam_create_po_and_owner_notified(self, ctx):
+    def test_barteam_create_multiline_po_and_admin_notified(self, ctx):
         r = requests.post(f"{API}/purchase-orders", headers=ctx["barteam"], json={"material_id": ctx["mat"]["id"], "qty": 2.5, "note": f"{TAG} weekend"})
         assert r.status_code == 200, r.text
         d = r.json()
-        assert d["status"] == "pending" and d["qty"] == 2.5 and d["requested_by"] == ctx["users"]["barteam"]["id"]
+        assert d["status"] == "requested" and d["items"][0]["qty"] == 2.5
+        assert d["requested_by"] == ctx["users"]["barteam"]["id"]
         assert "_id" not in d
         ctx["pos"].append(d["id"])
         ctx["po1"] = d["id"]
-        n = requests.get(f"{API}/notifications", headers=ctx["owner"]).json()
+        n = requests.get(f"{API}/notifications", headers=ctx["admin"]).json()
         assert any(x.get("ref_id") == d["id"] and x["type"] == "purchase_order" for x in n)
 
     def test_po_validation(self, ctx):
@@ -83,37 +91,42 @@ class TestPurchaseOrders:
         assert requests.get(f"{API}/purchase-orders", headers=ctx["rider"]).status_code == 403
 
     def test_barteam_cannot_decide(self, ctx):
-        r = requests.post(f"{API}/purchase-orders/{ctx['po1']}/approve", headers=ctx["barteam"], json={"note": ""})
+        r = requests.post(f"{API}/purchase-orders/{ctx['po1']}/action/approve", headers=ctx["barteam"], json={"note": ""})
         assert r.status_code == 403
 
     def test_invalid_decision(self, ctx):
-        r = requests.post(f"{API}/purchase-orders/{ctx['po1']}/maybe", headers=ctx["owner"], json={"note": ""})
+        r = requests.post(f"{API}/purchase-orders/{ctx['po1']}/action/maybe", headers=ctx["owner"], json={"note": ""})
         assert r.status_code == 400
-        r = requests.post(f"{API}/purchase-orders/nope/approve", headers=ctx["owner"], json={"note": ""})
+        r = requests.post(f"{API}/purchase-orders/nope/action/approve", headers=ctx["owner"], json={"note": ""})
         assert r.status_code == 404
 
-    def test_admin_approve_notifies_requester(self, ctx):
-        r = requests.post(f"{API}/purchase-orders/{ctx['po1']}/approve", headers=ctx["admin"], json={"note": ""})
+    def test_admin_review_then_owner_approve_notifies_requester(self, ctx):
+        r = requests.post(f"{API}/purchase-orders/{ctx['po1']}/action/review", headers=ctx["admin"], json={"note": "ok"})
         assert r.status_code == 200, r.text
         d = r.json()
-        assert d["status"] == "approved" and d["approved_by"] == f"{TAG} admin" and d["approved_at"]
+        assert d["status"] == "reviewed" and d["reviewed_by"] == f"{TAG} admin" and d["reviewed_at"]
+        r = requests.post(f"{API}/purchase-orders/{ctx['po1']}/action/approve", headers=ctx["owner"], json={"note": ""})
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["status"] == "approved" and d["owner_approved_by"] and d["owner_approved_at"]
         n = requests.get(f"{API}/notifications", headers=ctx["barteam"]).json()
-        assert any(x.get("ref_id") == ctx["po1"] and "approved" in x["title"] for x in n)
+        assert any(x.get("ref_id") == ctx["po1"] and "disetujui" in x["title"] for x in n)
         # second decision does not flip status
-        r2 = requests.post(f"{API}/purchase-orders/{ctx['po1']}/reject", headers=ctx["owner"], json={"note": ""})
-        assert r2.status_code == 200 and r2.json()["status"] == "approved"
+        r2 = requests.post(f"{API}/purchase-orders/{ctx['po1']}/action/reject", headers=ctx["owner"], json={"note": ""})
+        assert r2.status_code == 403
 
     def test_owner_reject(self, ctx):
         r = requests.post(f"{API}/purchase-orders", headers=ctx["barteam"], json={"material_id": ctx["mat"]["id"], "qty": 1, "note": TAG})
         pid = r.json()["id"]
         ctx["pos"].append(pid)
-        r = requests.post(f"{API}/purchase-orders/{pid}/reject", headers=ctx["owner"], json={"note": f"{TAG} stok cukup"})
+        r = requests.post(f"{API}/purchase-orders/{pid}/action/review", headers=ctx["admin"], json={"note": ""})
+        assert r.status_code == 200
+        r = requests.post(f"{API}/purchase-orders/{pid}/action/reject", headers=ctx["owner"], json={"note": f"{TAG} stok cukup"})
         assert r.status_code == 200 and r.json()["status"] == "rejected" and r.json()["decision_note"] == f"{TAG} stok cukup"
 
     def test_admin_notified_of_new_po(self, ctx):
-        # requirement: Owner/Admin approval with notification -> admin should also be notified
         n = requests.get(f"{API}/notifications", headers=ctx["admin"]).json()
-        assert any(x.get("ref_id") == ctx["po1"] and x["title"].startswith("PO baru") for x in n), "Admin receives no notification for new PO"
+        assert any(x.get("ref_id") == ctx["po1"] and "Review PO" in x["title"] for x in n)
 
 
 # --- Notifications isolation ---
@@ -122,7 +135,10 @@ class TestNotifications:
         for role in ["barteam2", "rider", "admin"]:
             n = requests.get(f"{API}/notifications", headers=ctx[role]).json()
             uid_ = ctx["users"][role]["id"]
-            assert all(x.get("for_user") == uid_ for x in n), f"{role} sees foreign notifications"
+            assert all(
+                x.get("for_user") == uid_ or x.get("for_role") == role
+                for x in n
+            ), f"{role} sees foreign notifications"
         assert requests.get(f"{API}/notifications").status_code in (401, 403)
 
 
