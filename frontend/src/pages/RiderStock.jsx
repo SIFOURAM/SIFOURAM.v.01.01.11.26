@@ -9,6 +9,10 @@ import { useAuth } from "../context/AuthContext";
 import { PageHeader, Bento, Field, Select, QtySelect, PhotoCapture, Empty, DateFilter } from "../components/common";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
+function RemainingStockList({ rows }) {
+  return <>{rows.map((row) => <Bento key={row.stock_id} testId={`remaining-row-${row.stock_id}`} className="mb-3"><div className="flex justify-between gap-3"><div><p className="font-heading font-bold">{row.rider_name}</p><p className="text-xs text-muted-foreground">{fmtDate(row.date)}</p></div><div className="text-right"><p className="eyebrow">Total Stock Product</p><p data-testid={`remaining-total-stock-${row.stock_id}`} className="num font-bold text-primary">{row.initial_total}</p><p className="text-xs text-muted-foreground">Terjual {row.sold_total} · Sisa {row.remaining_total}</p></div></div><div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">{row.items.map((item) => <div key={item.menu_id} className="bg-muted p-2 rounded-lg"><p className="truncate">{item.name}</p><p className="num">Awal {item.initial}</p><p className="num">Terjual {item.sold}</p><p className="num">Sisa {item.remaining}</p></div>)}</div></Bento>)}</>;
+}
+
 function RiderPickup({ user, view }) {
   const [stock, setStock] = useState(null);
   const [detail, setDetail] = useState(false);
