@@ -1658,7 +1658,7 @@ async def produce(body: ProduceIn, u=Depends(STAFF)):
         mats = {m["id"]: m for m in await db.materials.find({}, NOID).to_list(200)}
         for r in mn["recipe"]:
             mt = mats.get(r["material_id"])
-            if mt:
+            if mt and mt.get("category") != "packaging":
                 used = r["qty"] * body.qty
                 await db.materials.update_one({"id": mt["id"]}, {"$inc": {"stock": -used}})
                 await db.inventory_tx.insert_one({"id": uid(), "material_id": mt["id"], "material_name": mt["name"], "unit": mt["unit"], "type": "out", "qty": used,
