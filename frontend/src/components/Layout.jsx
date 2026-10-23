@@ -143,7 +143,7 @@ function CategoryTabs({ category, t }) {
   const activeTab = category.tabs.find((tab) => tab.to === currentPath || tab.subtabs?.some((subtab) => subtab.to === currentPath)) || category.tabs.find((tab) => location.pathname === tab.to.split("?")[0]) || category.tabs[0];
   const [visible, setVisible] = useState(true);
   const [isSelecting, setIsSelecting] = useState(false);
-  const selectTab = (to) => navigate(to === "/reports" ? "/finance" : to);
+  const selectTab = (to) => navigate(to === "/reports" && user.role === "owner" ? "/finance" : to);
 
   useEffect(() => {
     setVisible(true);

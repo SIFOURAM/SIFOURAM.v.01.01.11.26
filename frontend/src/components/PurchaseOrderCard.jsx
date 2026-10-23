@@ -47,8 +47,10 @@ export default function PurchaseOrderCard({ order, user, onChanged }) {
   const [photo, setPhoto] = useState("");
   const [receivedNote, setReceivedNote] = useState("");
   const [busy, setBusy] = useState("");
-  const items = poItems(order);
   const status = order.status === "pending" ? "requested" : order.status;
+  const items = ["purchased", "arrived"].includes(status) && order.purchase_items?.length
+    ? order.purchase_items
+    : poItems(order);
   const statusNotes = (order.status_notes || []).filter((entry) => entry.note);
 
   const act = async (action) => {
@@ -151,7 +153,7 @@ export default function PurchaseOrderCard({ order, user, onChanged }) {
         <div>
           <p className="font-heading font-bold">{order.po_number || "Purchase Order"}</p>
           <p className="text-xs text-muted-foreground">
-            {order.requested_by_name} · {order.vendor_name || "Vendor belum diisi"}
+            {order.requested_by_name} · {order.purchase_vendor || order.vendor_name || "Vendor belum diisi"}
           </p>
         </div>
         <span
