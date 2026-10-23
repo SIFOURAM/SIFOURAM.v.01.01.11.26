@@ -30,6 +30,7 @@ export default function ExpenseEntryPanel({ onSaved }) {
   const [form, setForm] = useState(emptyExpense);
   const [proof, setProof] = useState("");
   const [extraction, setExtraction] = useState(null);
+  const [extractionError, setExtractionError] = useState("");
   const [extracting, setExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -41,6 +42,7 @@ export default function ExpenseEntryPanel({ onSaved }) {
       return;
     }
     setExtracting(true);
+    setExtractionError("");
     try {
       const response = await api.post("/expenses/extract", { proof });
       const draft = response.data;
@@ -55,7 +57,9 @@ export default function ExpenseEntryPanel({ onSaved }) {
       setExtraction(draft);
       toast.success("Draft dari struk siap ditinjau.");
     } catch (error) {
-      toast.error(errMsg(error));
+      const message = errMsg(error);
+      setExtractionError(`${message} Anda tetap dapat mengisi dan menyimpan data secara manual.`);
+      toast.error(message);
     } finally {
       setExtracting(false);
     }
@@ -75,6 +79,7 @@ export default function ExpenseEntryPanel({ onSaved }) {
       setForm(emptyExpense());
       setProof("");
       setExtraction(null);
+      setExtractionError("");
       onSaved();
     } catch (error) {
       toast.error(errMsg(error));
@@ -108,6 +113,7 @@ export default function ExpenseEntryPanel({ onSaved }) {
         label="Foto struk atau bukti pembayaran"
         testId="expense-proof-capture"
         capture={false}
+        fit="contain"
       />
 
       <button
@@ -132,6 +138,15 @@ export default function ExpenseEntryPanel({ onSaved }) {
         >
           Draft AI siap ditinjau{extraction.merchant ? ` · ${extraction.merchant}` : ""}.
           {extraction.items?.length ? ` ${extraction.items.join(", ")}` : ""}
+        </div>
+      )}
+
+      {extractionError && (
+        <div
+          data-testid="expense-ai-extract-error"
+          className="border-l-2 border-amber-500 bg-amber-500/10 px-3 py-2 text-xs"
+        >
+          {extractionError}
         </div>
       )}
 

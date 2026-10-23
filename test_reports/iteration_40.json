@@ -1,0 +1,49 @@
+{
+  "summary": "Iteration 40: tested AI expense extraction (Pembelian & Pengeluaran). Backend: 14/16 pytest pass in test_iter40_expense_ai.py, plus 5/5 isolated unit tests for receipt_json/receipt_draft parsing. RBAC (401/403 for unauth extract/create/list/delete), SVG/malformed/tiny/non-data-URL/blank proof rejected with 400, manual CRUD with finance summary verified, and extraction never persists an expense. LIVE MODEL CALL FAILS: the managed key returns 401 'Invalid API key' from integrations.emergentagent.com/llm, and object storage init also returns 401 with the same key. Backend returns a safe 502 JSON, but Cloudflare replaces the 502 body with HTML, so the UI toast shows the English Cloudflare text 'The origin web server returned an invalid or incomplete response...'. Proofs are saved as inline data: URLs (storage fallback), and the ledger proof link does not open in Chrome. Frontend: owner reaches /finance, the panel renders, the AI button is disabled until a proof exists, manual save shows in the ledger, a proof icon appears for an expense with a proof, and there is no horizontal overflow at 390px.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/expenses/extract", "issue": "Upstream LLM call returns 401 'Invalid API key' (openai.AuthenticationError) for the configured EMERGENT_LLM_KEY through the local shim /app/backend/emergentintegrations/llm/chat.py (proxy https://integrations.emergentagent.com/llm, model 'gemini-3.1-pro-preview'). No live draft has ever been produced. The official emergentintegrations package is not installed and the local shim shadows it. Verify the key or budget and the provider/model naming expected by the proxy.", "priority": "CRITICAL"},
+      {"endpoint": "POST /api/expenses/extract (502)", "issue": "Cloudflare intercepts HTTP 502 from the origin and serves an HTML error page. The Indonesian detail 'AI tidak dapat membaca bukti saat ini. Isi data secara manual.' never reaches the client. Use a status Cloudflare does not rewrite (e.g. 503 or 422/424 with JSON detail) for both the upstream-failure and JSON-parse-failure paths in receipt_json.", "priority": "HIGH"},
+      {"endpoint": "store_photo / POST /api/expenses with proof", "issue": "Object storage init returns 401 with the same key. store_photo silently falls back to keeping the full base64 data: URL in Mongo, so proof is NOT a safe /api/files URL. Finance summary and ledger payloads now carry multi-hundred-KB base64 strings.", "priority": "HIGH"},
+      {"endpoint": "GET /api/files/{path}", "issue": "Serves stored files with no auth dependency and 'Cache-Control: public'. When storage works, expense proofs will be publicly readable by anyone with the URL, which violates the 'proof storage with role protection' requirement. Add Depends(STAFF/SUPER) or folder-based role checks and use private cache.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "DELETE /api/expenses/{eid}", "issue": "Does not mark the linked db.files record as is_deleted or remove the object, so orphan proof files remain. It also returns 200 for a non-existent id."},
+      {"endpoint": "POST /api/expenses", "issue": "The date field is not validated (no YYYY-MM-DD check). extraction.items is stored raw (it may contain arbitrary objects) instead of strings, unlike the receipt_draft normalisation."},
+      {"endpoint": "GET /api/expenses", "issue": "STAFF (admin/barteam) can list all expenses, including proof data. Confirm this matches the intended 'Owner ledger' visibility."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Finance ledger proof link", "issue": "href is a data:image/jpeg;base64 URL (storage fallback). Chrome blocks top-level navigation to data: URLs, so clicking the proof icon with target=_blank opens nothing.", "selector": "[data-testid^='ledger-proof-']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "AI extract failure", "issue": "Toast shows the English Cloudflare message 'The origin web server returned an invalid or incomplete response to Cloudflare...' instead of the Indonesian user-safe message, because of the 502 body rewrite. errMsg also falls back to the axios message for non-JSON bodies.", "affected_selectors": ["[data-testid='expense-ai-extract-button']"]}
+    ],
+    "design_issues": [
+      {"screen": "ExpenseEntryPanel", "issues": ["Proof preview uses object-cover in an aspect-video box, which crops tall receipts so only the middle shows. Consider object-contain.", "After a failed extraction there is no inline status, only a transient toast. A persistent hint that manual entry is still available would help."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter40_expense_ai.py", "/app/backend/tests/test_iter40_receipt_parse_unit.py", "/app/test_reports/pytest/pytest_iter40.xml"],
+  "action_items": [
+    "Fix the EMERGENT_LLM_KEY 401 for both LLM (/llm/chat/completions) and object storage (/objstore init). Consider installing the official emergentintegrations package instead of the local shim, and confirm the Gemini model id/provider format.",
+    "Change the extraction failure status from 502 to a status Cloudflare does not rewrite (e.g. 503 or 422) so the Indonesian detail reaches the UI.",
+    "Protect GET /api/files/{path} with role auth (expenses folder → owner/staff) and remove 'Cache-Control: public'.",
+    "Do not persist data: URL proofs when storage fails: either fail the save with a clear error or render inline proofs via a blob/modal viewer instead of an <a href=data:...>.",
+    "On DELETE /api/expenses, soft-delete the linked file record. Validate the date format on ExpenseIn."
+  ],
+  "critical_code_review_comments": [
+    "server.py is ~3000 lines. Split the expenses/AI module out.",
+    "chat.py line 36: `base_url or f'...' if cond else base_url` relies on operator precedence. Add parentheses for clarity.",
+    "extract_expense_receipt imports LlmChat inside the handler. Prefer a module-level import.",
+    "Rate limit for extract is 8 per 5 minutes per request key. Fine, but tests that hit it repeatedly will see 429."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter40_expense_ai.py", "/app/backend/tests/test_iter40_receipt_parse_unit.py"],
+  "success_rate": {"backend": "87.5% (14/16 API) + 5/5 unit", "frontend": "80%"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None persisted. All TEST_QA expenses were deleted (db.expenses count back to 0), and reset_final_revision.py was run.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run pytest with `-n 0` or `-p no:xdist`, and set REACT_APP_BACKEND_URL env. Browser login: use page.context.request.post identify/login (the UI consent modals require scrolling the document to enable agree). The live extract currently returns 401 upstream, wrapped as 502 and replaced by Cloudflare HTML. test_save_with_png_proof expects /api/files/ URLs, and test_proof_file_requires_auth checks file auth. Clean up TEST_QA expenses and run backend/reset_final_revision.py at the end. Procurement was not tested.",
+  "rca of the issue": "Extract 502: openai.AuthenticationError 'Invalid API key' at chat.py:62 → caught → HTTPException(502) → Cloudflare rewrites the 502 to an HTML page → axios has no response.data.detail → errMsg shows Cloudflare text. Data-URL proof: put_object → storage init 401 → store_photo except branch returns the original data URL → saved to Mongo → ledger <a href=data:...> is blocked by Chrome."
+}

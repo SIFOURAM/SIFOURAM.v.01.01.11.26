@@ -604,6 +604,15 @@ class ExpenseIn(BaseModel):
     proof: Optional[str] = None
     extraction: Optional[Dict[str, Any]] = None
 
+    @field_validator("date")
+    @classmethod
+    def validate_date(cls, value: str):
+        try:
+            datetime.strptime(value, "%Y-%m-%d")
+        except ValueError as error:
+            raise ValueError("Tanggal harus berformat YYYY-MM-DD") from error
+        return value
+
 
 class ExpenseExtractIn(BaseModel):
     proof: str
@@ -762,12 +771,18 @@ async def on_startup():
 
 
 @api.get("/files/{path:path}")
-async def serve_file(path: str):
+async def serve_file(path: str, u=Depends(ANY)):
     rec = await db.files.find_one({"storage_path": path, "is_deleted": False}, NOID)
     if not rec:
         raise HTTPException(404, "File not found")
+    if rec.get("folder") == "expenses" and u["role"] not in {"owner", "admin", "barteam"}:
+        raise HTTPException(403, "Akses bukti pengeluaran tidak diizinkan")
     data, ct = get_object(path)
-    return Response(content=data, media_type=rec.get("content_type", ct), headers={"Cache-Control": "public, max-age=86400"})
+    return Response(
+        content=data,
+        media_type=rec.get("content_type", ct),
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @api.get("/files")
@@ -1957,11 +1972,11 @@ def receipt_json(text: str) -> dict:
         payload = json.loads(cleaned)
     except json.JSONDecodeError as error:
         raise HTTPException(
-            502,
+            424,
             "AI belum dapat membaca bukti ini. Isi data secara manual.",
         ) from error
     if not isinstance(payload, dict):
-        raise HTTPException(502, "Hasil AI tidak dapat digunakan. Isi data secara manual.")
+        raise HTTPException(424, "Hasil AI tidak dapat digunakan. Isi data secara manual.")
     return payload
 
 
@@ -2020,13 +2035,30 @@ async def extract_expense_receipt(
         result = await chat.send_message(UserMessage(text=prompt, file_contents=[body.proof]))
     except Exception as error:
         logger.exception("Expense receipt extraction failed")
-        raise HTTPException(502, "AI tidak dapat membaca bukti saat ini. Isi data secara manual.") from error
+        raise HTTPException(
+            424,
+            "AI tidak dapat membaca bukti saat ini. Isi data secara manual.",
+        ) from error
     return receipt_draft(receipt_json(result))
 
 
+async def store_expense_proof(data_url: str, user_id: str, expense_id: str) -> dict:
+    validate_expense_proof(data_url)
+    proof_url = await store_photo(data_url, "expenses", user_id)
+    if proof_url and proof_url.startswith("/api/files/"):
+        return {"proof": proof_url}
+    return {
+        "proof": f"/api/expenses/{expense_id}/proof",
+        "proof_data": data_url,
+    }
+
+
 @api.get("/expenses")
-async def list_expenses(start: str, end: str, u=Depends(STAFF)):
-    return await db.expenses.find({"date": {"$gte": start, "$lte": end}}, NOID).sort("date", -1).to_list(500)
+async def list_expenses(start: str, end: str, u=Depends(SUPER)):
+    return await db.expenses.find(
+        {"date": {"$gte": start, "$lte": end}},
+        {"_id": 0, "proof_data": 0},
+    ).sort("date", -1).to_list(500)
 
 
 @api.post("/expenses")
@@ -2039,8 +2071,7 @@ async def create_expense(body: ExpenseIn, u=Depends(STAFF)):
         raise HTTPException(400, "Tipe transaksi tidak valid")
     doc = {**body.model_dump(), "id": uid(), "user": u["name"], "created_at": now_iso()}
     if body.proof:
-        validate_expense_proof(body.proof)
-        doc["proof"] = await store_photo(body.proof, "expenses", u["id"])
+        doc.update(await store_expense_proof(body.proof, u["id"], doc["id"]))
     if body.extraction:
         extracted_items = body.extraction.get("items")
         doc["extraction"] = {
@@ -2050,11 +2081,34 @@ async def create_expense(body: ExpenseIn, u=Depends(STAFF)):
         }
     await db.expenses.insert_one(doc)
     doc.pop("_id", None)
+    doc.pop("proof_data", None)
     return doc
+
+
+@api.get("/expenses/{eid}/proof")
+async def get_expense_proof(eid: str, u=Depends(STAFF)):
+    expense = await db.expenses.find_one({"id": eid}, {"_id": 0, "proof_data": 1})
+    if not expense or not expense.get("proof_data"):
+        raise HTTPException(404, "Bukti pengeluaran tidak ditemukan")
+    content_type, raw = validate_expense_proof(expense["proof_data"])
+    return Response(
+        content=raw,
+        media_type=content_type,
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @api.delete("/expenses/{eid}")
 async def delete_expense(eid: str, u=Depends(SUPER)):
+    expense = await db.expenses.find_one({"id": eid}, NOID)
+    if not expense:
+        raise HTTPException(404, "Pengeluaran tidak ditemukan")
+    proof = expense.get("proof") or ""
+    if proof.startswith("/api/files/"):
+        await db.files.update_one(
+            {"storage_path": proof.removeprefix("/api/files/")},
+            {"$set": {"is_deleted": True, "deleted_at": now_iso()}},
+        )
     await db.expenses.delete_one({"id": eid})
     return {"ok": True}
 
