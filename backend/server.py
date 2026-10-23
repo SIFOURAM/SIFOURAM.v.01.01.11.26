@@ -1316,18 +1316,39 @@ async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
         raise HTTPException(409, "PO pada status ini tidak dapat dicatat sebagai pembelian")
     vendor = str(body.get("vendor_name") or po.get("vendor_name") or "").strip()[:120]
     note = str(body.get("note") or "").strip()[:500]
-    actual_items = body.get("items") if isinstance(body.get("items"), list) else purchase_order_items(po)
-    proof = body.get("proof")
-    if proof:
-        validate_expense_proof(proof)
-    for item in actual_items:
+    requested_items = body.get("items") if isinstance(body.get("items"), list) else purchase_order_items(po)
+    actual_items_by_material = {}
+    material_ids = []
+    for item in requested_items:
         material_id = str(item.get("material_id") or "")
         price = float(item.get("unit_price") or 0)
         qty = float(item.get("qty") or 0)
         if not material_id or qty <= 0 or price < 0:
             raise HTTPException(400, "Rincian bahan pembelian tidak valid")
-        await db.materials.update_one({"id": material_id}, {"$set": {"pack_price": price}})
-    await db.purchase_orders.update_one({"id": po_id, "status": "approved"}, {"$set": {
+        material_ids.append(material_id)
+        merged = actual_items_by_material.setdefault(material_id, {**item, "qty": 0, "unit_price": price})
+        merged["qty"] += qty
+        merged["unit_price"] = price
+    materials = {
+        material["id"]: material
+        for material in await db.materials.find({"id": {"$in": material_ids}}, NOID).to_list(200)
+    }
+    if len(materials) != len(set(material_ids)):
+        raise HTTPException(404, "Satu atau lebih bahan pembelian tidak ditemukan")
+    actual_items = []
+    for material_id, item in actual_items_by_material.items():
+        material = materials[material_id]
+        actual_items.append({
+            **item,
+            "material_id": material_id,
+            "material_name": material["name"],
+            "unit": material["unit"],
+            "subtotal": round(item["qty"] * item["unit_price"]),
+        })
+    proof = body.get("proof")
+    if proof:
+        validate_expense_proof(proof)
+    transition = await db.purchase_orders.update_one({"id": po_id, "status": po.get("status")}, {"$set": {
         "status": "purchased",
         "auto_approved_at_purchase": po.get("status") != "approved",
         "owner_approved_by": po.get("owner_approved_by") or u["name"],
@@ -1340,6 +1361,10 @@ async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
         "purchase_items": actual_items,
         "purchase_proof_data": proof,
     }})
+    if not transition.modified_count:
+        raise HTTPException(409, "Status PO telah berubah. Muat ulang sebelum mencatat pembelian.")
+    for item in actual_items:
+        await db.materials.update_one({"id": item["material_id"]}, {"$set": {"pack_price": item["unit_price"]}})
     return await db.purchase_orders.find_one({"id": po_id}, {"_id": 0, "arrival_proof_data": 0})
 
 

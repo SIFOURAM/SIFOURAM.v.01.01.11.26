@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="5" skipped="0" tests="10" time="8.533" timestamp="2026-10-23T13:20:00.041151+00:00" hostname="agent-env-7e2ea440-5d0f-4173-9de1-54462be299bb"><testcase classname="tests.test_purchase_flow_iter45.TestAIAndAccess" name="test_ai_extract_safe_failure" time="3.138" /><testcase classname="tests.test_purchase_flow_iter45.TestAIAndAccess" name="test_admin_deposits_access" time="0.670" /><testcase classname="tests.test_purchase_flow_iter45.TestPurchaseFlow" name="test_purchase_requires_owner_admin" time="4.145" /><testcase classname="tests.test_purchase_flow_iter45.TestPurchaseFlow" name="test_approved_po_purchase_then_receive_once" time="1.292" /><testcase classname="tests.test_purchase_flow_iter45.TestPurchaseFlow" name="test_non_approved_po_becomes_purchased[requested]" time="0.213"><failure message="AssertionError: status stayed requested for requested PO&#10;assert 'requested' == 'purchased'&#10;  &#10;  - purchased&#10;  + requested">E   AssertionError: status stayed requested for requested PO
+    assert 'requested' == 'purchased'
+      
+      - purchased
+      + requested</failure></testcase><testcase classname="tests.test_purchase_flow_iter45.TestPurchaseFlow" name="test_non_approved_po_becomes_purchased[reviewed]" time="0.268"><failure message="AssertionError: status stayed reviewed for reviewed PO&#10;assert 'reviewed' == 'purchased'&#10;  &#10;  - purchased&#10;  + reviewed">E   AssertionError: status stayed reviewed for reviewed PO
+    assert 'reviewed' == 'purchased'
+      
+      - purchased
+      + reviewed</failure></testcase><testcase classname="tests.test_purchase_flow_iter45.TestPurchaseFlow" name="test_shipped_po_becomes_purchased" time="0.456"><failure message="AssertionError: status stayed shipped&#10;assert 'shipped' == 'purchased'&#10;  &#10;  - purchased&#10;  + shipped">E   AssertionError: status stayed shipped
+    assert 'shipped' == 'purchased'
+      
+      - purchased
+      + shipped</failure></testcase><testcase classname="tests.test_purchase_flow_iter45.TestPurchaseFlow" name="test_invalid_items_rejected" time="0.179" /><testcase classname="tests.test_purchase_flow_iter45.TestPurchaseFlow" name="test_unknown_material_rejected" time="0.222"><failure message="AssertionError: got 200&#10;assert 200 in (400, 404)&#10; +  where 200 = &lt;Response [200]&gt;.status_code">E   AssertionError: got 200
+    assert 200 in (400, 404)
+     +  where 200 = &lt;Response [200]&gt;.status_code</failure></testcase><testcase classname="tests.test_purchase_flow_iter45.TestPurchaseFlow" name="test_duplicate_material_in_purchase_items_receivable" time="1.097"><failure message="AssertionError: receive blocked: 404 {&quot;detail&quot;:&quot;Bahan PO tidak lagi tersedia&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">E   AssertionError: receive blocked: 404 {"detail":"Bahan PO tidak lagi tersedia"}
+    assert 404 == 200
+     +  where 404 = &lt;Response [404]&gt;.status_code</failure></testcase></testsuite></testsuites>

@@ -13,6 +13,7 @@ const STATUS_LABELS = {
   reviewed: "Menunggu Persetujuan Owner",
   approved: "Disetujui Owner",
   shipped: "Dalam Pengiriman",
+  purchased: "Sudah Dibeli",
   arrived: "Barang Datang",
   rejected: "Ditolak",
 };
@@ -28,6 +29,7 @@ const statusClass = (status) => ({
   arrived: "bg-emerald-500/15 text-emerald-600",
   approved: "bg-emerald-500/15 text-emerald-600",
   shipped: "bg-sky-500/15 text-sky-600",
+  purchased: "bg-violet-500/15 text-violet-700",
   rejected: "bg-red-500/15 text-red-600",
 }[status] || "bg-amber-500/15 text-amber-600");
 
@@ -141,7 +143,7 @@ export default function PurchaseOrderCard({ order, user, onChanged }) {
     user.role === "owner" && status === "reviewed"
   );
   const canShip = ["owner", "admin"].includes(user.role) && status === "approved";
-  const canReceive = ["owner", "admin", "barteam"].includes(user.role) && status === "shipped";
+  const canReceive = ["owner", "admin", "barteam"].includes(user.role) && ["shipped", "purchased"].includes(status);
 
   return (
     <article className="space-y-4" data-testid={`purchase-order-${order.id}`}>
