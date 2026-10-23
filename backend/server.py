@@ -1316,6 +1316,17 @@ async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
         raise HTTPException(409, "Hanya PO Disetujui yang dapat dicatat sebagai pembelian")
     vendor = str(body.get("vendor_name") or po.get("vendor_name") or "").strip()[:120]
     note = str(body.get("note") or "").strip()[:500]
+    actual_items = body.get("items") if isinstance(body.get("items"), list) else purchase_order_items(po)
+    proof = body.get("proof")
+    if proof:
+        validate_expense_proof(proof)
+    for item in actual_items:
+        material_id = str(item.get("material_id") or "")
+        price = float(item.get("unit_price") or 0)
+        qty = float(item.get("qty") or 0)
+        if not material_id or qty <= 0 or price < 0:
+            raise HTTPException(400, "Rincian bahan pembelian tidak valid")
+        await db.materials.update_one({"id": material_id}, {"$set": {"pack_price": price}})
     await db.purchase_orders.update_one({"id": po_id, "status": "approved"}, {"$set": {
         "status": "purchased",
         "purchased_by": u["name"],
@@ -1323,6 +1334,8 @@ async def record_purchase(po_id: str, body: Dict[str, Any], u=Depends(REPORTS)):
         "purchase_vendor": vendor,
         "purchase_note": note,
         "purchase_date": str(body.get("purchase_date") or datetime.now(WIB).strftime("%Y-%m-%d")),
+        "purchase_items": actual_items,
+        "purchase_proof_data": proof,
     }})
     return await db.purchase_orders.find_one({"id": po_id}, {"_id": 0, "arrival_proof_data": 0})
 
