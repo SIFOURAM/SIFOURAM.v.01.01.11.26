@@ -315,6 +315,7 @@ export default function POS() {
             {(lines.length || bcart.length) > 0 && <button data-testid="pos-cart-floating-button" onClick={() => setPaymentSheet(true)} className="fixed bottom-24 left-4 z-[60] flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-xl lg:bottom-5"><ShoppingCart className="h-4 w-4" />{fmtRp(total)}</button>}
             {paymentSheet && <div data-testid="pos-payment-sheet" className="fixed inset-0 z-[70] flex items-end bg-black/50 backdrop-blur-sm" onClick={() => setPaymentSheet(false)}><div onClick={(event) => event.stopPropagation()} className="w-full max-h-[90vh] overflow-y-auto rounded-t-3xl bg-background p-4 pb-24 shadow-2xl animate-in slide-in-from-bottom duration-300 lg:pb-4"><Bento gold className="fade-up" testId="cart-panel">
               <p className="eyebrow mb-3">{t("checkout")}</p>
+              {pay === "qris" && !qrisConfirmed && <button data-testid="pos-qris-front-button" onClick={() => { const account = qrisAccounts[0]; if (!account) return toast.error("Akun QRIS Rider belum tersedia."); setQrisPreview(account); }} className="btn-primary w-full mb-3">Tampilkan QRIS Rider</button>}
               {lines.map((l) => (
                 <div key={l.menu_id} className="flex items-center justify-between py-2 border-b border-border/50 text-sm">
                   <span className="font-medium flex-1 truncate">{l.name}</span>
