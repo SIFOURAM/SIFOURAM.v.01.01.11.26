@@ -51,6 +51,11 @@ export function AuthProvider({ children }) {
     setUser(data.user);
     return data.user;
   }, []);
+  const googleLogin = useCallback(async (sessionId) => {
+    const { data } = await api.post("/auth/google/session", { session_id: sessionId });
+    setUser(data.user);
+    return data.user;
+  }, []);
 
   const logout = useCallback(() => {
     api.post("/auth/logout").catch(() => {});
@@ -83,7 +88,7 @@ export function AuthProvider({ children }) {
   const unlockPos = () => { sessionStorage.setItem("si4am_pos", "1"); setPosUnlocked(true); };
   const setTheme = (t) => setThemeState(t);
 
-  return <AuthCtx.Provider value={{ user, setUser, identify, login, logout, theme, setTheme, posUnlocked, unlockPos }}>{children}</AuthCtx.Provider>;
+  return <AuthCtx.Provider value={{ user, setUser, identify, login, googleLogin, logout, theme, setTheme, posUnlocked, unlockPos }}>{children}</AuthCtx.Provider>;
 }
 
 export const useAuth = () => useContext(AuthCtx);

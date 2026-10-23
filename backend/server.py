@@ -908,6 +908,52 @@ async def login(body: LoginIn, request: Request, response: Response):
     return {"user": public_user(u)}
 
 
+@api.post("/auth/google/session")
+async def google_login(body: dict, request: Request, response: Response):
+    session_id = str(body.get("session_id") or "").strip()
+    if not session_id:
+        raise HTTPException(400, "Sesi Google tidak ditemukan")
+    try:
+        result = requests.get(
+            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+            headers={"X-Session-ID": session_id},
+            timeout=12,
+        )
+        result.raise_for_status()
+        google = result.json()
+    except requests.RequestException as error:
+        raise HTTPException(502, "Google Sign-In belum dapat diverifikasi") from error
+    email = str(google.get("email") or "").strip().lower()
+    user = await db.users.find_one({"email": email, "active": {"$ne": False}}, NOID)
+    if not user:
+        await audit_event("auth.google", request, outcome="denied", detail="unregistered email")
+        raise HTTPException(403, "Email Google belum terdaftar pada SI FOUR A.M")
+    session_key = uid()
+    expires_at = await session_expiry_for(user)
+    token = make_token(user["id"], session_key, expires_at)
+    await db.sessions.insert_one({
+        "id": session_key,
+        "user_id": user["id"],
+        "expires_at": expires_at,
+        "revoked": False,
+        "created_at": now_iso(),
+        "ip": request_ip(request),
+        "provider": "google",
+    })
+    response.set_cookie(
+        key=AUTH_COOKIE,
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=max(1, int((expires_at - datetime.now(timezone.utc)).total_seconds())),
+        path="/",
+    )
+    await audit_event("auth.google", request, user["id"])
+    user["session_ends_at"] = expires_at.isoformat()
+    return {"user": public_user(user)}
+
+
 @api.post("/auth/logout")
 async def logout(request: Request, response: Response, u=Depends(ANY)):
     token = request.cookies.get(AUTH_COOKIE)
@@ -2760,7 +2806,7 @@ async def coach_chat(body: CoachIn, u=Depends(ANY)):
               "Jawab padat (maks ±180 kata), pakai bullet & emoji secukupnya. Jika pertanyaan menyangkut jualan atau lokasi, WAJIB sertakan 2–3 lokasi ramai TERDEKAT dari daftar POI dengan alasan & jam terbaik, plus 1 taktik jualan konkret (sapaan, bundling 4 cup Rp45.000 / 10 cup Rp110.000, upsell). "
               "Untuk pertanyaan lain, jawab langsung & akurat, lalu bila relevan kaitkan dengan cara menambah penjualan kopi. Selalu tutup dengan 1 kalimat penyemangat. "
               f"\nKONTEKS: waktu {datetime.now(WIB).strftime('%A %H:%M')} WIB. Lokasi rider: {area or 'tidak diketahui'}. User: {u['name']} ({u['role']}). Terjual hari ini {sold} cup (target 50). Sisa stok: {remaining}.\nPOI radius 1,5 km:\n{poi_txt}\n\nRiwayat:\n{hist_txt}")
-    models = {"gpt": ("openai", "gpt-5.4"), "claude": ("anthropic", "claude-sonnet-4-6"), "gemini": ("gemini", "gemini-3.8-flash")}
+    models = {"gpt-terra": ("openai", "gpt-5.6-terra"), "gpt": ("openai", "gpt-5.4"), "claude-sonnet": ("anthropic", "claude-sonnet-5-5"), "claude": ("anthropic", "claude-sonnet-4-6"), "gemini": ("gemini", "gemini-3.8-flash")}
     prov, model = models.get(body.provider or "gemini", ("gemini", "gemini-3.8-flash"))
     chat = LlmChat(
         api_key=os.environ["EMERGENT_LLM_KEY"],
