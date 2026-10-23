@@ -467,7 +467,7 @@ export default function POS() {
           <Attendance rider={rider} riders={riders} riderId={riderId} setRiderId={setRiderId} isRider={isRider} />
         </DialogContent>
       </Dialog>
-      <Dialog open={!!qrisPreview} onOpenChange={() => setQrisPreview(null)}><DialogContent data-testid="pos-qris-preview" className="max-w-sm"><DialogHeader><DialogTitle>QRIS · {qrisPreview?.name}</DialogTitle></DialogHeader>{qrisPreview && <><img src={qrisPreview.qris_photo} alt={`QRIS ${qrisPreview.name}`} className="w-full aspect-square object-contain bg-white rounded-lg p-3" /><p className="text-xs text-muted-foreground">Tampilkan QR ini kepada pelanggan. Setelah pelanggan selesai membayar, kembali ke POS lalu tekan tombol Bayar.</p><button data-testid="pos-qris-confirm-button" onClick={() => { setQrisConfirmed(true); setQrisPreview(null); }} className="btn-primary w-full">Lanjut ke tombol Bayar</button></>}</DialogContent></Dialog>
+      <Dialog open={!!qrisPreview} onOpenChange={() => setQrisPreview(null)}><DialogContent data-testid="pos-qris-preview" className="z-[90] max-w-sm"><DialogHeader><DialogTitle>QRIS · {qrisPreview?.name}</DialogTitle></DialogHeader>{qrisPreview && <><img src={qrisPreview.qris_photo} alt={`QRIS ${qrisPreview.name}`} className="w-full aspect-square object-contain bg-white rounded-lg p-3" /><p className="text-xs text-muted-foreground">Tampilkan QR ini kepada pelanggan. Setelah pelanggan selesai membayar, kembali ke POS lalu tekan tombol Bayar.</p><button data-testid="pos-qris-confirm-button" onClick={() => { setQrisConfirmed(true); setQrisPreview(null); }} className="btn-primary w-full">Lanjut ke tombol Bayar</button></>}</DialogContent></Dialog>
     </div>
   );
 }
