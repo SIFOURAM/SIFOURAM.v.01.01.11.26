@@ -164,7 +164,7 @@ function CategoryTabs({ category, t }) {
           onChange={(event) => selectTab(event.target.value)}
           className={`category-dropdown h-[23px] px-2 text-[11px] text-primary font-semibold ${activeTab.subtabs?.length ? "max-w-[5.2rem]" : "max-w-[9rem]"}`}
         >
-          {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{t(tab.key)}</option>)}
+          {category.tabs.map((tab) => <option key={tab.to} value={tab.to}>{tab.label || t(tab.key)}</option>)}
         </select>
         {activeTab.subtabs?.length > 0 && (
           <select
