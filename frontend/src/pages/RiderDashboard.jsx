@@ -323,6 +323,7 @@ export default function RiderDashboard() {
             {rider && <><p className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><Calendar className="w-3 h-3" />{t("joined")} {rider.joined_at ? fmtDate(rider.joined_at) : "-"}</p>
               <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{rider.placement || "-"}</p></>}
             <div className="mt-4 w-full rounded-xl bg-muted p-3"><p className="eyebrow">{t("totalIncome")}</p><p data-testid="rider-total-income" className="num font-bold text-primary">{fmtRp(agg.total_income)}</p></div>
+            {user.role === "owner" && <button data-testid="owner-edit-rank-targets-button" onClick={() => setRankDetailOpen(true)} disabled={!rank} className="btn-primary mt-3 w-full text-xs"><Pencil className="h-3.5 w-3.5" />Edit Target Rank</button>}
           </Bento>
           <Bento className="fade-up" testId="rider-stat-allowance"><div className="flex justify-between items-start"><p className="eyebrow">{t("dailyAllowance")}</p><Wallet className="w-4 h-4 text-primary" /></div>
             <p className="mt-3 text-2xl font-bold num font-heading">{fmtRp(agg.allowance)}</p><p className="text-xs text-muted-foreground">{t("available")}: <b className="num">{fmtRp(agg.allowance_available)}</b></p>
