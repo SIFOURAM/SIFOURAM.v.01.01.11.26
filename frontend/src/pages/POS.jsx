@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Minus, Plus, Trash2, LogIn, LogOut, ReceiptText, History, Lock, CalendarCheck, Split } from "lucide-react";
+import { Minus, Plus, Trash2, LogIn, LogOut, ReceiptText, History, Lock, CalendarCheck, Split, ShoppingCart } from "lucide-react";
 import { api, errMsg } from "../lib/api";
 import { fmtRp, today, fmtTime, waNumber } from "../lib/helpers";
 import { useT } from "../lib/i18n";
@@ -121,6 +121,8 @@ export default function POS() {
   const [tableNumber, setTableNumber] = useState("");
   const [qrisAccounts, setQrisAccounts] = useState([]);
   const [qrisPreview, setQrisPreview] = useState(null);
+  const [qrisConfirmed, setQrisConfirmed] = useState(false);
+  const [paymentSheet, setPaymentSheet] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [eod, setEod] = useState(null);
   const [hist, setHist] = useState(null);
@@ -171,6 +173,7 @@ export default function POS() {
     if (locked) return toast.error("Pembayaran tidak dapat dilakukan sebelum stok awal terverifikasi.");
     if (orderType === "dine_in" && !tableNumber) return toast.error("Pilih nomor meja terlebih dahulu.");
     if (pay === "cash" && Number(cash) < total) return toast.error(t("cashReceived") + " < " + t("total"));
+    if (pay === "qris" && !qrisConfirmed) return toast.error("Tampilkan QRIS lalu konfirmasi pembayaran diterima.");
     if (pay === "split" && !splitValid) return toast.error("Nominal tunai split harus lebih dari Rp 0 dan kurang dari total.");
     setBusy(true);
     try {
@@ -202,6 +205,8 @@ export default function POS() {
       setCust({ name: "", phone: "" });
       setOrderType("takeaway");
       setTableNumber("");
+      setQrisConfirmed(false);
+      setPaymentSheet(false);
       setClientId(crypto.randomUUID());
       loadStock();
       toast.success(data.receipt_no);
@@ -278,7 +283,8 @@ export default function POS() {
                 </button>))}
               {[1, 2].map((b) => <button key={b} data-testid={`pos-bundle-${b}`} disabled={locked} onClick={() => setPickB(b)} className="bento gold p-4 text-left disabled:opacity-40"><p className="eyebrow text-primary">{t("bundling")} {b}</p><p className="font-heading font-bold text-sm mt-1">{BUNDLES[b].cups} {t("cups")} Rp 12K</p><p className="text-primary num font-bold text-sm">{fmtRp(BUNDLES[b].price)}</p></button>)}
             </div>
-            <Bento gold className="fade-up" testId="cart-panel">
+            {(lines.length || bcart.length) > 0 && <button data-testid="pos-cart-floating-button" onClick={() => setPaymentSheet(true)} className="fixed bottom-5 left-4 z-40 flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-xl"><ShoppingCart className="h-4 w-4" />{fmtRp(total)}</button>}
+            {paymentSheet && <div data-testid="pos-payment-sheet" className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm" onClick={() => setPaymentSheet(false)}><div onClick={(event) => event.stopPropagation()} className="w-full max-h-[90vh] overflow-y-auto rounded-t-3xl bg-background p-4 shadow-2xl animate-in slide-in-from-bottom duration-300"><Bento gold className="fade-up" testId="cart-panel">
               <p className="eyebrow mb-3">{t("checkout")}</p>
               {lines.map((l) => (
                 <div key={l.menu_id} className="flex items-center justify-between py-2 border-b border-border/50 text-sm">
@@ -332,7 +338,7 @@ export default function POS() {
                       key={p}
                       data-testid={`pay-${p}`}
                       aria-label={p === "split" ? "Split payment" : p}
-                      onClick={() => setPay(p)}
+                      onClick={() => { setPay(p); setQrisConfirmed(false); }}
                       className={`flex-1 h-10 rounded-lg text-xs font-bold uppercase ${
                         pay === p ? "bg-primary text-white" : "bg-muted"
                       }`}
@@ -375,9 +381,9 @@ export default function POS() {
                 <div><p className="eyebrow">{t("total")} · {cups} {t("cups")}</p><p data-testid="cart-total" className="text-3xl font-bold num font-heading">{fmtRp(total)}</p>
                   {pay === "cash" && cash && <p data-testid="cart-change" className="text-sm text-emerald-500 num">{t("change")}: {fmtRp(change)}</p>}</div>
                 <div className="flex gap-2"><button data-testid="cart-clear" onClick={() => { setCart({}); setBcart([]); }} className="btn-ghost h-11 w-11 p-0"><Trash2 className="w-4 h-4" /></button>
-                  <button data-testid="checkout-button" onClick={checkout} disabled={locked || busy || (!lines.length && !bcart.length) || (orderType === "dine_in" && !tableNumber) || (pay === "cash" && Number(cash) < total) || (pay === "split" && !splitValid)} className="btn-primary">{t("checkout")}</button></div>
+                  <button data-testid="checkout-button" onClick={checkout} disabled={locked || busy || (!lines.length && !bcart.length) || (orderType === "dine_in" && !tableNumber) || (pay === "cash" && Number(cash) < total) || (pay === "qris" && !qrisConfirmed) || (pay === "split" && !splitValid)} className="btn-primary">{pay === "qris" && !qrisConfirmed ? "Konfirmasi QRIS" : t("checkout")}</button></div>
               </div>
-            </Bento>
+            </Bento></div></div>}
           </>}
         </div>
       </div>
@@ -436,7 +442,7 @@ export default function POS() {
           <Attendance rider={rider} riders={riders} riderId={riderId} setRiderId={setRiderId} isRider={isRider} />
         </DialogContent>
       </Dialog>
-      <Dialog open={!!qrisPreview} onOpenChange={() => setQrisPreview(null)}><DialogContent data-testid="pos-qris-preview" className="max-w-sm"><DialogHeader><DialogTitle>QRIS · {qrisPreview?.name}</DialogTitle></DialogHeader>{qrisPreview && <img src={qrisPreview.qris_photo} alt={`QRIS ${qrisPreview.name}`} className="w-full aspect-square object-contain bg-white rounded-lg p-3" />}</DialogContent></Dialog>
+      <Dialog open={!!qrisPreview} onOpenChange={() => setQrisPreview(null)}><DialogContent data-testid="pos-qris-preview" className="max-w-sm"><DialogHeader><DialogTitle>QRIS · {qrisPreview?.name}</DialogTitle></DialogHeader>{qrisPreview && <><img src={qrisPreview.qris_photo} alt={`QRIS ${qrisPreview.name}`} className="w-full aspect-square object-contain bg-white rounded-lg p-3" /><p className="text-xs text-muted-foreground">Pastikan pelanggan sudah menyelesaikan pembayaran sebelum mengonfirmasi.</p><button data-testid="pos-qris-confirm-button" onClick={() => { setQrisConfirmed(true); setQrisPreview(null); toast.success("Pembayaran QRIS dikonfirmasi"); }} className="btn-primary w-full">Konfirmasi pembayaran diterima</button></>}</DialogContent></Dialog>
     </div>
   );
 }
