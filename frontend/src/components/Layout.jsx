@@ -92,7 +92,7 @@ export const NAV = {
     more: [item("/finance", "finance")],
   },
   admin: {
-    main: [item("/", "dashboard"), item("/rider-stock", "riderStock"), item("/inventory", "inventory")],
+    main: [item("/", "dashboard"), item("/rider-stock", "riderStock"), item("/pos", "pos"), item("/deposit", "deposit"), item("/inventory", "inventory")],
     more: [item("/settings", "settings")],
   },
   barteam: {
@@ -282,12 +282,12 @@ export default function Layout() {
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-background/90 backdrop-blur-xl border-t border-border/70" data-testid="bottom-nav">
           <div className="flex justify-around px-1 py-1.5 pb-[max(env(safe-area-inset-bottom),6px)]">
             {main.map((i) => {
-              const isPrimaryAction = i.key === "pos" || (user.role === "barteam" && i.key === "deposit");
+              const isPrimaryAction = i.key === "pos" || ((user.role === "barteam" || user.role === "admin") && i.key === "deposit");
               return (
               <NavLink key={i.to} to={i.to} end={i.to === "/"} data-testid={`bottomnav-${i.key}`}
                 className={() => `flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${isPrimaryAction ? "text-black" : isBottomItemActive(i) ? "text-primary" : theme === "dark" ? "text-white" : "text-muted-foreground"}`}>
-                <span className={isPrimaryAction ? "flex w-10 h-10 -mt-3 items-center justify-center rounded-full bg-primary shadow-md" : "flex items-center justify-center"}>
-                  <i.icon className={isPrimaryAction ? "w-5 h-5" : "w-[0.95rem] h-[0.95rem]"} />
+                <span className={isPrimaryAction ? "flex h-20 w-20 -mt-10 items-center justify-center rounded-full border-4 border-background bg-primary shadow-lg" : "flex items-center justify-center"}>
+                  <i.icon className={isPrimaryAction ? "h-10 w-10" : "w-[0.95rem] h-[0.95rem]"} />
                 </span>
                 <span className="truncate max-w-full">{t(i.key)}</span>
               </NavLink>
