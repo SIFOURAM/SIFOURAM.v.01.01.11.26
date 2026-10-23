@@ -52,7 +52,7 @@ function RiderRemaining({ user }) {
   }, []);
   useEffect(() => { load(); }, [load]);
   const row = rows.find((item) => item.rider_id === user.id);
-  return <div data-testid="rider-stock-remaining-page"><PageHeader /><Bento gold>{row ? <><p className="font-heading font-bold">Sisa Stock Hari Ini</p><p className="text-xs text-muted-foreground mb-3">Terjual {row.sold_total} · Sisa {row.remaining_total}</p>{row.items.map((item) => <div key={item.menu_id} className="flex justify-between text-sm py-1 border-b border-border/40"><span>{item.name}</span><b>{item.remaining}</b></div>)}</> : <Empty text="Belum ada stock Rider pada hari ini." />}</Bento></div>;
+  return <div data-testid="rider-stock-remaining-page"><PageHeader /><Bento gold>{row ? <><p className="font-heading font-bold">Sisa Stock Hari Ini</p><div className="mt-3 grid grid-cols-3 gap-2 text-center"><div className="rounded-lg bg-muted p-2"><p className="eyebrow">Total Stock Product</p><p data-testid="rider-total-stock-product" className="num font-bold text-primary">{row.initial_total}</p></div><div className="rounded-lg bg-muted p-2"><p className="eyebrow">Terjual</p><p className="num font-bold">{row.sold_total}</p></div><div className="rounded-lg bg-muted p-2"><p className="eyebrow">Sisa</p><p className="num font-bold">{row.remaining_total}</p></div></div><div className="mt-3">{row.items.map((item) => <div key={item.menu_id} className="flex justify-between text-sm py-1 border-b border-border/40"><span>{item.name}</span><b>{item.remaining}</b></div>)}</div></> : <Empty text="Belum ada stock Rider pada hari ini." />}</Bento></div>;
 }
 
 export default function RiderStock() {
