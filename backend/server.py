@@ -3,9 +3,10 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-import os, uuid, logging, bcrypt, jwt, requests, threading, hmac, time
+import os, uuid, logging, bcrypt, jwt, requests, threading, hmac, time, json
 from collections import defaultdict, deque
 from datetime import datetime, timezone, timedelta
+from io import BytesIO
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, BackgroundTasks, Body
 import base64, re
@@ -14,6 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, field_validator
 from pymongo import ReturnDocument
+from PIL import Image, ImageStat
 from seed import SEED_USERS, SEED_MATERIALS, SEED_MENUS, MENU_PHOTOS
 
 client = AsyncIOMotorClient(os.environ['MONGO_URL'])
@@ -27,6 +29,17 @@ NOID = {"_id": 0}
 TERMS_VERSION = "2026-06-01"
 PRIVACY_VERSION = "2026-06-01"
 VALID_ROLES = {"owner", "admin", "barteam", "rider"}
+EXPENSE_CATEGORIES = {
+    "Raw Material",
+    "Packaging",
+    "Fuel / Transport",
+    "Salary",
+    "Rent",
+    "Utilities",
+    "Marketing",
+    "Equipment",
+    "Other",
+}
 AUTH_COOKIE = "si4am_session"
 MAX_REQUEST_BYTES = 5 * 1024 * 1024
 RATE_BUCKETS: Dict[str, deque] = defaultdict(deque)
@@ -584,10 +597,16 @@ class PayIn(BaseModel):
 class ExpenseIn(BaseModel):
     date: str
     category: str
-    amount: float
+    amount: float = Field(gt=0)
     note: str = ""
     account: str = "cash"
     type: str = "expense"  # expense | income
+    proof: Optional[str] = None
+    extraction: Optional[Dict[str, Any]] = None
+
+
+class ExpenseExtractIn(BaseModel):
+    proof: str
 
 
 class HandoverExpense(BaseModel):
@@ -1904,6 +1923,107 @@ async def pay_invoice(iid: str, body: PayIn, u=Depends(SUPER)):
 
 
 # ---------- Expenses / Handover ----------
+def validate_expense_proof(data_url: str) -> tuple[str, bytes]:
+    match = re.match(r"^data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\s]+)$", data_url)
+    if not match:
+        raise HTTPException(400, "Bukti harus berupa foto JPEG, PNG, atau WEBP.")
+    try:
+        raw = base64.b64decode(match.group(2), validate=True)
+    except ValueError as error:
+        raise HTTPException(400, "Format bukti foto tidak valid.") from error
+    if not 200 < len(raw) <= 3_000_000:
+        raise HTTPException(400, "Ukuran bukti foto harus di bawah 3 MB.")
+    try:
+        image = Image.open(BytesIO(raw))
+        image.verify()
+        image = Image.open(BytesIO(raw)).convert("L")
+        if image.width < 40 or image.height < 40:
+            raise HTTPException(400, "Foto bukti terlalu kecil untuk dibaca.")
+        sample = image.resize((48, 48))
+        if ImageStat.Stat(sample).var[0] < 4:
+            raise HTTPException(400, "Foto bukti tampak kosong. Gunakan gambar struk yang jelas.")
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise HTTPException(400, "Bukti bukan gambar yang dapat dibaca.") from error
+    return match.group(1), raw
+
+
+def receipt_json(text: str) -> dict:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.I)
+    try:
+        payload = json.loads(cleaned)
+    except json.JSONDecodeError as error:
+        raise HTTPException(
+            502,
+            "AI belum dapat membaca bukti ini. Isi data secara manual.",
+        ) from error
+    if not isinstance(payload, dict):
+        raise HTTPException(502, "Hasil AI tidak dapat digunakan. Isi data secara manual.")
+    return payload
+
+
+def receipt_draft(payload: dict) -> dict:
+    fallback_date = datetime.now(WIB).strftime("%Y-%m-%d")
+    date = str(payload.get("date") or fallback_date)
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        date = fallback_date
+    category = str(payload.get("category") or "Other")
+    if category not in EXPENSE_CATEGORIES:
+        category = "Other"
+    try:
+        amount = float(payload.get("amount") or 0)
+    except (TypeError, ValueError):
+        amount = 0
+    account = "bank" if str(payload.get("account", "")).lower() == "bank" else "cash"
+    merchant = str(payload.get("merchant") or "").strip()[:120]
+    note = str(payload.get("note") or merchant).strip()[:400]
+    items = payload.get("items") if isinstance(payload.get("items"), list) else []
+    return {
+        "date": date,
+        "category": category,
+        "amount": max(0, round(amount)),
+        "account": account,
+        "note": note,
+        "merchant": merchant,
+        "items": [str(item).strip()[:120] for item in items[:12] if str(item).strip()],
+    }
+
+
+@api.post("/expenses/extract")
+async def extract_expense_receipt(
+    body: ExpenseExtractIn,
+    request: Request,
+    u=Depends(STAFF),
+):
+    enforce_rate_limit(request, "expense-extract", 8, 300)
+    validate_expense_proof(body.proof)
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+    prompt = (
+        "Baca foto struk atau bukti pembayaran Indonesia ini. Balas HANYA JSON valid tanpa markdown "
+        "dengan key date (YYYY-MM-DD), merchant, amount (angka Rupiah tanpa pemisah), category, "
+        "account (cash atau bank), note, items (array string). Kategori WAJIB salah satu dari: "
+        "Raw Material, Packaging, Fuel / Transport, Salary, Rent, Utilities, Marketing, "
+        "Equipment, Other. "
+        "Jika data tidak terbaca, gunakan amount 0, category Other, account cash, dan note singkat. "
+        "Jangan pernah membuat nominal jika tidak terlihat jelas."
+    )
+    chat = LlmChat(
+        api_key=os.environ["EMERGENT_LLM_KEY"],
+        session_id=f"expense-extract-{u['id']}-{uid()}",
+        system_message="Kamu adalah asisten ekstraksi struk yang teliti.",
+    ).with_model("gemini", "gemini-3.1-pro-preview")
+    try:
+        result = await chat.send_message(UserMessage(text=prompt, file_contents=[body.proof]))
+    except Exception as error:
+        logger.exception("Expense receipt extraction failed")
+        raise HTTPException(502, "AI tidak dapat membaca bukti saat ini. Isi data secara manual.") from error
+    return receipt_draft(receipt_json(result))
+
+
 @api.get("/expenses")
 async def list_expenses(start: str, end: str, u=Depends(STAFF)):
     return await db.expenses.find({"date": {"$gte": start, "$lte": end}}, NOID).sort("date", -1).to_list(500)
@@ -1911,7 +2031,23 @@ async def list_expenses(start: str, end: str, u=Depends(STAFF)):
 
 @api.post("/expenses")
 async def create_expense(body: ExpenseIn, u=Depends(STAFF)):
+    if body.category not in EXPENSE_CATEGORIES:
+        raise HTTPException(400, "Kategori pengeluaran tidak valid")
+    if body.account not in {"cash", "bank"}:
+        raise HTTPException(400, "Akun pembayaran tidak valid")
+    if body.type not in {"expense", "income"}:
+        raise HTTPException(400, "Tipe transaksi tidak valid")
     doc = {**body.model_dump(), "id": uid(), "user": u["name"], "created_at": now_iso()}
+    if body.proof:
+        validate_expense_proof(body.proof)
+        doc["proof"] = await store_photo(body.proof, "expenses", u["id"])
+    if body.extraction:
+        extracted_items = body.extraction.get("items")
+        doc["extraction"] = {
+            "merchant": str(body.extraction.get("merchant") or "")[:120],
+            "items": extracted_items[:12] if isinstance(extracted_items, list) else [],
+            "source": "gemini-3.1-pro-preview",
+        }
     await db.expenses.insert_one(doc)
     doc.pop("_id", None)
     return doc
@@ -2755,7 +2891,16 @@ async def finance_summary(start: str, end: str, u=Depends(SUPER)):
         if p["cost"]:
             ledger.append({"date": p["date"], "type": "out", "account": "cash", "category": "Purchase", "desc": f"{p.get('item_name') or p['material_name']} → {p['material_name']} +{p['qty']}{p['unit']}" + (f" ({p['supplier']})" if p.get("supplier") else ""), "amount": p["cost"], "item_name": p.get("item_name", ""), "material_name": p["material_name"]})
     for e in expenses:
-        ledger.append({"date": e["date"], "type": "in" if e.get("type") == "income" else "out", "account": e.get("account", "cash"), "category": e["category"], "desc": e.get("note", ""), "amount": e["amount"], "id": e["id"]})
+        ledger.append({
+            "date": e["date"],
+            "type": "in" if e.get("type") == "income" else "out",
+            "account": e.get("account", "cash"),
+            "category": e["category"],
+            "desc": e.get("note", ""),
+            "amount": e["amount"],
+            "id": e["id"],
+            "proof": e.get("proof"),
+        })
     for w in await db.withdrawals.find({"date": {"$gte": start, "$lte": end}}, NOID).to_list(2000):
         ledger.append({"date": w["date"], "type": "out", "account": w["method"], "category": "Rider Allowance" if w["type"] == "allowance" else "Rider Incentive", "desc": w["rider_name"], "amount": w["amount"]})
     ledger.sort(key=lambda x: x["date"])
