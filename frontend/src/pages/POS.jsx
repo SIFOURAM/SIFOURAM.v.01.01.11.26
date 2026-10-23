@@ -190,13 +190,13 @@ export default function POS() {
     for (const [m, q] of Object.entries(comps)) { const it = stock.items.find((x) => x.menu_id === m); if ((need[m] || 0) + q > it.remaining) return toast.warning(`${it.name}: ${it.remaining} ${t("remaining").toLowerCase()}`); }
     setBcart([...bcart, { id: crypto.randomUUID(), bundle: pickB, components: comps }]); setPickB(null);
   };
-  const checkout = async () => {
+  const checkout = async (confirmedQris = false) => {
     if ((!lines.length && !bcart.length) || busy) return;
     if (ownerPreview && !riderId) return toast.error("Mode pratinjau Owner tidak dapat menyimpan transaksi.");
     if (locked) return toast.error("Pembayaran tidak dapat dilakukan sebelum stok awal terverifikasi.");
     if (orderType === "dine_in" && !tableNumber) return toast.error("Pilih nomor meja terlebih dahulu.");
     if (pay === "cash" && Number(cash) < total) return toast.error(t("cashReceived") + " < " + t("total"));
-    if (pay === "qris" && !qrisConfirmed) return toast.error("Tampilkan QRIS lalu konfirmasi pembayaran diterima.");
+    if (pay === "qris" && !qrisConfirmed && !confirmedQris) return toast.error("Tampilkan QRIS lalu konfirmasi pembayaran diterima.");
     if (pay === "split" && !splitValid) return toast.error("Nominal tunai split harus lebih dari Rp 0 dan kurang dari total.");
     setBusy(true);
     try {
@@ -466,7 +466,7 @@ export default function POS() {
           <Attendance rider={rider} riders={riders} riderId={riderId} setRiderId={setRiderId} isRider={isRider} />
         </DialogContent>
       </Dialog>
-      <Dialog open={!!qrisPreview} onOpenChange={() => setQrisPreview(null)}><DialogContent data-testid="pos-qris-preview" className="max-w-sm"><DialogHeader><DialogTitle>QRIS · {qrisPreview?.name}</DialogTitle></DialogHeader>{qrisPreview && <><img src={qrisPreview.qris_photo} alt={`QRIS ${qrisPreview.name}`} className="w-full aspect-square object-contain bg-white rounded-lg p-3" /><p className="text-xs text-muted-foreground">Pastikan pelanggan sudah menyelesaikan pembayaran sebelum mengonfirmasi.</p><button data-testid="pos-qris-confirm-button" onClick={() => { setQrisConfirmed(true); setQrisPreview(null); toast.success("Pembayaran QRIS dikonfirmasi"); }} className="btn-primary w-full">Konfirmasi pembayaran diterima</button></>}</DialogContent></Dialog>
+      <Dialog open={!!qrisPreview} onOpenChange={() => setQrisPreview(null)}><DialogContent data-testid="pos-qris-preview" className="max-w-sm"><DialogHeader><DialogTitle>QRIS · {qrisPreview?.name}</DialogTitle></DialogHeader>{qrisPreview && <><img src={qrisPreview.qris_photo} alt={`QRIS ${qrisPreview.name}`} className="w-full aspect-square object-contain bg-white rounded-lg p-3" /><p className="text-xs text-muted-foreground">Pastikan pelanggan sudah menyelesaikan pembayaran sebelum mengonfirmasi.</p><button data-testid="pos-qris-confirm-button" onClick={() => { setQrisConfirmed(true); setQrisPreview(null); checkout(true); }} className="btn-primary w-full">Konfirmasi pembayaran diterima</button></>}</DialogContent></Dialog>
     </div>
   );
 }
