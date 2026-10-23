@@ -33,6 +33,11 @@ export default function MenuStock() {
     try { edit.id ? await api.put(`/menus/${edit.id}`, body) : await api.post("/menus", body); toast.success("Menu saved"); setEdit(null); load(); }
     catch (err) { toast.error(errMsg(err)); }
   };
+  const selectedMenu = menus.find((menu) => menu.id === form.menu_id);
+  const canProduce = form.type !== "produce" || !selectedMenu?.recipe?.length || selectedMenu.recipe.every((line) => {
+    const material = mats.find((item) => item.id === line.material_id);
+    return material && material.stock >= Number(line.qty || 0) * Number(form.qty || 0);
+  });
 
   return (
     <div data-testid="menu-stock-page">
@@ -47,7 +52,8 @@ export default function MenuStock() {
               <Field label="Cups"><input data-testid="produce-qty-input" type="number" className="field" value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} required /></Field>
               <Field label={t("date")}><input type="date" className="field" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></Field>
             </div>
-            <button data-testid="produce-submit-button" className="btn-primary w-full" disabled={!form.menu_id}>{t("save")}</button>
+            <button data-testid="produce-submit-button" className="btn-primary w-full" disabled={!form.menu_id || !canProduce}>{t("save")}</button>
+            {!canProduce && <p data-testid="produce-material-warning" className="text-xs text-red-500">Bahan baku tidak cukup untuk jumlah produksi ini.</p>}
           </form>
           {form.menu_id && form.type === "produce" && form.qty > 0 && (
             <div className="mt-4 text-xs text-muted-foreground"><p className="eyebrow mb-1">Will deduct</p>
