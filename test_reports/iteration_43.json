@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 43: frontend-only test of the POS floating cart, bottom payment sheet and QRIS confirmation redesign. The live DB has 0 riders and 0 stock, so the real POS was only checked in its guarded state (PIN gate, then the pick-rider hint, no floating cart or sheet). The full flow was tested by intercepting GET /api/users?role=rider, /api/pos/stock, /api/payment-accounts/public and /api/attendance in Playwright. POST /api/sales was also intercepted, so no persistent sale was created. DESKTOP (1920x1080) works end to end: the floating cart shows Rp 24.000, the sheet opens with a single cart-panel, and cash/split/dine-in validation is correct. QRIS checkout is disabled and labelled 'Konfirmasi QRIS' until pos-qris-confirm-button is clicked in the QR preview. Closing via the backdrop keeps the cart. Checkout closes the sheet, clears the cart, removes the floating button and shows the sale-receipt modal with QRIS Rp 24.000. After closing the receipt there is no leftover overlay and body pointer-events is auto. MOBILE (390x844) IS BROKEN: the fixed bottom-nav (z-50, y=780-844) covers both the floating cart button (bottom-5, z-40) and the bottom of the payment sheet. elementFromPoint at the checkout button centre returns bottomnav-more, and cart-clear is covered by bottomnav-inventory. Playwright click on checkout-button times out. So a cashier on a phone cannot open the sheet or complete a sale. There is no horizontal overflow on mobile (scrollWidth 390 = innerWidth).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "POS floating cart (mobile)", "issue": "The fixed bottom-nav (Layout, z-50, bottom-0, 64px) sits on top of pos-cart-floating-button (fixed bottom-5 left-4 z-40). Pointer events go to bottomnav-dashboard, so the button cannot be tapped on mobile.", "selector": "[data-testid='pos-cart-floating-button']", "priority": "CRITICAL"},
+      {"component": "POS payment sheet (mobile)", "issue": "The sheet panel is anchored at the viewport bottom (items-end), but the bottom-nav covers its last ~64px. cart-total, cart-clear and checkout-button are hidden and unclickable, so no sale can be completed on mobile.", "selector": "[data-testid='pos-payment-sheet'] [data-testid='checkout-button']", "priority": "CRITICAL"},
+      {"component": "QRIS confirmation state", "issue": "qrisConfirmed is not reset when the cart changes. After confirming QRIS for Rp 24.000, clicking cart-plus raised the total to Rp 36.000 and checkout stayed enabled as confirmed. Cart-clear and adding products also leave it unchanged.", "selector": "[data-testid='cart-plus-m1']", "priority": "HIGH"},
+      {"component": "Checkout payload", "issue": "For a QRIS sale, cash_received is sent as the stale splitCash value (10000 seen in the POST body) because the code is cash_received = pay==='cash' ? cash : splitCashAmount. It should be 0 for qris.", "selector": "[data-testid='checkout-button']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "POS payment sheet", "issues": [
+        "There is no explicit close button or handle, and Escape does not close the sheet. It can only be dismissed by tapping the backdrop.",
+        "cart-clear leaves an empty sheet open showing 'Rp 0' and a disabled 'Konfirmasi QRIS'. Consider closing the sheet when the cart becomes empty.",
+        "If the rider has no QRIS account, choosing QRIS shows nothing and checkout stays disabled with no explanation. Add an empty-state message.",
+        "The payment method (QRIS) stays selected for the next sale after checkout. Consider resetting it to cash."
+      ]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Mobile: raise the payment sheet above the bottom nav (e.g. portal it to body with z-[60]), or add bottom padding of nav height plus safe-area-inset to the sheet panel so checkout-button and cart-total are visible.",
+    "Mobile: move pos-cart-floating-button above the bottom nav (e.g. bottom-24 lg:bottom-5, z-[55]).",
+    "Reset qrisConfirmed whenever the total or cart changes (useEffect on total/cart/bcart) and in cart-clear.",
+    "Send cash_received as 0 for pay==='qris'. Optionally reset splitCash when switching payment method.",
+    "Add a close button and Escape handling to the payment sheet; add an empty state when there are no QRIS accounts."
+  ],
+  "critical_code_review_comments": [
+    "POS.jsx line 286/287: the z-40 floating button and the z-50 sheet are both rendered inside the page, and the Layout bottom-nav is also z-50, so it wins on mobile.",
+    "POS.jsx: qrisConfirmed is only reset on payment-method switch and after a successful sale, not on cart mutation.",
+    "POS.jsx line 195: cash_received leaks splitCashAmount into QRIS sales.",
+    "The split payment's QRIS portion has no QR show/confirm step, unlike pure QRIS. Confirm this is intended."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "Desktop 100% of requested flows; mobile 0% for checkout (blocked by bottom-nav overlap)"},
+  "seed_data_creation": "None. Riders, stock, QRIS accounts and the POST /sales response were all mocked with Playwright page.route, so no DB mutation and no test sale exist.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The live DB has 0 riders, so the real POS shows only pick-rider-hint. To test, log in (set localStorage si4am_legal_2026-06-01=accepted, fill login-identifier-input 'baa', click login-continue-button, fill pin-digit-0..5 with 130994), go to /pos, and press pin-key-N for 130994. Then mock /api/users?role=rider, /api/pos/stock, /api/payment-accounts/public, /api/attendance and POST /api/sales via page.route. Select the rider with absen-button, then pos-rider-select, then Escape. On mobile, run elementFromPoint on checkout-button and pos-cart-floating-button to verify the bottom-nav overlap fix."
+}

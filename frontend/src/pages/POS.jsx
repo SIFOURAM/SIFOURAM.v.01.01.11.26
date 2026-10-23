@@ -159,6 +159,8 @@ export default function POS() {
   const splitQrisAmount = Math.max(0, total - splitCashAmount);
   const splitValid = splitCashAmount > 0 && splitCashAmount < total;
 
+  useEffect(() => { setQrisConfirmed(false); }, [total]);
+
   const add = (i, d = 1) => {
     const q = (cart[i.menu_id] || 0) + d;
     if ((need[i.menu_id] || 0) + d > i.remaining) return toast.warning(`${i.name}: ${i.remaining} ${t("remaining").toLowerCase()}`);
@@ -192,7 +194,7 @@ export default function POS() {
         items,
         payment_method: pay,
         payment_parts: paymentParts,
-        cash_received: pay === "cash" ? Number(cash || 0) : splitCashAmount,
+        cash_received: pay === "cash" ? Number(cash || 0) : pay === "split" ? splitCashAmount : 0,
         order_type: orderType,
         table_number: orderType === "dine_in" ? tableNumber : "",
         client_id: clientId,
@@ -283,8 +285,8 @@ export default function POS() {
                 </button>))}
               {[1, 2].map((b) => <button key={b} data-testid={`pos-bundle-${b}`} disabled={locked} onClick={() => setPickB(b)} className="bento gold p-4 text-left disabled:opacity-40"><p className="eyebrow text-primary">{t("bundling")} {b}</p><p className="font-heading font-bold text-sm mt-1">{BUNDLES[b].cups} {t("cups")} Rp 12K</p><p className="text-primary num font-bold text-sm">{fmtRp(BUNDLES[b].price)}</p></button>)}
             </div>
-            {(lines.length || bcart.length) > 0 && <button data-testid="pos-cart-floating-button" onClick={() => setPaymentSheet(true)} className="fixed bottom-5 left-4 z-40 flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-xl"><ShoppingCart className="h-4 w-4" />{fmtRp(total)}</button>}
-            {paymentSheet && <div data-testid="pos-payment-sheet" className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm" onClick={() => setPaymentSheet(false)}><div onClick={(event) => event.stopPropagation()} className="w-full max-h-[90vh] overflow-y-auto rounded-t-3xl bg-background p-4 shadow-2xl animate-in slide-in-from-bottom duration-300"><Bento gold className="fade-up" testId="cart-panel">
+            {(lines.length || bcart.length) > 0 && <button data-testid="pos-cart-floating-button" onClick={() => setPaymentSheet(true)} className="fixed bottom-24 left-4 z-[60] flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-xl lg:bottom-5"><ShoppingCart className="h-4 w-4" />{fmtRp(total)}</button>}
+            {paymentSheet && <div data-testid="pos-payment-sheet" className="fixed inset-0 z-[70] flex items-end bg-black/50 backdrop-blur-sm" onClick={() => setPaymentSheet(false)}><div onClick={(event) => event.stopPropagation()} className="w-full max-h-[90vh] overflow-y-auto rounded-t-3xl bg-background p-4 pb-24 shadow-2xl animate-in slide-in-from-bottom duration-300 lg:pb-4"><Bento gold className="fade-up" testId="cart-panel">
               <p className="eyebrow mb-3">{t("checkout")}</p>
               {lines.map((l) => (
                 <div key={l.menu_id} className="flex items-center justify-between py-2 border-b border-border/50 text-sm">
@@ -380,7 +382,7 @@ export default function POS() {
               <div className="flex items-end justify-between mt-5">
                 <div><p className="eyebrow">{t("total")} · {cups} {t("cups")}</p><p data-testid="cart-total" className="text-3xl font-bold num font-heading">{fmtRp(total)}</p>
                   {pay === "cash" && cash && <p data-testid="cart-change" className="text-sm text-emerald-500 num">{t("change")}: {fmtRp(change)}</p>}</div>
-                <div className="flex gap-2"><button data-testid="cart-clear" onClick={() => { setCart({}); setBcart([]); }} className="btn-ghost h-11 w-11 p-0"><Trash2 className="w-4 h-4" /></button>
+                <div className="flex gap-2"><button data-testid="cart-clear" onClick={() => { setCart({}); setBcart([]); setPaymentSheet(false); }} className="btn-ghost h-11 w-11 p-0"><Trash2 className="w-4 h-4" /></button>
                   <button data-testid="checkout-button" onClick={checkout} disabled={locked || busy || (!lines.length && !bcart.length) || (orderType === "dine_in" && !tableNumber) || (pay === "cash" && Number(cash) < total) || (pay === "qris" && !qrisConfirmed) || (pay === "split" && !splitValid)} className="btn-primary">{pay === "qris" && !qrisConfirmed ? "Konfirmasi QRIS" : t("checkout")}</button></div>
               </div>
             </Bento></div></div>}
