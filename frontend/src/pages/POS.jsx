@@ -196,7 +196,12 @@ export default function POS() {
     if (locked) return toast.error("Pembayaran tidak dapat dilakukan sebelum stok awal terverifikasi.");
     if (orderType === "dine_in" && !tableNumber) return toast.error("Pilih nomor meja terlebih dahulu.");
     if (pay === "cash" && Number(cash) < total) return toast.error(t("cashReceived") + " < " + t("total"));
-    if (pay === "qris" && !qrisConfirmed && !confirmedQris) return toast.error("Tampilkan QRIS lalu konfirmasi pembayaran diterima.");
+    if (pay === "qris" && !qrisConfirmed && !confirmedQris) {
+      const riderQris = qrisAccounts[0];
+      if (!riderQris) return toast.error("Akun QRIS Rider belum tersedia.");
+      setQrisPreview(riderQris);
+      return;
+    }
     if (pay === "split" && !splitValid) return toast.error("Nominal tunai split harus lebih dari Rp 0 dan kurang dari total.");
     setBusy(true);
     try {
@@ -372,12 +377,7 @@ export default function POS() {
                   ))}
                 </div>
                 {pay === "cash" && <input data-testid="cash-received-input" type="number" className="field num" placeholder={t("cashReceived")} value={cash} onChange={(e) => setCash(e.target.value)} />}
-                {pay === "qris" && qrisAccounts.map((account) => (
-                  <div key={account.id} data-testid={`pos-qris-${account.id}`} className="sm:col-span-2 flex items-center gap-3 rounded-lg border border-primary/30 p-3">
-                    <button data-testid={`pos-qris-open-${account.id}`} onClick={() => setQrisPreview(account)} className="shrink-0"><img src={account.qris_photo} alt={`QRIS ${account.name}`} className="w-36 h-36 object-contain bg-white rounded" /></button>
-                    <div><p className="font-semibold text-sm">{account.name}</p><p className="text-xs text-muted-foreground">Scan QRIS untuk pembayaran</p></div>
-                  </div>
-                ))}
+                {pay === "qris" && <p data-testid="qris-rider-ready" className="sm:col-span-2 rounded-lg border border-primary/30 p-3 text-xs text-muted-foreground">Tekan tombol Bayar untuk menampilkan QRIS Rider, lalu konfirmasi setelah pelanggan membayar.</p>}
                 {pay === "split" && (
                   <div className="grid grid-cols-2 gap-2 sm:col-span-2" data-testid="split-payment-panel">
                     <input
@@ -405,7 +405,7 @@ export default function POS() {
                 <div><p className="eyebrow">{t("total")} · {cups} {t("cups")}</p><p data-testid="cart-total" className="text-3xl font-bold num font-heading">{fmtRp(total)}</p>
                   {pay === "cash" && cash && <p data-testid="cart-change" className="text-sm text-emerald-500 num">{t("change")}: {fmtRp(change)}</p>}</div>
                 <div className="flex gap-2"><button data-testid="cart-clear" onClick={() => { setCart({}); setBcart([]); setPaymentSheet(false); }} className="btn-ghost h-11 w-11 p-0"><Trash2 className="w-4 h-4" /></button>
-                  <button data-testid="checkout-button" onClick={checkout} disabled={locked || busy || (!lines.length && !bcart.length) || (orderType === "dine_in" && !tableNumber) || (pay === "cash" && Number(cash) < total) || (pay === "qris" && !qrisConfirmed) || (pay === "split" && !splitValid)} className="btn-primary">{pay === "qris" && !qrisConfirmed ? "Konfirmasi QRIS" : t("checkout")}</button></div>
+                  <button data-testid="checkout-button" onClick={checkout} disabled={locked || busy || (!lines.length && !bcart.length) || (orderType === "dine_in" && !tableNumber) || (pay === "cash" && Number(cash) < total) || (pay === "split" && !splitValid)} className="btn-primary">{pay === "qris" && !qrisConfirmed ? "Bayar · Tampilkan QRIS" : t("checkout")}</button></div>
               </div>
             </Bento></div></div>}
           </>}
