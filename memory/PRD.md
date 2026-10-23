@@ -408,3 +408,30 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 ## UX Update — Rider Rank Position Refinement (2026-10)
 - Commission value returned to its prior vertical center position; progress bar moved upward to ten percent
   from the bottom of the Rank image. Frontend production build passed.
+
+## Feature Added — Procurement Approval and Receiving Flow (2026-10)
+- Purchase Orders now support multiple materials, supplier, target-arrival date, unit estimate, and creation
+  from individual or all low-stock shortcuts. The staged state machine is Admin review → Owner approval →
+  shipped → Barang Datang, with role-specific notifications and atomic state guards.
+- Confirming Barang Datang requires a validated image proof, records a protected receipt, creates one inventory
+  IN transaction per ordered material, and updates stock exactly once using MongoDB `$inc`. Decision notes are
+  now preserved per stage instead of overwriting prior review context.
+- PO cards can download a local PDF and open a user-reviewed WhatsApp composer for `6281283578212`; the UI
+  clearly asks the user to attach the downloaded PDF manually because `wa.me` cannot attach files.
+- Verification: backend Procurement QA passed 19/19, frontend production build passed, desktop/mobile smoke
+  tests passed, and the WhatsApp popup was verified with the correct recipient. All temporary QA data was
+  removed after testing.
+
+## Feature Added — Expense Proof Review Baseline (2026-10)
+- Finance now supports manual expense creation with optional receipt/payment proof, editable AI-draft review,
+  private proof URLs, and protected ledger access. Invalid/blank/unsupported proofs are rejected.
+- Expense QA passed 21/21 and the production build passed. Live Gemini extraction remains blocked because the
+  backend's configured Universal Key differs from the managed key and receives a 401; the UI safely keeps the
+  editable manual path available and reports the failure without persisting a draft.
+
+## Current Priorities
+- P0: Restore the managed Universal Key available to the backend preview/production environment so Gemini 3.1
+  Pro Vision receipt extraction can return live drafts.
+- P1: Resolve remaining React Hook dependency warnings and finish the planned `server.py` refactor for complex
+  sale/deposit functions.
+- P2: Improve procurement with partial receiving and supplier-price history after operational validation.

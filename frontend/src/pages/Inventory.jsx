@@ -70,7 +70,7 @@ export default function Inventory() {
       <PageHeader eyebrow="Bar Team" title={t("inventory")}>
         <div className="mr-auto flex flex-wrap items-center gap-2">
           <button data-testid="wa-stock-button" onClick={() => { pdf("Stock Report", ["Material", "Category", "Stock", "Packs", "Pack size", "Pack price", "Stock value", "Status"], stockRows()); openWA(stockText()); }} className="btn-wa h-10"><MessageCircle className="w-4 h-4" />{t("stockReport")}</button>
-          <button data-testid="wa-order-button" onClick={() => navigate("/purchase-orders?low_stock=1")} className="btn-wa h-10"><FileDown className="w-4 h-4" />PO</button>
+          <button data-testid="inventory-po-low-stock-button" onClick={() => navigate("/purchase-orders?low_stock=1")} className="btn-wa h-10"><FileDown className="w-4 h-4" />PO</button>
         </div>
       </PageHeader>
 

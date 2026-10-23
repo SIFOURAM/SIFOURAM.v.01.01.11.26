@@ -17,6 +17,13 @@ const STATUS_LABELS = {
   rejected: "Ditolak",
 };
 
+const STAGE_LABELS = {
+  review: "Review Admin",
+  approve: "Persetujuan Owner",
+  ship: "Pengiriman",
+  reject: "Penolakan",
+};
+
 const statusClass = (status) => ({
   arrived: "bg-emerald-500/15 text-emerald-600",
   approved: "bg-emerald-500/15 text-emerald-600",
@@ -40,6 +47,7 @@ export default function PurchaseOrderCard({ order, user, onChanged }) {
   const [busy, setBusy] = useState("");
   const items = poItems(order);
   const status = order.status === "pending" ? "requested" : order.status;
+  const statusNotes = (order.status_notes || []).filter((entry) => entry.note);
 
   const act = async (action) => {
     setBusy(action);
@@ -99,11 +107,12 @@ export default function PurchaseOrderCard({ order, user, onChanged }) {
   };
 
   const share = async () => {
-    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+    const popup = window.open("about:blank", "_blank");
     if (!popup) {
       toast.error("Izinkan pop-up untuk membuka WhatsApp.");
       return;
     }
+    popup.opener = null;
     setBusy("share");
     try {
       await api.post(`/purchase-orders/${order.id}/share-intent`);
@@ -164,7 +173,7 @@ export default function PurchaseOrderCard({ order, user, onChanged }) {
 
       {order.note && <p className="text-xs text-muted-foreground">{order.note}</p>}
       {order.expected_date && <p className="text-xs">Target tiba: {order.expected_date}</p>}
-      {order.decision_note && (
+      {order.decision_note && !statusNotes.length && (
         <p
           data-testid={`purchase-order-decision-${order.id}`}
           className="border-l-2 border-primary pl-2 text-xs"
@@ -172,6 +181,16 @@ export default function PurchaseOrderCard({ order, user, onChanged }) {
           {order.decision_note}
         </p>
       )}
+      {statusNotes.map((entry, index) => (
+        <p
+          key={`${entry.stage}-${entry.at}-${index}`}
+          data-testid={`purchase-order-status-note-${order.id}-${index}`}
+          className="border-l-2 border-primary pl-2 text-xs"
+        >
+          <span className="font-semibold">{STAGE_LABELS[entry.stage] || "Status"}:</span>{" "}
+          {entry.note}
+        </p>
+      ))}
 
       <div className="flex flex-wrap gap-2">
         <button
@@ -272,6 +291,7 @@ export default function PurchaseOrderCard({ order, user, onChanged }) {
             testId={`purchase-order-receive-photo-${order.id}`}
             capture={false}
             fit="contain"
+            className="h-48 !aspect-auto"
           />
           <Field label="Catatan penerimaan">
             <input

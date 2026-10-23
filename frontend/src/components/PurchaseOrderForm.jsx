@@ -73,7 +73,7 @@ export default function PurchaseOrderForm({ materials, initialMaterialIds, onCre
         </p>
       </div>
 
-      <div className="space-y-3">
+      <div className={`space-y-3 ${items.length > 4 ? "max-h-96 overflow-y-auto pr-1" : ""}`}>
         {items.map((item, index) => (
           <div
             key={`${item.material_id}-${index}`}
@@ -115,7 +115,7 @@ export default function PurchaseOrderForm({ materials, initialMaterialIds, onCre
                 type="number"
                 min="0.01"
                 step="any"
-                className="field num"
+                className="field"
                 value={item.qty}
                 onChange={(event) => updateItem(index, "qty", event.target.value)}
                 placeholder="Jumlah"
@@ -126,10 +126,10 @@ export default function PurchaseOrderForm({ materials, initialMaterialIds, onCre
                 type="number"
                 min="0"
                 step="1"
-                className="field num"
+                className="field"
                 value={item.unit_price}
                 onChange={(event) => updateItem(index, "unit_price", event.target.value)}
-                placeholder="Harga per unit"
+                placeholder="Harga"
               />
             </div>
           </div>
@@ -157,10 +157,13 @@ export default function PurchaseOrderForm({ materials, initialMaterialIds, onCre
       <Field label="Target tiba">
         <input
           data-testid="purchase-order-expected-date-input"
-          type="date"
+          type="text"
+          inputMode="numeric"
+          pattern="\d{4}-\d{2}-\d{2}"
           className="field"
           value={expectedDate}
           onChange={(event) => setExpectedDate(event.target.value)}
+          placeholder="YYYY-MM-DD"
         />
       </Field>
       <Field label="Catatan">

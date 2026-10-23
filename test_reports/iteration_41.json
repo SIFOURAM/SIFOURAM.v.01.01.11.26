@@ -1,0 +1,47 @@
+{
+  "summary": "Tested Procurement P0 end to end on the backend (new pytest file: 18/19 pass) and in the UI (Owner, QA Admin and QA Bar Team logged in through the real login screen). These work: HttpOnly si4am_session cookie on login; low-stock shortcut (?material_id preselects the material); toolbar ?low_stock=1 prefills all 18 low-stock materials; no horizontal overflow at 1920px or 390px; multi-line PO creation with supplier, date and note; duplicate, missing, zero, negative and empty items rejected; full RBAC and state machine (requested->reviewed->approved->shipped->arrived, both reject paths); Barang Datang rejects blank, GIF and malformed proofs and rejects receipt before shipping (409); it returns a safe /api/.../proof URL, creates one IN transaction per item and increases stock exactly once; a second receive returns 409 and stock is unchanged; proof returns 401 without login, 403 for Rider and 200 for Owner/Admin/Bar Team with no-store; listings never contain arrival_proof_data; Owner/Admin see all POs and Bar Team only its own; share-intent API works with correct RBAC; local PDF download works. CRITICAL UI BUG: the WhatsApp button is broken. It opens an orphan about:blank tab and shows the error 'Izinkan pop-up untuk membuka WhatsApp.' It never calls share-intent and never reaches wa.me. All QA data was cleaned up and the Owner's real stock was restored.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/purchase-orders (legacy material_id/qty body)", "issue": "A negative qty (e.g. {material_id, qty:-3}) returns HTTP 500. Server log shows an unhandled pydantic ValidationError, because PurchaseOrderItemIn(...) is built inside the handler (server.py ~1156). Fix: validate the legacy qty (qty>0 -> 400) or catch ValidationError. Zero qty already returns 400."},
+      {"endpoint": "POST /api/purchase-orders/{id}/action/{decision}", "issue": "decision_note is overwritten at every step. The Admin's review note ('Sudah dicek admin') was wiped to '' when the Owner approved without a note, so the decision history is lost. Consider storing a separate note per stage (review_note, approve_note, ...) or an audit array. The status update is also not conditional on the current status (find, then update_one({id})), so two concurrent decisions could race. Use update_one({id, status: expected})."},
+      {"endpoint": "POST /api/purchase-orders/{id}/receive", "issue": "Stock is updated with $set before+qty read earlier in the request instead of $inc. A concurrent sale or stock-op on the same material can be lost. The proof is also stored before the atomic transition, so the losing call of a race leaves an orphan file. Bar Team can receive a PO it cannot list (another user's PO, by id); this is acceptable per spec, but noted."},
+      {"endpoint": "GET /api/purchase-orders/{id}/proof", "issue": "Dead code: an unreachable `return` after the Response (server.py line 1379). Storage init still fails with 401, so the Mongo fallback proof path is the one in use."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PurchaseOrderCard share()", "issue": "window.open('about:blank','_blank','noopener,noreferrer') always returns null when the noopener feature is set (this is how browsers specify it). So `if (!popup)` is always true: a blank tab opens, the toast 'Izinkan pop-up untuk membuka WhatsApp.' shows, the share-intent POST is never sent, the PDF is not downloaded, and the wa.me URL is never set. Verified in Playwright: share-intent calls=[], popup url=about:blank. Fix: call window.open('about:blank','_blank') without the noopener feature, then set popup.opener = null before assigning location. Alternative: await share-intent first, then window.open(waUrl,'_blank','noopener') (this may need user-activation handling).", "selector": "[data-testid^='purchase-order-wa-']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Purchase Orders card (shipped, receive section)", "issues": ["The 'Foto bukti penerimaan' PhotoCapture dropzone is about 430px tall on desktop and pushes the receive note and confirm button below the fold. Constrain the height (e.g. max-h-48 / aspect ratio)."]},
+      {"screen": "Purchase Order form", "issues": ["The 'Target tiba' field uses the browser's native date picker (mm/dd/yyyy, US format in an Indonesian UI). Consider the shadcn Calendar/Popover.", "The price placeholder 'Harga per unit' is truncated to 'Harga per ur' at desktop width (340px column).", "Qty/price inputs use a monospace placeholder font, which is inconsistent with the other fields.", "With ?low_stock=1 the form renders 18 stacked items and becomes very long. Consider a compact table or collapsible list."]},
+      {"screen": "Purchase Orders header (desktop)", "issues": ["On the first navigation to /purchase-orders the secondary nav dropdown showed 'Dashboard' instead of the Purchase Order tab. The page also has no title, only the 'PRODUCTION' eyebrow."]},
+      {"screen": "Inventory", "issues": ["The toolbar PO button still has the misleading data-testid 'wa-order-button'. Rename it to e.g. 'inventory-po-low-stock-button'."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter41_procurement.py", "/app/backend/tests/ui_seed_iter41.py", "/app/test_reports/pytest/pytest_iter41.xml"],
+  "action_items": [
+    "CRITICAL: Fix the WhatsApp share in PurchaseOrderCard.jsx. Remove 'noopener' from the pre-opened window.open (set popup.opener=null instead) so the share-intent POST, PDF download and wa.me redirect actually run.",
+    "Return 400/422 instead of 500 for the legacy PO body with negative qty.",
+    "Preserve per-stage decision notes instead of overwriting decision_note; make decision transitions conditional on the current status.",
+    "Use $inc for stock increments in receive; remove the dead return line in get_purchase_order_proof.",
+    "Design: shrink the receipt dropzone height, use the shadcn date picker, fix the truncated price placeholder, rename the inventory PO button testid."
+  ],
+  "critical_code_review_comments": [
+    "PurchaseOrderCard.share(): window.open with noopener returns null, so the feature can never work.",
+    "server.py create_purchase_order: constructing a Pydantic model inside the handler raises an uncaught ValidationError (500).",
+    "server.py receive_purchase_order: $set with a stale 'before' value is not concurrency safe; use $inc and compute before/after from the find_one_and_update result.",
+    "decide_purchase_order: non-atomic read-then-update; decision_note is overwritten.",
+    "WA message wording is correct: it says the PDF was downloaded and asks the user to attach it. It does not claim auto-attach or auto-send. Recipient is hardcoded to 6281283578212 only."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter41_procurement.py", "/app/backend/tests/ui_seed_iter41.py"],
+  "success_rate": {"backend": "95% (18/19)", "frontend": "90% (all PO flows pass except the WhatsApp button)"},
+  "test_credentials": "Owner baa / PIN 130994 (from /app/memory/test_credentials.md). QA users are created on the fly with PIN 246813 and deleted afterwards.",
+  "seed_data_creation": "None left behind. Created and deleted: QA admin/barteam/rider users, QA materials (pytest), one UI PO on Beans/Water whose stock was restored, its notifications, inventory_tx, po_share_audit and proof. Verified 0 POs, 0 PO notifications, 0 qa4* users, stock restored.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run the pytest file with `-n 0` (pytest.ini enables xdist, which splits the ordered state-machine flow). /api/auth/identify is rate-limited to 12/min, so wait about 60s between suites. UI login: set localStorage si4am_legal_2026-06-01=accepted, fill login-identifier-input, click login-continue-button, then fill pin-digit-0 with the full 6-digit PIN (the paste path auto-submits; typing digit by digit did not submit). Use `python ui_seed_iter41.py seed|cleanup` for the UI QA users and receipt image /tmp/qa41_receipt.png. Retest the WhatsApp button after the fix: expect a share-intent 200, a PDF download, and a popup URL starting with https://wa.me/6281283578212?text=.",
+  "rca of the issue": "WhatsApp button: in the HTML spec, window.open returns null whenever the 'noopener' (or 'noreferrer') feature is set, even when the tab opens. The code treats null as 'popup blocked', returns early, and the blank tab stays open. Reproduce: log in as any staff, open /purchase-orders, click WhatsApp on any PO. A blank tab opens and an error toast shows. Mitigation: open without noopener and null out popup.opener manually, or navigate directly to the wa.me URL."
+}

@@ -667,6 +667,17 @@ class PurchaseOrderIn(BaseModel):
     expected_date: Optional[str] = None
     note: str = ""
 
+    @field_validator("expected_date")
+    @classmethod
+    def validate_expected_date(cls, value: Optional[str]):
+        if not value:
+            return None
+        try:
+            datetime.strptime(value, "%Y-%m-%d")
+        except ValueError as error:
+            raise ValueError("Target tiba harus berformat YYYY-MM-DD") from error
+        return value
+
 
 class PurchaseOrderDecisionIn(BaseModel):
     note: str = ""
@@ -1152,7 +1163,9 @@ async def purchase_order_notification(
 @api.post("/purchase-orders")
 async def create_purchase_order(body: PurchaseOrderIn, u=Depends(STAFF)):
     request_items = list(body.items)
-    if not request_items and body.material_id and body.qty:
+    if not request_items and body.material_id:
+        if body.qty is None or body.qty <= 0:
+            raise HTTPException(400, "Jumlah pesanan harus lebih dari nol")
         request_items = [PurchaseOrderItemIn(material_id=body.material_id, qty=body.qty)]
     if not request_items:
         raise HTTPException(400, "Tambahkan minimal satu bahan untuk PO")
@@ -1192,6 +1205,7 @@ async def create_purchase_order(body: PurchaseOrderIn, u=Depends(STAFF)):
         "owner_approved_by": None,
         "owner_approved_at": None,
         "decision_note": "",
+        "status_notes": [],
         "shipped_at": None,
         "arrived_at": None,
         "arrival_proof": None,
@@ -1241,17 +1255,17 @@ async def decide_purchase_order(
         raise HTTPException(404, "PO tidak ditemukan")
     status = "requested" if po.get("status") == "pending" else po.get("status")
     note = body.note.strip()[:500]
-    updates = {"decision_note": note}
+    updates = {}
+    stage = decision
     if decision == "review":
         if u["role"] != "admin" or status != "requested":
             raise HTTPException(403, "Hanya Admin dapat meninjau PO yang baru diajukan")
-        updates.update({"status": "reviewed", "reviewed_by": u["name"], "reviewed_at": now_iso()})
-        await purchase_order_notification(
-            for_role="owner",
-            po_id=po_id,
-            title=f"Persetujuan Owner · {po.get('po_number', 'PO')}",
-            body=f"Admin {u['name']} sudah meninjau PO dan menunggu persetujuan Owner.",
-        )
+        updates.update({
+            "status": "reviewed",
+            "reviewed_by": u["name"],
+            "reviewed_at": now_iso(),
+            "review_note": note,
+        })
     elif decision == "approve":
         if u["role"] != "owner" or status != "reviewed":
             raise HTTPException(403, "PO harus ditinjau Admin sebelum disetujui Owner")
@@ -1259,19 +1273,45 @@ async def decide_purchase_order(
             "status": "approved",
             "owner_approved_by": u["name"],
             "owner_approved_at": now_iso(),
+            "approval_note": note,
         })
     elif decision == "ship":
         if u["role"] not in {"owner", "admin"} or status != "approved":
             raise HTTPException(403, "Hanya Owner/Admin dapat mengirim PO yang disetujui")
-        updates.update({"status": "shipped", "shipped_by": u["name"], "shipped_at": now_iso()})
+        updates.update({
+            "status": "shipped",
+            "shipped_by": u["name"],
+            "shipped_at": now_iso(),
+            "shipping_note": note,
+        })
     else:
         allowed = (u["role"] == "admin" and status == "requested") or (
             u["role"] == "owner" and status == "reviewed"
         )
         if not allowed:
             raise HTTPException(403, "PO tidak dapat ditolak pada tahap ini")
-        updates.update({"status": "rejected", "rejected_by": u["name"], "rejected_at": now_iso()})
-    await db.purchase_orders.update_one({"id": po_id}, {"$set": updates})
+        updates.update({
+            "status": "rejected",
+            "rejected_by": u["name"],
+            "rejected_at": now_iso(),
+            "rejection_note": note,
+        })
+    change = {"$set": updates}
+    if note:
+        change["$push"] = {
+            "status_notes": {
+                "stage": stage,
+                "note": note,
+                "by": u["name"],
+                "at": now_iso(),
+            }
+        }
+    transition = await db.purchase_orders.update_one(
+        {"id": po_id, "status": po.get("status")},
+        change,
+    )
+    if not transition.modified_count:
+        raise HTTPException(409, "Status PO telah berubah. Muat ulang sebelum melanjutkan.")
     updated = await db.purchase_orders.find_one({"id": po_id}, NOID)
     status_label = {
         "reviewed": "ditinjau Admin",
@@ -1279,6 +1319,13 @@ async def decide_purchase_order(
         "shipped": "ditandai dikirim",
         "rejected": "ditolak",
     }[updated["status"]]
+    if decision == "review":
+        await purchase_order_notification(
+            for_role="owner",
+            po_id=po_id,
+            title=f"Persetujuan Owner · {po.get('po_number', 'PO')}",
+            body=f"Admin {u['name']} sudah meninjau PO dan menunggu persetujuan Owner.",
+        )
     await purchase_order_notification(
         for_user=po["requested_by"],
         po_id=po_id,
@@ -1290,9 +1337,6 @@ async def decide_purchase_order(
 
 async def store_purchase_order_proof(data_url: str, user_id: str, po_id: str) -> dict:
     validate_expense_proof(data_url)
-    proof_url = await store_photo(data_url, "purchase_orders", user_id)
-    if proof_url and proof_url.startswith("/api/files/"):
-        return {"arrival_proof": proof_url}
     return {
         "arrival_proof": f"/api/purchase-orders/{po_id}/proof",
         "arrival_proof_data": data_url,
@@ -1331,9 +1375,16 @@ async def receive_purchase_order(po_id: str, body: PurchaseOrderReceiveIn, u=Dep
         raise HTTPException(409, "Barang Datang sudah pernah dicatat")
     for item in items:
         material = materials[item["material_id"]]
-        before = material.get("stock", 0)
+        previous = await db.materials.find_one_and_update(
+            {"id": material["id"]},
+            {"$inc": {"stock": item["qty"]}},
+            projection=NOID,
+            return_document=ReturnDocument.BEFORE,
+        )
+        if not previous:
+            raise HTTPException(404, "Bahan PO tidak lagi tersedia")
+        before = previous.get("stock", 0)
         after = before + item["qty"]
-        await db.materials.update_one({"id": material["id"]}, {"$set": {"stock": after}})
         await db.inventory_tx.insert_one({
             "id": uid(),
             "purchase_order_id": po_id,
@@ -1376,7 +1427,6 @@ async def get_purchase_order_proof(po_id: str, u=Depends(STAFF)):
         media_type=content_type,
         headers={"Cache-Control": "private, no-store"},
     )
-    return await db.purchase_orders.find_one({"id": po_id}, NOID)
 
 
 @api.post("/broadcast")

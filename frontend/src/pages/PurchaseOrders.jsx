@@ -38,7 +38,10 @@ export default function PurchaseOrders() {
   return (
     <div data-testid="purchase-orders-page">
       <PageHeader>
-        <p className="eyebrow mr-auto">Production</p>
+        <div className="mr-auto" data-testid="purchase-orders-header">
+          <p className="eyebrow">Production</p>
+          <h1 className="font-heading text-2xl font-bold">Purchase Order</h1>
+        </div>
       </PageHeader>
       <div className="grid lg:grid-cols-[340px_1fr] gap-6">
         <Bento gold testId="purchase-order-form-card">
