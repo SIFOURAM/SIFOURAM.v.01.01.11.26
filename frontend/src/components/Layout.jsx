@@ -153,8 +153,8 @@ function CategoryTabs({ category, t }) {
   }, [category.name, currentPath, isSelecting]);
 
   return (
-    <nav data-testid="category-tabs" style={{ width: visible ? "100%" : "40px" }} className={`category-tab-bar min-w-0 overflow-hidden transition-[width] duration-500 ease-out ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
-      <div className={`mx-auto flex w-full max-w-[1400px] flex-nowrap items-center gap-1 min-w-0 px-4 transition-[opacity,transform] duration-500 ease-out lg:px-8 ${visible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0 pointer-events-none"}`}>
+    <nav data-testid="category-tabs" className={`category-tab-bar min-w-0 overflow-visible ${category.name === "Lainnya" ? "category-tab-bar-more" : ""}`} aria-label={`Tab ${category.name}`}>
+      <div className="mx-auto flex w-full max-w-[1400px] flex-nowrap items-center gap-1 min-w-0 px-4 lg:px-8">
         <span data-testid="category-current-label" className="flex h-[23px] items-center font-heading text-[11px] font-semibold leading-none text-primary">{category.name}</span>
         <select
           data-testid="category-tabs-dropdown"
@@ -264,7 +264,7 @@ export default function Layout() {
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="flex items-center justify-between px-4 lg:px-8 h-16 sticky top-0 bg-primary text-black z-40" data-testid="top-header">
+        <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between bg-primary px-4 text-black lg:left-64 lg:px-8 xl:left-72" data-testid="top-header">
           <div className="flex items-center gap-2 lg:hidden"><button data-testid="mobile-logo-home-button" onClick={() => nav(user.role === "rider" ? "/rider-dashboard" : user.role === "owner" ? "/finance" : "/deposit")} className="shrink-0 rounded-lg outline-none focus:outline-none focus:ring-0 active:outline-none"><img src="/assets/si-four-am-logo.png" alt="SI FOUR AM" className="w-10 h-10 object-contain" /></button><div><span className={`font-heading font-bold ${theme === "dark" ? "text-white" : "text-black"}`}>SI FOUR AM</span><p data-testid="mobile-login-role" className={`text-[0.6rem] font-semibold leading-none ${theme === "dark" ? "text-white" : "text-black/70"}`}>{roleLabel}</p></div></div>
           <div className="hidden lg:block"><p className="eyebrow text-black/70">{roleLabel}</p></div>
           <div className="flex items-center gap-2">
@@ -275,7 +275,7 @@ export default function Layout() {
           </div>
         </header>
         {activeCategory && <CategoryTabs category={activeCategory} t={t} />}
-        <main className="flex-1 max-w-[1400px] w-full mx-auto min-w-0 p-4 pb-28 lg:p-8 lg:pb-8"><Outlet /></main>
+        <main className="flex-1 max-w-[1400px] w-full mx-auto min-w-0 p-4 pt-20 pb-28 lg:p-8 lg:pt-24 lg:pb-8"><Outlet /></main>
         <RiderMotivation user={user} />
         <ContextInfo location={loc} category={activeCategory} />
 
