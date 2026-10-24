@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend-only retest of the iteration_50 fixes. Tested at 390x844 and 320x640, dark and light themes, for dummy_rider, dummy_admin and baa (owner): 12 nav measurements in total. ALL 5 FEATURES PASS. (1) All bottom-nav labels are 9.6px (text-[0.6rem]) with a 2px icon-label gap. No label goes past its item box or off screen, and scrollWidth == clientWidth on every label. The tightest case is 320px rider: 'Dasbor Rider' is 58px wide in a 62px item and 'Pengambilan' is 61px in a 63px item, leaving about 3px between them. (2) The primary label (POS for rider/owner, Setoran for admin) is rgb(255,255,255) in dark theme on an rgba(5,5,5,0.55) nav, and rgb(0,0,0) in light theme on rgba(255,255,255,0.55). It is clearly visible in the screenshots. (3) motivation-preference-select is gone (count 0). motivation-random-status reads 'Acak otomatis' on one line (84px wide). The title column is 236px at 390 (subtitle 3 lines) and 166px at 320 (subtitle 4 lines), so the one-word-per-line crush is fixed. (4) With /api/attendance/on-duty mocked to true and /api/auth/me changed to settings.notifications=false, no motivation shows after 3.5s. With notifications=true, a message shows on every load; 6 loads gave 3 different messages ('The only way...', 'Stay hungry...', 'Bekerjalah kamu...'). The close button works. (5) Settings has no app console errors. Only CSP/posthog/cloudflare noise was seen, plus 403s on /api/gps, which my on-duty mock caused (the backend knows the rider is not on duty).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Settings (Rider, 320px)", "issues": ["Out of scope, minor: the GPS row is cramped at 320px. The w-40 select pushes 'GPS (Rider saja)' onto 3 lines and its subtitle onto 4 lines."]},
+      {"screen": "RiderMotivation", "issues": ["Minor: if notifications are turned off while a message is showing, that message stays until closed. The effect only returns early and never clears the message state."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: on Settings at 320px, narrow the GPS select (e.g. w-32) or let the row wrap",
+    "Optional: in RiderMotivation, call setMessage(null) when notifications === false"
+  ],
+  "critical_code_review_comments": [
+    "Layout.jsx line 287/289: the primary action label and icon now switch white/black by theme. Correct.",
+    "RiderMotivation.jsx line 31: honors notifications === false. Line 41 uses Math.random. Correct."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100% (5/5 requested checks pass)"},
+  "seed_data_creation": "None. Only browser route mocks were used: /api/attendance/on-duty -> on_duty true, and /api/auth/me with settings.notifications overridden.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Log in with page.request POST /api/auth/identify, then /api/auth/login. Grant geolocation. Set the theme with localStorage si4am_theme. To test notifications, override /api/auth/me via route.fetch and change settings.notifications. Clear the localStorage key si4am-motivation-<userId> to force the motivation to show."
+}

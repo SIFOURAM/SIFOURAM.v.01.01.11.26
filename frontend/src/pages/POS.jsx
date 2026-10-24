@@ -281,9 +281,9 @@ export default function POS() {
     <div data-testid="pos-page">
       <PageHeader eyebrow="Point of Sale" title={t("pos")}>
         <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
-          <button data-testid="absen-button" onClick={() => setShowAbsen(true)} className="btn-primary h-10"><CalendarCheck className="w-4 h-4" />{L ? "Absen" : "Attendance"}</button>
+          <button data-testid="absen-button" onClick={() => setShowAbsen(true)} disabled={Boolean(att)} className="btn-primary h-10"><CalendarCheck className="w-4 h-4" />{att ? (L ? "Sudah Absen" : "Attended") : (L ? "Absen" : "Attendance")}</button>
           <div className="flex gap-2">
-            <button data-testid="eod-button" onClick={openEod} disabled={!riderId} className="btn-ghost h-9 text-xs flex-1"><ReceiptText className="w-4 h-4" />{t("endDay")}</button>
+            <button data-testid="eod-button" onClick={openEod} disabled={!riderId || !att} className="btn-ghost h-9 text-xs flex-1"><ReceiptText className="w-4 h-4" />{L ? "Tutup Penjualan" : "Close Sales"}</button>
             <button data-testid="history-button" onClick={openHist} disabled={!riderId} className="btn-ghost h-9 text-xs flex-1"><History className="w-4 h-4" />{t("history")}</button>
           </div>
         </div>
