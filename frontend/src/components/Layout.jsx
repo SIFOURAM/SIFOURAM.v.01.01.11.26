@@ -279,7 +279,7 @@ export default function Layout() {
         <ContextInfo location={loc} category={activeCategory} />
 
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border/30 bg-background/55 backdrop-blur-xl" data-testid="bottom-nav">
-          <div className="flex justify-around px-1 py-0 pb-[max(env(safe-area-inset-bottom),3px)]">
+          <div className="flex min-h-[38px] justify-around px-1 py-1 pb-[max(env(safe-area-inset-bottom),4px)]">
             {main.map((i) => {
               const isPrimaryAction = i.key === "pos" || ((user.role === "barteam" || user.role === "admin") && i.key === "deposit");
               return (
