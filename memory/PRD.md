@@ -462,3 +462,15 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - Stock Awal Rider now requires a review dialog before save; saving persists the existing evidence and opens the
   reviewed WhatsApp handoff. Remaining requested work: total stock summary, editable Rank targets, POS payment
   bottom sheet/QRIS confirmation, Admin Deposit entry, and Purchase workspace.
+
+
+## Feature Change — Bottom Nav Icon Scale & Dummy Account Purge (2026-10-24)
+- Layout bottom navigation: non-primary icons scaled from `h-4 w-4` to `h-6 w-6` and the primary FAB icon
+  from `h-5 w-5` to `h-[1.875rem] w-[1.875rem]` (+50% visual size per user request). FAB container bumped
+  from `h-10 w-10` to `h-12 w-12` to accommodate. `MoreHorizontal` icon matched to `h-6 w-6`.
+- Dummy preview accounts (`dummy_owner`, `dummy_admin`, `dummy_barteam`, `dummy_rider`) and every record
+  they created were purged via `backend/scripts/cleanup_dummy_accounts.py` — removed 4 users plus 241
+  transactional docs (sessions, audit_logs, sales, rider_stock, inventory_tx, menu_stock_tx) and net-reversed
+  10 material stocks and 2 menu stocks back to pre-dummy baselines.
+- Server-side RBAC bypass (`is_dummy_preview`) in `get_user` + `roles` was removed; only the real Owner
+  `baa` (`baazulfikar@gmail.com`) remains and all role gates are strictly enforced again.
