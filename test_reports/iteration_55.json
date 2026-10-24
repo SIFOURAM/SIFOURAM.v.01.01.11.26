@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend testing of the Stock Awal confirm dialog and PDF/Excel auto-download. Stock Awal (owner, desktop 1920 + mobile 390): 14/14 checks passed. Checked: save button disabled until a rider and photo are set; the confirm dialog shows rider, item list (only qty>0), total and photo preview; 'Kembali & Revisi' closes the dialog and keeps qty and photo; submitting with qty>0 when central stock is 0 shows the toast 'Stock central ... tidak mencukupi' and does not open a popup; a qty=0 save sends POST /api/rider-stock (200, photo saved in the record), opens wa.me (api.whatsapp.com/send?phone=6281234567890&text=...) with full details, and the history refreshes. Downloads: 11/11 buttons fire real browser download events with the correct filename and valid file signature (%PDF / PK-xlsx): report-excel/pdf (sales), operations-excel/pdf (inventory and wastage), fin-excel/pdf, wa-stock-button (PDF + WA popup), RiderDashboard export-pdf-button (DataDeposit_SIFOURAM.pdf), PurchaseOrderCard PDF (tested with a mocked GET /api/purchase-orders because the DB has 0 POs). BUG FOUND: the photo is never attached to the WhatsApp share on real phones, because CSP blocks fetch() of data: URLs, so shareWithPhoto always falls back to text-only wa.me.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/rider-stock (store_photo)", "issue": "Object storage upload fails with 401 Unauthorized at integrations.emergentagent.com/objstore/api/v1/storage/init. The photo is saved inline in Mongo as a base64 data URL rather than as /api/files/... (backend.err.log: 'Object storage upload failed, keeping inline image'). Data is still saved, but docs are large and the storage key/integration needs to be checked."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Stock Awal -> Simpan & Kirim WhatsApp (photo share)", "issue": "shareWithPhoto() calls fetch(photo) where photo is a data:image/jpeg;base64 URL. The CSP meta in public/index.html sets connect-src 'self' https://*.preview.emergentagent.com ... with no data: and no blob:, so fetch throws 'TypeError: Failed to fetch'. The catch swallows the error and calls openWA, so navigator.share({files}) never runs and the proof photo is never attached, even on mobile browsers that support Web Share Level 2. Reproduced by stubbing navigator.canShare/share: share was never called, wa.me popup opened instead; a direct fetch('data:...') in the page gives 'Failed to fetch'. The same bug affects photos stored as data URLs whenever object storage fails.", "affected_selectors": ["[data-testid='rider-stock-confirm-submit']"]}
+    ],
+    "design_issues": [
+      {"screen": "Stock Awal confirm dialog", "issues": ["Dialog can be opened and submitted with total 0 cups. Consider warning or disabling when there are no items (optional).", "Dialog looks fine once settled (opaque bg rgb(5,5,5)). The see-through look in early screenshots was only the fade-in animation."]}
+    ]
+  },
+  "test_report_links": ["/app/tests/iter55_setup_rider.py"],
+  "action_items": [
+    "HIGH: Fix shareWithPhoto in frontend/src/lib/helpers.js so the photo is actually attached. Convert the data URL to a Blob without fetch (atob -> Uint8Array -> new Blob), OR add data: blob: to connect-src in the CSP in public/index.html. Then retest that navigator.share receives files[0] as image/jpeg.",
+    "Check object storage credentials (401 on /objstore/api/v1/storage/init) so rider_stock photos are stored as /api/files/... instead of inline base64."
+  ],
+  "critical_code_review_comments": [
+    "shareWithPhoto silently swallows all non-Abort errors, which hid the CSP failure. Log the error, or tell the user when the photo couldn't be attached.",
+    "RiderStock.save shares `photo` (local data URL) rather than data.photo. This is fine, but once object storage works, /api/files URLs will need the same-origin cookie (fetch default credentials 'same-origin' is OK).",
+    "RiderStock.jsx and Reports.jsx put a lot of logic into very long single-line JSX. Splitting these would help maintainability."
+  ],
+  "updated_files": ["/app/tests/iter55_setup_rider.py (new helper, test only)"],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "95% (25/26 checks; photo-attached-to-share failed)"},
+  "seed_data_creation": "Created TEST_Rider55 (username test_rider55) via POST /api/users plus one rider_stock record (qty 0). Both were deleted from Mongo afterwards; no files records were created. DB check after cleanup: users=['baa'], rider_stock=0, all menu stock unchanged (0).",
+  "test_credentials": "owner baa / PIN 130994 (identify -> login) from /app/memory/test_credentials.md",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login through the API in Playwright: page.request.post identify then login, which sets the cookie in the context. All menus have central stock 0, so any rider-stock save with qty>0 returns 400. To test the share path, use add_init_script to stub navigator.canShare=()=>true and navigator.share to record args, then check window.__shared. The DB has no purchase orders; mock GET /api/purchase-orders to test the PO PDF. Download checks use page.expect_download and compare the file magic bytes.",
+  "rca of the issue": "Photo-share RCA: helpers.shareWithPhoto -> fetch(dataURL) -> CSP connect-src has no 'data:' -> TypeError -> caught -> openWA(text) fallback. Repro: owner /rider-stock, pick a rider, upload a photo, Simpan, then Simpan & Kirim WhatsApp on a share-capable browser: only text is sent. Fix: decode the data URL manually or allow data:/blob: in connect-src."
+}

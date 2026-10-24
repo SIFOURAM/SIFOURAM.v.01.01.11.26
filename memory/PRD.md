@@ -492,3 +492,10 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
 - P1: refaktor terencana fungsi backend create_sale, save_deposit, create_invoice; tidak termasuk lingkup perbaikan POS ini.
 - P2: penerimaan barang bertahap per bahan dan riwayat harga pemasok.
 - Verifikasi pengguna: ukuran ikon navigasi terakhir dan hasil pembersihan akun dummy dari sesi sebelumnya.
+
+
+## Fitur — Konfirmasi Stock Awal & Unduh Otomatis PDF/Excel (2026-10-24)
+- Popup konfirmasi Stock Awal: rincian Rider/PIC/tanggal/item/total + foto bukti; tombol "Kembali & Revisi" dan "Simpan & Kirim WhatsApp" (simpan ke DB lalu bagikan teks + file foto via Web Share; fallback wa.me teks).
+- Semua tombol PDF/Excel (Laporan, Operasional, Keuangan, Inventory, Deposit Rider, PO) memakai helper `savePdf`/`saveExcel` (blob + anchor download) → unduh otomatis.
+- Fix: foto data-URL dikonversi via atob (CSP memblokir fetch data:). Diuji iteration_55.
+

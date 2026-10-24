@@ -14,10 +14,18 @@ export const downloadBlob = (blob, filename) => {
 export const savePdf = (doc, filename) => downloadBlob(doc.output("blob"), filename);
 export const saveExcel = (workbook, filename) => downloadBlob(new Blob([XLSX.write(workbook, { bookType: "xlsx", type: "array" })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), filename);
 
+const dataUrlToBlob = (dataUrl) => {
+  const [meta, b64] = dataUrl.split(",");
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: meta.match(/data:([^;]+)/)?.[1] || "image/jpeg" });
+};
+
 export const shareWithPhoto = async (text, photo, filename, phone) => {
   try {
     if (photo && navigator.canShare) {
-      const blob = await (await fetch(photo)).blob();
+      const blob = photo.startsWith("data:") ? dataUrlToBlob(photo) : await (await fetch(photo)).blob();
       const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
       if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "SI FOUR AM", text }); return; }
     }
