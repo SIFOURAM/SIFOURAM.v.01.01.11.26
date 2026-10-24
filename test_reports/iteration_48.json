@@ -1,0 +1,37 @@
+{
+  "summary": "Regression check of the category-tab dropdown crash ('ReferenceError: user is not defined' in selectTab). Layout.jsx selectTab is now `(to) => navigate(to)`. Tested Owner (baa) and Admin (dummy_admin) on desktop: picked every option in every category-tabs-dropdown (Dashboard/Stock/POS/Production/Lainnya) and every Reports subtab (Keuangan/Finance + 6 report views). That was 29 owner and 23 admin selections. All routes loaded with content, there were 0 pageerrors and 0 'user is not defined' errors. The crash is FIXED. One problem remains: Admin can open the /finance route, but the page is blank because the backend still restricts /api/finance/summary to Owner (403 'Forbidden for role admin').",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/finance/summary", "issue": "Declared with Depends(SUPER), so Owner only, and returns 403 'Forbidden for role admin'. The frontend REPORT_ACCESS guard now lets admin into /finance, so Admin sees an empty Finance page with an error toast. Backend role access needs to match the frontend guard (or remove admin from the Finance route/subtab). Seen in backend.out.log.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/gps/active", "issue": "Owner only (SUPER). An admin session triggers repeated 403s in the logs. Something on the admin layout or dashboard is calling it; it should be skipped for admin or allowed."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CategoryTabs subtabs dropdown", "issue": "On plain /reports (no ?view), category-subtabs-dropdown value='/reports' matches no option, so the browser shows 'Keuangan' even though the Sales report is rendered. The label is misleading.", "selector": "[data-testid='category-subtabs-dropdown']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Admin -> Dashboard -> Laporan -> Keuangan (/finance)", "issue": "The route guard allows access, but the API returns 403 and the page shows only the date filter plus a 'Forbidden for role admin' toast.", "affected_selectors": ["[data-testid='category-subtabs-dropdown']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Allow admin on GET /api/finance/summary (change Depends(SUPER) to an owner+admin dependency), or remove admin from REPORT_ACCESS for /finance and from the admin Keuangan subtab. Do the same for any Finance sub-calls such as expenses delete/create if admin should manage them.",
+    "Stop admin pages from calling /api/gps/active, or allow admin on it.",
+    "Show the correct subtab label on bare /reports (map '/reports' to '/reports?view=sales' or add a matching option)."
+  ],
+  "critical_code_review_comments": [
+    "Layout.jsx selectTab no longer references `user`. CategoryTabs uses only its own hooks. Fix verified.",
+    "The frontend role guards (App.js REPORT_ACCESS) and the backend Depends(SUPER) are out of sync. Keep one shared role matrix."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "95% (crash fixed on all 52 dropdown selections; Admin Finance data blocked by backend 403)"},
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login via page.request POST /api/auth/identify then /api/auth/login (cookie session). Owner baa/130994, Admin dummy_admin/100002. Loop over the option values of [data-testid=category-tabs-dropdown] from the start routes /, /rider-stock, /pos-dashboard, /inventory, /user-info (owner) or /settings (admin). Re-check that admin /finance loads data once the backend is fixed.",
+  "rca of the issue": "The original crash happened because selectTab in CategoryTabs referenced `user`, which only exists in the Layout scope. It is now navigate(to) and is verified fixed. Remaining Admin Finance issue: the App.js guard was widened to ['owner','admin'] but the server-side finance_summary still uses SUPER (owner-only), so it returns 403."
+}

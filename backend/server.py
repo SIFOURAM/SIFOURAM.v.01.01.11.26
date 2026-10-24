@@ -3432,7 +3432,7 @@ async def salary(start: str, end: str, rider_id: Optional[str] = None, u=Depends
 
 
 @api.get("/finance/summary")
-async def finance_summary(start: str, end: str, u=Depends(SUPER)):
+async def finance_summary(start: str, end: str, u=Depends(REPORTS)):
     recs = await daily_summaries(start, end)
     expenses = await db.expenses.find({"date": {"$gte": start, "$lte": end}}, NOID).to_list(2000)
     purchases = await db.inventory_tx.find({"date": {"$gte": start, "$lte": end}, "type": "in"}, NOID).to_list(2000)
@@ -3508,7 +3508,7 @@ async def attendance_on_duty(u=Depends(ANY)):
 
 
 @api.get("/gps/active")
-async def gps_active(date: str, u=Depends(SUPER)):
+async def gps_active(date: str, u=Depends(REPORTS)):
     atts = await db.attendance.find({"date": date, "checkout_at": None}, NOID).to_list(100)
     ids = [a["rider_id"] for a in atts]
     pts = await db.gps.find({"rider_id": {"$in": ids}}, NOID).to_list(100)

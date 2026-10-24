@@ -169,7 +169,7 @@ function CategoryTabs({ category, t }) {
         {activeTab.subtabs?.length > 0 && (
           <select
             data-testid="category-subtabs-dropdown"
-            value={currentPath}
+            value={currentPath === "/reports" ? "/reports?view=sales" : currentPath}
             onFocus={() => setIsSelecting(true)}
             onBlur={() => setIsSelecting(false)}
             onChange={(event) => navigate(event.target.value)}
