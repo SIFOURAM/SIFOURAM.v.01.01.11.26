@@ -53,7 +53,7 @@ export default function Settings() {
           {user.role === "rider" && <Row icon={MapPin} title={t("gps")} sub={t("whileUsing")}>
             <select data-testid="gps-mode-select" className="field w-40 h-9" value={s.gps_mode || "while_using"} onChange={(e) => save({ gps_mode: e.target.value })}><option value="while_using">{t("whileUsing")}</option><option value="off">Off</option></select></Row>}
           {user.role === "rider" && <Row icon={Bell} title="Motivasi kerja" sub="Ditampilkan setelah absen dan tiap tiga jam saat aplikasi terbuka">
-            <span data-testid="motivation-random-status" className="text-xs text-muted-foreground">Diacak otomatis saat notifikasi aktif</span>
+            <span data-testid="motivation-random-status" className="text-xs text-muted-foreground">Acak otomatis</span>
           </Row>}
         </Bento>
 

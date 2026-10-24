@@ -28,6 +28,7 @@ export default function RiderMotivation({ user }) {
   const [message, setMessage] = useState(null);
   useEffect(() => {
     if (user.role !== "rider") return undefined;
+    if (user.settings?.notifications === false) return undefined;
     const key = `si4am-motivation-${user.id}`;
     const check = async () => {
       try {
@@ -37,7 +38,7 @@ export default function RiderMotivation({ user }) {
         const now = Date.now();
         if (saved.date === data.date && now - (saved.lastShown || 0) < 3 * 60 * 60 * 1000) return;
         const messages = [...MUSLIM_MESSAGES, ...GENERAL_MESSAGES];
-        const item = messages[Math.floor(now / 1000) % messages.length];
+        const item = messages[Math.floor(Math.random() * messages.length)];
         localStorage.setItem(key, JSON.stringify({ date: data.date, lastShown: now }));
         setMessage(item);
       } catch (error) {

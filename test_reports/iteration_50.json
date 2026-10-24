@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only check at 390x844 and 320x640 for dummy_rider, dummy_admin and baa (owner). Passed: the motivation-preference-select is gone and the motivation-random-status text shows for Rider only. With /attendance/on-duty mocked, RiderMotivation shows messages from both the Muslim and general pools (seen: Stay hungry, Bertebaranlah, Bekerjalah) and the close button works. Settings loads for all 3 roles with no app console errors (only CSP/posthog noise). DOM check: no bottom-nav label goes past its item box or off screen, and no icon overlaps its label (icon bottom == label top, 0px gap). Fails on readability: in dark theme the primary action label (POS / Setoran) uses text-black on a dark nav and is almost invisible, and all labels are 6.4px (text-[0.4rem]), too small to read comfortably on a phone.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Layout bottom nav primary action label", "issue": "In dark theme the label under the floating button (POS for rider/owner, Setoran for admin) is text-black on a dark translucent nav. It is almost invisible in the screenshots. The label sits below the circle (label top 832px, button bottom 822px), so it is not on the orange background.", "selector": "[data-testid=bottomnav-pos] span:last-child, [data-testid=bottomnav-deposit] span:last-child", "priority": "HIGH"},
+      {"component": "Layout bottom nav labels", "issue": "Font size is 6.4px (text-[0.4rem]) on all labels. Nothing is geometrically clipped, but this is too small to read comfortably on a phone. Suggest at least 9-10px (text-[0.6rem]) and a 1-2px icon-label gap; there is room for it at 320px width.", "selector": "[data-testid=bottom-nav]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "RiderMotivation vs notifications toggle", "issue": "The Settings text says messages are randomized 'saat notifikasi aktif' (while notifications are active), but RiderMotivation.jsx never checks settings.notifications. Messages still show when notifications are turned off.", "affected_selectors": ["[data-testid=rider-motivation-notification]", "[data-testid=notifications-toggle]"]}
+    ],
+    "design_issues": [
+      {"screen": "Settings (Rider, mobile)", "issues": ["The 'Motivasi kerja' row is cramped: the long status text on the right pushes the title and subtitle into a very narrow column, so the subtitle wraps one word per line. Make the status text shorter, put it below the subtitle, or let the right side wrap."]},
+      {"screen": "RiderMotivation", "issues": ["The message picks Math.floor(now/1000) % 4, which depends on the clock and is not truly random. It works in practice, but Math.random() would be clearer."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Bottom nav: give the primary action label a readable color in dark theme (e.g. text-white or text-primary instead of text-black)",
+    "Bottom nav: raise the label font from 0.4rem to about 0.6rem and add a small gap between icon and label",
+    "RiderMotivation: skip messages when user settings.notifications === false, as the Settings text promises",
+    "Settings Rider motivation row: fix the cramped layout on mobile"
+  ],
+  "critical_code_review_comments": [
+    "Layout.jsx line 287: isPrimaryAction forces text-black on the label in both themes",
+    "RiderMotivation.jsx: no check of the notifications preference; the item is picked by time modulo, not at random"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "70% (feature 1, 2, 4, 5 pass; feature 3 readability fails for the primary label in dark mode)"},
+  "seed_data_creation": "None. /api/attendance/on-duty was mocked in the browser only (the real rider value is on_duty=false).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Log in through page.request: POST /api/auth/identify, then /api/auth/login. Grant the geolocation permission for the rider GpsGate. Mock /api/attendance/on-duty with route.fulfill and clear localStorage si4am-motivation-* using add_init_script. Then check the bottom-nav label color in dark theme at 390px."
+}
