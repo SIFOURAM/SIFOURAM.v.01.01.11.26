@@ -15,7 +15,7 @@ const Row = ({ icon: Icon, title, sub, children }) => (
     <div className="shrink-0">{children}</div>
   </div>
 );
-const Toggle = ({ on, onChange, testId }) => <button data-testid={testId} onClick={() => onChange(!on)} className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${on ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${on ? "translate-x-6" : "translate-x-1"}`} /></button>;
+const Toggle = ({ on, onChange, testId }) => <button data-testid={testId} onClick={() => onChange(!on)} className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${on ? "bg-primary" : "bg-muted"}`}><span className={`absolute left-1 top-1 w-5 h-5 rounded-full bg-white transition-transform ${on ? "translate-x-5" : "translate-x-0"}`} /></button>;
 
 export default function Settings() {
   const { t, lang, setLang } = useT();
@@ -70,7 +70,7 @@ export default function Settings() {
 
         <BluetoothPrinter />
 
-        <Bento className="fade-up lg:col-span-2" testId="settings-permissions">
+        {user.role === "owner" && <Bento className="fade-up lg:col-span-2" testId="settings-permissions">
           <p className="eyebrow mb-2">{t("permissions")} · {user.role}</p>
           <Row icon={ShieldCheck} title="Modules" sub={`${perms.length} modules`} />
           <div className="flex flex-wrap gap-2 mt-3">{perms.map((p, index) => <span key={`${p}-${index}`} className="text-xs font-semibold rounded-full bg-muted px-3 py-1">{p}</span>)}</div>
@@ -79,7 +79,7 @@ export default function Settings() {
             <div className="flex gap-2"><input data-testid="apps-script-url-input" className="field text-xs" placeholder="https://script.google.com/macros/s/.../exec" value={gsUrl} onChange={(e) => setGsUrl(e.target.value)} />
               <button data-testid="apps-script-save" onClick={async () => { await api.put("/config", { apps_script_url: gsUrl }); toast.success(t("save") + " ✓"); }} className="btn-primary h-10 px-4 text-xs">{t("save")}</button></div>
             <p className="text-[11px] text-muted-foreground mt-2">Tutorial: /app/google-apps-script/README.md</p></div>}
-        </Bento>
+        </Bento>}
       </div>
     </div>
   );
