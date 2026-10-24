@@ -268,7 +268,20 @@ export default function POS() {
     } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
   };
   const openEod = () => api.get("/sales/eod", { params: { rider_id: riderId, date: today() } }).then((r) => setEod(r.data));
-  const closeEod = async () => { try { const { data } = await api.post("/sales/eod/close", { rider_id: riderId, date: today() }); if (user.role === "rider") { window.dispatchEvent(new CustomEvent("si4am-eod-closed", { detail: { sessionEndsAt: data.session_ends_at } })); } setEod(data); loadStock(); toast.success(t("eodDone")); } catch (e) { toast.error(errMsg(e)); } };
+  const closeEod = async () => {
+    try {
+      const { data } = await api.post("/sales/eod/close", { rider_id: riderId, date: today() });
+      if (user.role === "rider") {
+        window.dispatchEvent(new CustomEvent("si4am-eod-closed", { detail: { sessionEndsAt: data.session_ends_at } }));
+      }
+      setEod(data);
+      setCart({});
+      setBcart([]);
+      setPaymentSheet(false);
+      loadStock();
+      toast.success(t("eodDone"));
+    } catch (e) { toast.error(errMsg(e)); }
+  };
   const openHist = () => api.get("/sales", { params: { start: histDate, end: histDate, rider_id: riderId } }).then((r) => setHist(r.data));
   useEffect(() => { if (hist) openHist(); }, [histDate]); // eslint-disable-line
 
@@ -319,8 +332,8 @@ export default function POS() {
         </div>
       </PageHeader>
       <div className="grid gap-6">
-        {ownerPreview && !riderId && <div className="rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary flex gap-2" data-testid="owner-pos-preview"><Lock className="w-4 h-4 shrink-0" />Mode pratinjau Owner: produk dapat dipilih tanpa Absensi atau Stock Awal, tetapi transaksi tidak dapat disimpan.</div>}
-        {!ownerPreview && !isRider && !riderId && <div className="rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary flex gap-2" data-testid="pick-rider-hint"><CalendarCheck className="w-4 h-4 shrink-0" />{L ? "Klik tombol Absen untuk memilih rider dan melakukan absensi." : "Click Attendance to select a rider."}</div>}
+        {ownerPreview && !riderId && <div className="rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary flex gap-2" data-testid="owner-pos-preview"><Lock className="w-4 h-4 shrink-0" />Pilih Rider untuk menampilkan produk dan status absensinya. Transaksi hanya dapat disimpan menggunakan stok Rider yang sudah terverifikasi.</div>}
+        {!ownerPreview && !isRider && !riderId && <div className="rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary flex gap-2" data-testid="pick-rider-hint"><CalendarCheck className="w-4 h-4 shrink-0" />Pilih Rider melalui pilihan di atas sebelum melakukan absensi.</div>}
         <div className="space-y-6">
           {riderId && !stock.has_stock && <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-500 flex gap-2" data-testid="no-stock-warning"><Lock className="w-4 h-4 shrink-0" />{stock.pending_stock ? "Stok awal sudah disiapkan dan menunggu verifikasi Rider sebelum kasir dibuka." : t("noStock")}</div>}
           {riderId && stock.has_stock && (stock.closed || stock.deposited) && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-500 flex gap-2" data-testid="pos-locked"><Lock className="w-4 h-4 shrink-0" />{stock.deposited ? t("depositDone") : t("eodDone")}</div>}

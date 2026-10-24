@@ -118,6 +118,13 @@ frontend:
       - working: false
         agent: "main"
         comment: "Direproduksi dengan akun Owner melalui browser: pageerror att is not defined, pos-page tidak dirender. Tombol POS merujuk state att milik komponen anak Attendance."
+      - working: true
+        agent: "testing"
+        comment: "Iteration 52: 46/46 pemeriksaan frontend lulus. Login/halaman Owner memakai API asli; alur Rider/absen/EOD menggunakan fixture browser, tanpa transaksi asli. Temuan kecil: keranjang tersisa setelah EOD dan petunjuk pemilihan Rider kedaluwarsa."
+      - working: true
+        agent: "main"
+        comment: "State absen dipindahkan ke POS, dibatasi Rider/tanggal, sinkronisasi memakai cleanup respons stale, status gagal muat memiliki retry. Temuan kecil ditangani: keranjang dibersihkan hanya setelah EOD berhasil; petunjuk pemilihan Rider/pratinjau disesuaikan. Menunggu retest terarah."
+
 test_plan:
   current_focus:
     - "POS Owner/Rider tampil tanpa ReferenceError"
