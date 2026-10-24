@@ -106,11 +106,11 @@ user_problem_statement: "POS gagal dirender: ReferenceError att is not defined. 
 frontend:
   - task: "Status absen bersama untuk POS dan dialog Absen"
     implemented: true
-    working: false
+    working: true
     file: "frontend/src/pages/POS.jsx"
     stuck_count: 1
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "user"
@@ -123,7 +123,10 @@ frontend:
         comment: "Iteration 52: 46/46 pemeriksaan frontend lulus. Login/halaman Owner memakai API asli; alur Rider/absen/EOD menggunakan fixture browser, tanpa transaksi asli. Temuan kecil: keranjang tersisa setelah EOD dan petunjuk pemilihan Rider kedaluwarsa."
       - working: true
         agent: "main"
-        comment: "State absen dipindahkan ke POS, dibatasi Rider/tanggal, sinkronisasi memakai cleanup respons stale, status gagal muat memiliki retry. Temuan kecil ditangani: keranjang dibersihkan hanya setelah EOD berhasil; petunjuk pemilihan Rider/pratinjau disesuaikan. Menunggu retest terarah."
+        comment: "State absen dipindahkan ke POS, dibatasi Rider/tanggal, sinkronisasi memakai cleanup respons stale, status gagal muat memiliki retry. Temuan kecil ditangani: keranjang dibersihkan hanya setelah EOD berhasil; petunjuk pemilihan Rider/pratinjau disesuaikan."
+      - working: true
+        agent: "testing"
+        comment: "Iteration 53: 28/28 pemeriksaan terarah lulus, termasuk Rider/PIN gate, absen sekali, reload, keranjang tetap saat EOD gagal dan dibersihkan saat berhasil. Tidak ada pageerror, transaksi asli, akun dummy baru, atau perubahan backend. Seluruh mutasi pengujian menggunakan fixture browser MOCKED."
 
 test_plan:
   current_focus:

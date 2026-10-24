@@ -474,3 +474,20 @@ Advanced coffee-cart business OS (POS, inventory w/ recipes, menu stock, rider s
   10 material stocks and 2 menu stocks back to pre-dummy baselines.
 - Server-side RBAC bypass (`is_dummy_preview`) in `get_user` + `roles` was removed; only the real Owner
   `baa` (`baazulfikar@gmail.com`) remains and all role gates are strictly enforced again.
+
+
+## Perbaikan Error POS — Status Absen (2026-10-24)
+- Permintaan pengguna: perbaiki `ReferenceError: att is not defined` dan uji ulang POS, termasuk absen sekali serta tombol Tutup Penjualan.
+- Akar masalah direproduksi pada browser dengan login Owner asli: komponen POS merujuk state `att` yang hanya didefinisikan di komponen anak Attendance, sehingga seluruh halaman gagal dirender.
+- `frontend/src/pages/POS.jsx`: state absen kini dimiliki POS dan dibagikan ke dialog. Status dimuat berdasarkan Rider/tanggal serta revision sinkronisasi, tanpa menunggu dialog dibuka. Respons lama diabaikan saat berganti Rider.
+- Setelah check-in berhasil, dialog tertutup, tombol menjadi Sudah Absen/nonaktif dan Tutup Penjualan aktif. Loading/gagal muat menonaktifkan kedua tombol; tersedia Coba lagi. Draft PIN/foto dan keranjang tetap tersimpan selama sinkronisasi.
+- Pilihan Rider dipindahkan ke header agar Owner tetap bisa berganti Rider setelah absen; petunjuk halaman disesuaikan. Keranjang dibersihkan hanya setelah EOD berhasil, bukan saat permintaan gagal.
+- Pengujian: iteration_52 lulus 46/46 pemeriksaan; iteration_53 lulus 28/28 pemeriksaan terarah (termasuk peran Rider, PIN gate, reload, EOD gagal/sukses). Login dan pembukaan POS Owner memakai API asli. Alur Rider/absen/EOD memakai fixture browser **MOCKED khusus pengujian** agar data operasional tidak berubah; pengujian backend tidak dilakukan pada tugas frontend ini.
+- Tidak ada perubahan backend, autentikasi, kredensial, atau integrasi. Tidak membuat akun dummy dan tidak menyimpan transaksi/absen/EOD uji ke database. Skrip regresi: `tests/pos_attendance_regression_iter52.py` dan `tests/pos_attendance_regression_iter53.py`.
+
+### Prioritas Berikutnya (belum dikerjakan dalam perbaikan ini)
+- P1: panel Owner untuk menyetujui/menolak permintaan perubahan profil.
+- P1: validasi pemetaan baris nota AI pada Purchase dan verifikasi Gemini dengan konfigurasi Universal Key aktif.
+- P1: refaktor terencana fungsi backend create_sale, save_deposit, create_invoice; tidak termasuk lingkup perbaikan POS ini.
+- P2: penerimaan barang bertahap per bahan dan riwayat harga pemasok.
+- Verifikasi pengguna: ukuran ikon navigasi terakhir dan hasil pembersihan akun dummy dari sesi sebelumnya.

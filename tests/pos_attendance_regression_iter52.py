@@ -1,9 +1,15 @@
-# POS attendance regression (iteration 52) - body for browser_automation tool (has `page`).
-# Real Owner login for smoke; ALL rider/stock/attendance/EOD data is browser-route fixtures (test-only mocks).
-# Mutating endpoints (checkin, eod/close) are served by fixtures; POST /api/sales is aborted for safety.
+# Regresi absensi POS iterasi 52 - isi skrip browser dengan objek `page` tersedia.
+# Login Owner asli untuk uji awal; seluruh data Rider/stok/absensi/EOD memakai fixture browser khusus pengujian.
+# Permintaan checkin dan eod/close dijawab fixture; POST /api/sales dibatalkan demi keamanan.
 import json, asyncio, base64, re
 
-BASE = "https://advanced-pos-system.preview.emergentagent.com"
+# Ambil URL dari frontend/.env dan kredensial Owner dari memory (tanpa hardcode, tidak dicetak)
+def _env(key):
+    for ln in open("/app/frontend/.env"):
+        if ln.startswith(key + "="): return ln.split("=", 1)[1].strip()
+BASE = _env("REACT_APP_BACKEND_URL").rstrip("/")
+_row = [c.strip() for c in re.search(r"^\|\s*owner\s*\|.*$", open("/app/memory/test_credentials.md").read(), re.M).group(0).strip("|").split("|")]
+OWNER_ID, OWNER_PIN = _row[1], _row[4]
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
 results = []
 def rec(name, ok, extra=""):
@@ -54,10 +60,10 @@ async def pick(rid): await page.get_by_test_id("pos-rider-select").select_option
 async def ready_wait(): await page.wait_for_selector('[data-testid="attendance-loading"]', state="detached", timeout=8000)
 
 try:
-    await page.set_viewport_size({"width": 1920, "height": 1080})
-    r = await page.request.post(f"{BASE}/api/auth/identify", data={"identifier": "baa", "terms_accepted": True, "privacy_accepted": True})
+    await page.set_viewport_size({"width": 1920, "height": 800})
+    r = await page.request.post(f"{BASE}/api/auth/identify", data={"identifier": OWNER_ID, "terms_accepted": True, "privacy_accepted": True})
     tok = (await r.json()).get("account_token")
-    r2 = await page.request.post(f"{BASE}/api/auth/login", data={"account_token": tok, "pin": "130994", "remember": True})
+    r2 = await page.request.post(f"{BASE}/api/auth/login", data={"account_token": tok, "pin": OWNER_PIN, "remember": True})
     rec("owner login 200", r2.status == 200)
 
     # --- Smoke: direct /pos (real API, no fixtures)
@@ -166,7 +172,7 @@ try:
     await page.get_by_test_id("eod-close-button").click(); await page.wait_for_timeout(1500)
     rec("eod close posted once", S["close_posts"] == 1)
     rec("eod-close-button gone (closed)", await page.get_by_test_id("eod-close-button").count() == 0)
-    await page.screenshot(path=".screenshots/iter52_eod_closed.jpg", quality=40, full_page=False)
+    await page.screenshot(path=".screenshots/iter52_eod_closed.jpg", quality=20, full_page=False)
     await page.keyboard.press("Escape"); await page.wait_for_timeout(800)
     rec("pos-locked visible", await page.get_by_test_id("pos-locked").is_visible())
     rec("product disabled when locked", await dis("pos-product-fxm1"))
@@ -181,9 +187,9 @@ try:
     await page.get_by_test_id("bottomnav-pos").click(); await page.wait_for_timeout(1000)
     await page.get_by_test_id("category-tabs-dropdown").select_option("/pos"); await page.wait_for_selector('[data-testid="pos-page"]', timeout=10000)
     rec("mobile nav bottomnav-pos -> pos-page", True)
-    await page.screenshot(path=".screenshots/iter52_mobile_pos.jpg", quality=40, full_page=False)
+    await page.screenshot(path=".screenshots/iter52_mobile_pos.jpg", quality=20, full_page=False)
     rec("no pageerror overall", not errors, "; ".join(errors))
 except Exception as e:
     print("EXCEPTION", repr(e))
-    await page.screenshot(path=".screenshots/iter52_exception.jpg", quality=40, full_page=False)
+    await page.screenshot(path=".screenshots/iter52_exception.jpg", quality=20, full_page=False)
 print(f"SUMMARY {sum(1 for _, o in results if o)}/{len(results)} passed; S={ {k: v for k, v in S.items() if k != 'att'} }")
