@@ -285,14 +285,14 @@ export default function Layout() {
               return (
               <NavLink key={i.to} to={i.to} end={i.to === "/"} data-testid={`bottomnav-${i.key}`}
                 className={() => `flex flex-col items-center justify-center gap-0 px-1 py-0 rounded-xl text-[0.4rem] leading-none font-semibold min-w-0 flex-1 transition-colors ${isPrimaryAction ? "text-black" : isBottomItemActive(i) ? "text-primary" : theme === "dark" ? "text-white" : "text-muted-foreground"}`}>
-                <span className={isPrimaryAction ? "flex h-20 w-20 -mt-10 items-center justify-center rounded-full border-4 border-background/40 bg-primary/60 shadow-lg" : "flex items-center justify-center"}>
-                  <i.icon className={isPrimaryAction ? `h-10 w-10 ${theme === "dark" ? "text-white" : "text-black"}` : "h-2 w-2"} />
+                <span className={isPrimaryAction ? "flex h-10 w-10 -mt-5 items-center justify-center rounded-full border-2 border-background/40 bg-primary/60 shadow-lg" : "flex items-center justify-center"}>
+                  <i.icon className={isPrimaryAction ? `h-5 w-5 ${theme === "dark" ? "text-white" : "text-black"}` : "h-4 w-4"} />
                 </span>
                 <span className="truncate max-w-full">{t(i.key)}</span>
               </NavLink>
               );
             })}
-            {more.length > 0 && <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0 px-1 py-0 text-[0.4rem] leading-none font-semibold flex-1 ${activeCategory?.name === "Lainnya" || moreOpen ? "text-primary" : "text-muted-foreground"}`}><MoreHorizontal className="h-2 w-2" /><span>{t("more")}</span></button>}
+            {more.length > 0 && <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0 px-1 py-0 text-[0.4rem] leading-none font-semibold flex-1 ${activeCategory?.name === "Lainnya" || moreOpen ? "text-primary" : "text-muted-foreground"}`}><MoreHorizontal className="h-4 w-4" /><span>{t("more")}</span></button>}
           </div>
           {moreOpen && <div data-testid="more-menu" className="absolute bottom-full inset-x-2 mb-2 grid grid-cols-2 gap-1 p-2 rounded-xl border border-border bg-card shadow-2xl">{CATEGORIES[user.role].find((category) => category.name === "Lainnya")?.tabs.map((tab) => <NavLink key={tab.to} to={tab.to} data-testid={`more-${tab.key}`} className="flex items-center gap-2 h-10 px-3 rounded-lg text-sm font-semibold hover:bg-muted"><tab.icon className="w-4 h-4" />{t(tab.key)}</NavLink>)}</div>}
         </nav>
