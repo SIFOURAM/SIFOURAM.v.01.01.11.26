@@ -179,7 +179,6 @@ function CategoryTabs({ category, t }) {
           </select>
         )}
       </div>
-      {!visible && <button data-testid="category-tabs-reveal-button" onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); setVisible(true); }} onClick={() => setVisible(true)} className="absolute left-1/2 top-1/2 z-10 flex h-[23px] w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center text-primary" aria-label="Tampilkan navigasi tab"><ChevronRight className="h-4 w-4" /></button>}
     </nav>
   );
 }
