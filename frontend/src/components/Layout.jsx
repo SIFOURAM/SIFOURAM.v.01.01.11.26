@@ -279,20 +279,20 @@ export default function Layout() {
         <ContextInfo location={loc} category={activeCategory} />
 
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border/30 bg-background/55 backdrop-blur-xl" data-testid="bottom-nav">
-          <div className="flex justify-around px-1 py-1.5 pb-[max(env(safe-area-inset-bottom),6px)]">
+          <div className="flex justify-around px-1 py-0 pb-[max(env(safe-area-inset-bottom),3px)]">
             {main.map((i) => {
               const isPrimaryAction = i.key === "pos" || ((user.role === "barteam" || user.role === "admin") && i.key === "deposit");
               return (
               <NavLink key={i.to} to={i.to} end={i.to === "/"} data-testid={`bottomnav-${i.key}`}
-                className={() => `flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl text-[0.55rem] font-semibold min-w-0 flex-1 transition-colors ${isPrimaryAction ? "text-black" : isBottomItemActive(i) ? "text-primary" : theme === "dark" ? "text-white" : "text-muted-foreground"}`}>
+                className={() => `flex flex-col items-center justify-center gap-0 px-1 py-0 rounded-xl text-[0.4rem] leading-none font-semibold min-w-0 flex-1 transition-colors ${isPrimaryAction ? "text-black" : isBottomItemActive(i) ? "text-primary" : theme === "dark" ? "text-white" : "text-muted-foreground"}`}>
                 <span className={isPrimaryAction ? "flex h-20 w-20 -mt-10 items-center justify-center rounded-full border-4 border-background/40 bg-primary/60 shadow-lg" : "flex items-center justify-center"}>
-                  <i.icon className={isPrimaryAction ? `h-10 w-10 ${theme === "dark" ? "text-white" : "text-black"}` : "w-[0.95rem] h-[0.95rem]"} />
+                  <i.icon className={isPrimaryAction ? `h-10 w-10 ${theme === "dark" ? "text-white" : "text-black"}` : "h-2 w-2"} />
                 </span>
                 <span className="truncate max-w-full">{t(i.key)}</span>
               </NavLink>
               );
             })}
-            {more.length > 0 && <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0.5 px-1.5 py-1 text-[0.55rem] font-semibold flex-1 ${activeCategory?.name === "Lainnya" || moreOpen ? "text-primary" : "text-muted-foreground"}`}><MoreHorizontal className="w-[0.95rem] h-[0.95rem]" /><span>{t("more")}</span></button>}
+            {more.length > 0 && <button data-testid="bottomnav-more" onClick={() => setMoreOpen(!moreOpen)} className={`flex flex-col items-center gap-0 px-1 py-0 text-[0.4rem] leading-none font-semibold flex-1 ${activeCategory?.name === "Lainnya" || moreOpen ? "text-primary" : "text-muted-foreground"}`}><MoreHorizontal className="h-2 w-2" /><span>{t("more")}</span></button>}
           </div>
           {moreOpen && <div data-testid="more-menu" className="absolute bottom-full inset-x-2 mb-2 grid grid-cols-2 gap-1 p-2 rounded-xl border border-border bg-card shadow-2xl">{CATEGORIES[user.role].find((category) => category.name === "Lainnya")?.tabs.map((tab) => <NavLink key={tab.to} to={tab.to} data-testid={`more-${tab.key}`} className="flex items-center gap-2 h-10 px-3 rounded-lg text-sm font-semibold hover:bg-muted"><tab.icon className="w-4 h-4" />{t(tab.key)}</NavLink>)}</div>}
         </nav>
