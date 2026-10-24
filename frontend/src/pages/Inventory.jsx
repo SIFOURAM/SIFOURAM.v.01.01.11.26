@@ -5,7 +5,7 @@ import { MessageCircle, FileDown, Plus } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { api, errMsg } from "../lib/api";
-import { fmtRp, today, openWA, fmtDate, nowTime } from "../lib/helpers";
+import { fmtRp, today, openWA, fmtDate, nowTime, savePdf } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { PageHeader, Bento, Field, Select, PhotoCapture } from "../components/common";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
@@ -60,7 +60,7 @@ export default function Inventory() {
     const stamp = `${fmtDate(today())} ${nowTime()} WIB`;
     doc.setFontSize(15); doc.text(`SI FOUR AM — ${title}`, 14, 14); doc.setFontSize(9); doc.text(stamp, 14, 20);
     autoTable(doc, { startY: 25, head: [head], body, styles: { fontSize: 8, cellPadding: 2, lineWidth: 0.1, lineColor: [180, 180, 180] }, headStyles: { fillColor: [255, 107, 0] }, theme: "grid" });
-    doc.save(`si4am-${title.toLowerCase().replace(/\s/g, "-")}-${today()}.pdf`);
+    savePdf(doc, `si4am-${title.toLowerCase().replace(/\s/g, "-")}-${today()}.pdf`);
   };
   const stockRows = () => mats.map((m) => [m.name, m.category, `${Math.round(m.stock).toLocaleString()} ${m.unit}`, `${packs(m)} ${m.pack_label}`, `${m.pack_qty} ${m.unit}`, fmtRp(m.pack_price), fmtRp((m.stock / m.pack_qty) * m.pack_price), m.stock <= m.min_stock ? "LOW" : "OK"]);
   const orderRows = () => low.map((m) => { const n = Math.max(1, Math.ceil((m.pack_qty * 2 - m.stock) / m.pack_qty)); return [m.name, `${Math.round(m.stock)} ${m.unit}`, `${n} ${m.pack_label}`, fmtRp(m.pack_price), fmtRp(n * m.pack_price)]; });

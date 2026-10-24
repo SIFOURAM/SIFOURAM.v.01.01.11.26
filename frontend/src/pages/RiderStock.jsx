@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 import { api, errMsg } from "../lib/api";
-import { today, shareReceipt, fmtDate } from "../lib/helpers";
+import { today, shareWithPhoto, fmtDate } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { useAuth } from "../context/AuthContext";
 import { PageHeader, Bento, Field, Select, QtySelect, PhotoCapture, Empty, DateFilter } from "../components/common";
@@ -122,7 +122,7 @@ export default function RiderStock() {
       let m = `*SI FOUR AM STOCK REPORT*\n--------------------------------------\n👤 Crew Name: ${rider.name}\n👥 PIC: ${data.pic_name}\n📅 Report Date: ${fmtDate(date)} (${data.time} WIB)\n--------------------------------------\n\n*STOCK DETAILS:*\n`;
       menus.forEach((mn) => { m += `- ${mn.name}: ${items[mn.id] || 0}\n`; });
       m += `\n--------------------------------------\n📊 GRAND TOTAL: ${data.total} Cups\n--------------------------------------\n_(Photo evidence has been uploaded to the system)_\n\n🔥 Keep up the sales! 🚀☕`;
-      await shareReceipt(null, m, `stock-${rider.name}-${date}.jpg`, rider.whatsapp);
+      await shareWithPhoto(m, photo, `stock-${rider.name}-${date}.jpg`, rider.whatsapp);
       api.get("/rider-stock/history", { params: { rider_id: riderId, start: "2000-01-01", end: "2100-01-01" } }).then((r) => setHistory(r.data));
     } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
   };
@@ -182,10 +182,13 @@ export default function RiderStock() {
         </div>
       </div>
       <Dialog open={confirmSave} onOpenChange={setConfirmSave}>
-        <DialogContent data-testid="rider-stock-confirm-dialog">
-          <DialogHeader><DialogTitle>Data Stock Awal sudah benar?</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Total {total} cup untuk {rider?.name || "Rider"}. Foto bukti akan tersimpan dan WhatsApp akan dibuka untuk meninjau rincian sebelum dikirim.</p>
-          <div className="flex gap-2"><button data-testid="rider-stock-revise-button" onClick={() => setConfirmSave(false)} className="btn-ghost flex-1">Kembali & Revisi</button><button data-testid="rider-stock-confirm-submit" onClick={save} disabled={busy} className="btn-primary flex-1">Simpan & WhatsApp</button></div>
+        <DialogContent data-testid="rider-stock-confirm-dialog" className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Apakah data Stock Awal sudah benar?</DialogTitle></DialogHeader>
+          <div className="text-sm space-y-1"><p>Rider: <b data-testid="rider-stock-confirm-rider">{rider?.name || "—"}</b></p><p>PIC: <b>{user.name}</b></p><p>Tanggal: <b>{fmtDate(date)}</b></p></div>
+          <div data-testid="rider-stock-confirm-items" className="rounded-lg bg-muted p-3 space-y-1 text-sm">{menus.filter((mn) => items[mn.id] > 0).map((mn) => <div key={mn.id} className="flex justify-between"><span>{mn.name}</span><b className="num">{items[mn.id]}</b></div>)}<div className="flex justify-between border-t border-border pt-1 font-bold text-primary"><span>Total</span><span data-testid="rider-stock-confirm-total" className="num">{total} cup</span></div></div>
+          {photo && <img data-testid="rider-stock-confirm-photo" src={photo} alt="Bukti foto stock awal" className="w-full max-h-56 rounded-lg object-cover" />}
+          <p className="text-[11px] text-muted-foreground">Data & foto otomatis tersimpan ke database, lalu rincian + foto bukti dikirim lewat WhatsApp.</p>
+          <div className="flex gap-2"><button data-testid="rider-stock-revise-button" onClick={() => setConfirmSave(false)} className="btn-ghost flex-1">Kembali & Revisi</button><button data-testid="rider-stock-confirm-submit" onClick={save} disabled={busy} className="btn-wa flex-1">Simpan & Kirim WhatsApp</button></div>
         </DialogContent>
       </Dialog>
     </div>

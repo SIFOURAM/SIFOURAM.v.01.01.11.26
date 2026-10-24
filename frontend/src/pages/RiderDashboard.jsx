@@ -6,7 +6,7 @@ import { Trophy, Calendar, MapPin, Wallet, FileDown, Printer, Pencil } from "luc
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { api, errMsg } from "../lib/api";
-import { fmtRp, fmtDate, initials, rangeFor, today } from "../lib/helpers";
+import { fmtRp, fmtDate, initials, rangeFor, today, savePdf } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { useAuth } from "../context/AuthContext";
 import { PageHeader, Bento, Stat, DateFilter, Select, Empty, Field, ReceiptModal, RLine } from "../components/common";
@@ -267,7 +267,7 @@ export default function RiderDashboard() {
   const exportPdf = () => {
     const doc = new jsPDF(); doc.setFontSize(14); doc.text(`SI FOUR AM — ${rider?.name || t("allRiders")} · ${range.start} → ${range.end}`, 14, 16);
     autoTable(doc, { startY: 22, head: [[t("date"), t("rider"), "Cups", "Cash", "QRIS", "Net"]], body: deps.map((d) => [d.date, d.rider_name, d.total_cups, d.total_cash.toLocaleString("id-ID"), d.total_qris.toLocaleString("id-ID"), d.net_cash.toLocaleString("id-ID")]), styles: { fontSize: 8 }, headStyles: { fillColor: [255, 107, 0] } });
-    doc.save("DataDeposit_SIFOURAM.pdf");
+    savePdf(doc, "DataDeposit_SIFOURAM.pdf");
   };
   const printTable = () => {
     const printWindow = window.open("", "_blank");

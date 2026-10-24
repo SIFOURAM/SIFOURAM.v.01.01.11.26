@@ -6,7 +6,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { api, errMsg } from "../lib/api";
-import { fmtRp, openWA } from "../lib/helpers";
+import { fmtRp, openWA, savePdf, saveExcel } from "../lib/helpers";
 import { Bento, DateFilter, Empty, Field, PageHeader, Select, Stat } from "../components/common";
 
 const COLORS = ["#FF6B00", "#14B8A6", "#EAB308", "#EF4444", "#0EA5E9", "#84CC16"];
@@ -118,7 +118,7 @@ export default function Reports() {
       XLSX.utils.json_to_sheet(report.daily_revenue.map((row) => ({ Tanggal: row.date, Revenue: row.revenue }))),
       "Tren Harian",
     );
-    XLSX.writeFile(workbook, `SIFOURAM_${view}_${range.start}_${range.end}.xlsx`);
+    saveExcel(workbook, `SIFOURAM_${view}_${range.start}_${range.end}.xlsx`);
   };
   const buildPdf = () => {
     if (!report) return;
@@ -191,7 +191,7 @@ export default function Reports() {
   };
   const exportPdf = () => {
     const doc = buildPdf();
-    if (doc) doc.save(`SIFOURAM_${view}_${range.start}_${range.end}.pdf`);
+    if (doc) savePdf(doc, `SIFOURAM_${view}_${range.start}_${range.end}.pdf`);
   };
   const sendWhatsApp = () => {
     if (!report) return;
@@ -408,7 +408,7 @@ function OperationsReport({ kind, setView }) {
       XLSX.utils.json_to_sheet(rows.map((row) => operationRow(kind, row))),
       labels[kind],
     );
-    XLSX.writeFile(workbook, `SIFOURAM_${kind}_${range.start}_${range.end}.xlsx`);
+    saveExcel(workbook, `SIFOURAM_${kind}_${range.start}_${range.end}.xlsx`);
   };
   const printPdf = (save = false) => {
     if (!data) return;
@@ -425,7 +425,7 @@ function OperationsReport({ kind, setView }) {
       headStyles: { fillColor: [255, 107, 0] },
       theme: "grid",
     });
-    if (save) doc.save(`SIFOURAM_${kind}_${range.start}_${range.end}.pdf`);
+    if (save) savePdf(doc, `SIFOURAM_${kind}_${range.start}_${range.end}.pdf`);
     else window.open(doc.output("bloburl"), "_blank", "noopener,noreferrer");
   };
   const sendOperationsWhatsApp = () => {

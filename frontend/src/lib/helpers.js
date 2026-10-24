@@ -1,5 +1,29 @@
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
+import * as XLSX from "xlsx";
+
+export const downloadBlob = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.rel = "noopener"; a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+};
+export const savePdf = (doc, filename) => downloadBlob(doc.output("blob"), filename);
+export const saveExcel = (workbook, filename) => downloadBlob(new Blob([XLSX.write(workbook, { bookType: "xlsx", type: "array" })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), filename);
+
+export const shareWithPhoto = async (text, photo, filename, phone) => {
+  try {
+    if (photo && navigator.canShare) {
+      const blob = await (await fetch(photo)).blob();
+      const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
+      if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "SI FOUR AM", text }); return; }
+    }
+  } catch (e) { if (e?.name === "AbortError") return; }
+  openWA(text, phone);
+};
 
 export const fmtRp = (n) => "Rp " + Math.round(Number(n) || 0).toLocaleString("id-ID");
 export const today = () => dayjs().format("YYYY-MM-DD");

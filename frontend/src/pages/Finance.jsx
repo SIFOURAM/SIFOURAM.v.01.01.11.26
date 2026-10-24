@@ -16,7 +16,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { api, errMsg } from "../lib/api";
-import { fmtRp, today, openWA, nowTime } from "../lib/helpers";
+import { fmtRp, today, openWA, nowTime, savePdf, saveExcel } from "../lib/helpers";
 import { useT } from "../lib/i18n";
 import { PageHeader, Bento, Stat, DateFilter, Empty } from "../components/common";
 import ExpenseEntryPanel from "../components/ExpenseEntryPanel";
@@ -42,14 +42,14 @@ export default function Finance() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["SI FOUR AM Financial Report", `${range.start} → ${range.end}`, `${today()} ${nowTime()}`], [], ["Income", d.income], ["Outgoing", d.outgo], ["Net", d.net], ["COGS", d.cogs], ["Gross profit", d.gross_profit], ["Cash balance", d.cash_balance], ["Bank balance", d.bank_balance], ["Inventory value", d.inventory_value]]), "Summary");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([HEAD, ...rows()]), "Ledger");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Category", "Amount"], ...d.by_category.map((c) => [c.name, c.amount])]), "By Category");
-    XLSX.writeFile(wb, `SIFOURAM_Finance_${range.start}_${range.end}.xlsx`);
+    saveExcel(wb, `SIFOURAM_Finance_${range.start}_${range.end}.xlsx`);
   };
   const pdf = () => {
     const doc = new jsPDF({ orientation: "landscape" });
     doc.setFontSize(15); doc.text("SI FOUR AM — Financial Report", 14, 14); doc.setFontSize(9); doc.text(`${range.start} → ${range.end} · ${today()} ${nowTime()} WIB`, 14, 20);
     autoTable(doc, { startY: 25, head: [["Income", "Outgoing", "Net", "COGS", "Gross profit", "Cash", "Bank"]], body: [[d.income, d.outgo, d.net, d.cogs, d.gross_profit, d.cash_balance, d.bank_balance].map((v) => fmtRp(v))], headStyles: { fillColor: [255, 107, 0] }, styles: { fontSize: 8 } });
     autoTable(doc, { head: [HEAD], body: rows().map((r) => r.map((v, i) => (i >= 7 ? Number(v).toLocaleString("id-ID") : v))), styles: { fontSize: 7, cellPadding: 1.5 }, headStyles: { fillColor: [212, 175, 55] }, theme: "grid" });
-    doc.save(`SIFOURAM_Finance_${range.start}_${range.end}.pdf`);
+    savePdf(doc, `SIFOURAM_Finance_${range.start}_${range.end}.pdf`);
   };
   const wa = () => openWA(`*SI FOUR AM — ${t("finance").toUpperCase()}*\n📅 ${range.start} → ${range.end}\n----------------------------------\n📈 ${t("income")}: ${fmtRp(d.income)}\n📉 ${t("outgo")}: ${fmtRp(d.outgo)}\n💰 Net: ${fmtRp(d.net)}\n🧾 COGS: ${fmtRp(d.cogs)}\n📊 Gross profit: ${fmtRp(d.gross_profit)}\n💵 Cash: ${fmtRp(d.cash_balance)}\n🏦 Bank: ${fmtRp(d.bank_balance)}\n📦 Inventory: ${fmtRp(d.inventory_value)}\n----------------------------------\n${d.by_category.map((c) => `• ${c.name}: ${fmtRp(c.amount)}`).join("\n")}`);
 

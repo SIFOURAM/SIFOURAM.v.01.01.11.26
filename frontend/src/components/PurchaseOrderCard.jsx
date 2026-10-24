@@ -4,7 +4,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import { api, errMsg } from "../lib/api";
-import { fmtRp, openWA } from "../lib/helpers";
+import { fmtRp, openWA, savePdf } from "../lib/helpers";
 import { Field, PhotoCapture } from "./common";
 
 const STATUS_LABELS = {
@@ -107,7 +107,7 @@ export default function PurchaseOrderCard({ order, user, onChanged }) {
       styles: { fontSize: 8 },
       theme: "grid",
     });
-    doc.save(`${order.po_number || "SI-FOUR-AM-PO"}.pdf`);
+    savePdf(doc, `${order.po_number || "SI-FOUR-AM-PO"}.pdf`);
   };
 
   const share = async () => {
