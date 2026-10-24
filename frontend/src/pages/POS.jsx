@@ -45,38 +45,37 @@ function PinGate() {
   );
 }
 
-function Attendance({ rider, riders, riderId, setRiderId, isRider }) {
+function Attendance({ rider, riderId, att, ready, onSaved }) {
   const { t } = useT();
-  const [att, setAtt] = useState(null);
   const [pin, setPin] = useState("");
   const [photo, setPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
-  const load = useCallback(() => {
-    if (!riderId) return;
-    api.get("/attendance", { params: { start: today(), end: today(), rider_id: riderId } })
-      .then((response) => setAtt(response.data[0] || null));
-  }, [riderId]);
-  useEffect(() => { load(); }, [load]);
   const act = async (kind) => {
+    if (!ready || busy) return;
     if (!photo) return toast.error(t("photoRequired"));
     if (pin.length !== 6) return toast.error("Masukkan PIN Rider 6 angka.");
     setBusy(true);
     let pos = {};
     try { const p = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000 })); pos = { lat: p.coords.latitude, lng: p.coords.longitude }; } catch { }
-    try { await api.post(`/attendance/${kind}`, { rider_id: riderId, pin, photo, date: today(), ...pos }); toast.success(kind === "checkin" ? t("checkIn") + " ✓" : t("checkOut") + " ✓"); setPin(""); setPhoto(null); load(); }
+    try {
+      const { data } = await api.post(`/attendance/${kind}`, { rider_id: riderId, pin, photo, date: today(), ...pos });
+      onSaved(data);
+      toast.success(kind === "checkin" ? t("checkIn") + " ✓" : t("checkOut") + " ✓");
+      setPin("");
+      setPhoto(null);
+    }
     catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
   };
   return (
     <Bento gold className="fade-up" testId="attendance-card">
       <p className="eyebrow mb-3">{t("attendance")} · {today()}</p>
-      {!isRider && <Field label={t("selectRider")} className="mb-3"><Select testId="pos-rider-select" value={riderId} onChange={setRiderId} placeholder="—" options={riders.map((r) => ({ value: r.id, label: r.name }))} /></Field>}
-      {isRider && <p className="font-heading font-bold text-lg mb-3">{rider?.name}</p>}
+      <p data-testid="attendance-rider-name" className="font-heading font-bold text-lg mb-3">{rider?.name}</p>
       {att ? (
         <div className="text-sm space-y-1 mb-3"><p className="flex justify-between"><span className="text-muted-foreground">{t("checkIn")}</span><span className="num font-semibold text-emerald-500">{att.checkin_time || fmtTime(att.checkin_at)}</span></p>
           <p className="flex justify-between"><span className="text-muted-foreground">{t("checkOut")}</span><span className="num font-semibold">{att.checkout_at ? (att.checkout_time || fmtTime(att.checkout_at)) : "—"}</span></p>
           <div className="flex gap-2 pt-1">{att.checkin_photo && <img src={att.checkin_photo} alt="" className="w-14 h-14 rounded-xl object-cover" />}{att.checkout_photo && <img src={att.checkout_photo} alt="" className="w-14 h-14 rounded-xl object-cover" />}</div></div>
       ) : <p className="text-xs text-muted-foreground mb-3">—</p>}
-      {(!att || !att.checkout_at) && riderId && (
+      {ready && (!att || !att.checkout_at) && riderId && (
         <div className="space-y-3">
           <PhotoCapture value={photo} onChange={setPhoto} testId="attendance-photo" />
           <input data-testid="attendance-pin-input" type="password" inputMode="numeric" maxLength="6" className="field" placeholder="PIN Rider (6 angka)" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} />
@@ -132,6 +131,34 @@ export default function POS() {
   const [showAbsen, setShowAbsen] = useState(false);
   const [clientId, setClientId] = useState(crypto.randomUUID());
   const revision = useLiveRevision();
+  const attendanceDate = today();
+  const [attendance, setAttendance] = useState(null);
+  const [attendanceRetry, setAttendanceRetry] = useState(0);
+  const currentAttendance = attendance?.riderId === riderId && attendance?.date === attendanceDate ? attendance : null;
+  const att = currentAttendance?.record || null;
+  const attendanceReady = !!currentAttendance && !currentAttendance.loading && !currentAttendance.error;
+
+  useEffect(() => {
+    if (!riderId) return;
+    let active = true;
+    setAttendance((previous) => ({
+      riderId, date: attendanceDate, loading: true, error: "",
+      record: previous?.riderId === riderId && previous?.date === attendanceDate ? previous.record : null,
+    }));
+    api.get("/attendance", { params: { start: attendanceDate, end: attendanceDate, rider_id: riderId } })
+      .then(({ data }) => {
+        if (active) setAttendance({ riderId, date: attendanceDate, record: data[0] || null, loading: false, error: "" });
+      })
+      .catch((error) => {
+        if (active) setAttendance({ riderId, date: attendanceDate, record: null, loading: false, error: errMsg(error) });
+      });
+    return () => { active = false; };
+  }, [riderId, attendanceDate, revision, attendanceRetry]);
+
+  const saveAttendance = (record) => {
+    setAttendance({ riderId: record.rider_id, date: record.date, record, loading: false, error: "" });
+    setShowAbsen(false);
+  };
 
   useEffect(() => { if (!isRider) api.get("/users", { params: { role: "rider" } }).then((r) => setRiders(r.data)); }, [isRider, revision]);
   useEffect(() => {
@@ -281,9 +308,12 @@ export default function POS() {
     <div data-testid="pos-page">
       <PageHeader eyebrow="Point of Sale" title={t("pos")}>
         <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
-          <button data-testid="absen-button" onClick={() => setShowAbsen(true)} disabled={Boolean(att)} className="btn-primary h-10"><CalendarCheck className="w-4 h-4" />{att ? (L ? "Sudah Absen" : "Attended") : (L ? "Absen" : "Attendance")}</button>
+          {!isRider && <Field label={t("selectRider")}><Select testId="pos-rider-select" value={riderId} onChange={setRiderId} placeholder="Pilih Rider" options={riders.map((r) => ({ value: r.id, label: r.name }))} /></Field>}
+          <button data-testid="absen-button" onClick={() => setShowAbsen(true)} disabled={!riderId || !attendanceReady || Boolean(att)} className="btn-primary h-10"><CalendarCheck className="w-4 h-4" />{att ? (L ? "Sudah Absen" : "Attended") : (L ? "Absen" : "Attendance")}</button>
+          {riderId && !currentAttendance?.error && !attendanceReady && <p data-testid="attendance-loading" role="status" className="text-xs text-muted-foreground">Memuat status absen…</p>}
+          {currentAttendance?.error && <div data-testid="attendance-load-error" role="alert" className="text-xs text-red-500">Status absen gagal dimuat. <button data-testid="attendance-retry-button" onClick={() => setAttendanceRetry((attempt) => attempt + 1)} className="underline">Coba lagi</button></div>}
           <div className="flex gap-2">
-            <button data-testid="eod-button" onClick={openEod} disabled={!riderId || !att} className="btn-ghost h-9 text-xs flex-1"><ReceiptText className="w-4 h-4" />{L ? "Tutup Penjualan" : "Close Sales"}</button>
+            <button data-testid="eod-button" onClick={openEod} disabled={!riderId || !attendanceReady || !att} className="btn-ghost h-9 text-xs flex-1"><ReceiptText className="w-4 h-4" />{L ? "Tutup Penjualan" : "Close Sales"}</button>
             <button data-testid="history-button" onClick={openHist} disabled={!riderId} className="btn-ghost h-9 text-xs flex-1"><History className="w-4 h-4" />{t("history")}</button>
           </div>
         </div>
@@ -464,7 +494,7 @@ export default function POS() {
 
       <Dialog open={showAbsen} onOpenChange={(o) => !o && setShowAbsen(false)}>
         <DialogContent data-testid="absen-dialog"><DialogHeader><DialogTitle>{L ? "Absen Kehadiran" : "Attendance"}</DialogTitle></DialogHeader>
-          <Attendance rider={rider} riders={riders} riderId={riderId} setRiderId={setRiderId} isRider={isRider} />
+          <Attendance key={`${riderId}-${attendanceDate}`} rider={rider} riderId={riderId} att={att} ready={attendanceReady} onSaved={saveAttendance} />
         </DialogContent>
       </Dialog>
       <Dialog open={!!qrisPreview} onOpenChange={() => setQrisPreview(null)}><DialogContent data-testid="pos-qris-preview" className="z-[90] max-w-sm"><DialogHeader><DialogTitle>QRIS · {qrisPreview?.name}</DialogTitle></DialogHeader>{qrisPreview && <><img src={qrisPreview.qris_photo} alt={`QRIS ${qrisPreview.name}`} className="w-full aspect-square object-contain bg-white rounded-lg p-3" /><p className="text-xs text-muted-foreground">Tampilkan QR ini kepada pelanggan. Setelah pelanggan selesai membayar, kembali ke POS lalu tekan tombol Bayar.</p><button data-testid="pos-qris-confirm-button" onClick={() => { setQrisConfirmed(true); setQrisPreview(null); }} className="btn-primary w-full">Lanjut ke tombol Bayar</button></>}</DialogContent></Dialog>

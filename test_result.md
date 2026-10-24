@@ -101,3 +101,32 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "POS gagal dirender: ReferenceError att is not defined. Pengguna menyetujui perbaikan error dan pengujian ulang POS serta alur absen/Tutup Penjualan."
+frontend:
+  - task: "Status absen bersama untuk POS dan dialog Absen"
+    implemented: true
+    working: false
+    file: "frontend/src/pages/POS.jsx"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "POS menampilkan Runtime error: att is not defined."
+      - working: false
+        agent: "main"
+        comment: "Direproduksi dengan akun Owner melalui browser: pageerror att is not defined, pos-page tidak dirender. Tombol POS merujuk state att milik komponen anak Attendance."
+test_plan:
+  current_focus:
+    - "POS Owner/Rider tampil tanpa ReferenceError"
+    - "Status absen dimuat tanpa membuka dialog; tombol Tutup Penjualan mengikuti status"
+    - "Absen berhasil langsung memperbarui tombol; status bertahan saat reload"
+    - "Pergantian Rider, respons tertunda, gagal muat, dan sinkronisasi tidak mencampur status"
+    - "Keranjang dan penutupan penjualan tetap berjalan"
+  test_all: false
+  test_priority: "high_first"
+agent_communication:
+  - agent: "main"
+    message: "Batasi pengujian ke POS. Jangan ubah akun Owner, menghidupkan dummy/bypass, atau menulis transaksi operasional asli. Gunakan fixture browser untuk Rider dan pengujian terisolasi bila diperlukan; laporkan bagian MOCKED. Kredensial Owner di memory/test_credentials.md."
