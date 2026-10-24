@@ -1,0 +1,24 @@
+{
+  "summary": "Regression retest after the Admin report access fixes. Backend: GET /api/finance/summary and GET /api/gps/active now use Depends(REPORTS). Owner and admin get 200, barteam gets 403, unauthenticated gets 401. 7/7 pytest passed. Frontend (desktop 1920): ran every category-tabs-dropdown option and every Reports subtab. Owner had 34 selections and Admin 27. Every subtab landed on its exact URL. There were 0 pageerrors, 0 'user is not defined' errors, and 0 API responses >=400 across the whole run. Admin /finance shows the KPI cards, the expenses form and the ledger with no 403. The Admin dashboard made no /api/gps/active 403 calls over 5s. Bare /reports shows the subtab as 'Penjualan' (value /reports?view=sales). All 3 issues from iteration_48 are fixed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CategoryTabs bar (desktop 1920)", "issues": ["On Dashboard > Laporan, category-tabs-dropdown ('Laporan') stretches across most of the bar width even though it has a max-w class. Cosmetic only, low priority."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter49_admin_reports_access.py", "/app/test_reports/pytest/pytest_iter49.xml"],
+  "action_items": ["Optional: limit the width of category-tabs-dropdown on desktop."],
+  "critical_code_review_comments": [
+    "The REPORTS role dependency (owner+admin) now matches the App.js REPORT_ACCESS guard for finance and gps. Consider one shared role matrix to prevent future drift.",
+    "Customers.jsx also calls /gps/active when the promo dialog opens; it is fine for owner/admin but would 403 silently (.catch) for other roles if they can reach it."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter49_admin_reports_access.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% (61 dropdown selections, finance, gps and label checks)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login via page.request POST /api/auth/identify then /api/auth/login (cookie). Owner baa/130994, Admin dummy_admin/100002, Barteam dummy_barteam/100003. Start routes for the dropdown loop: /, /rider-stock, /pos-dashboard, /inventory, /user-info (owner) or /settings (admin).",
+  "rca of the issue": "The iteration_48 issues came from backend SUPER (owner-only) dependencies conflicting with the widened frontend guard, plus the subtab select value '/reports' matching no option. Both are fixed: REPORTS dependency on the backend, and value mapping in Layout.jsx."
+}
